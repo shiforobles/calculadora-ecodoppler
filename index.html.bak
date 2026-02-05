@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description"
+        content="Calculadora profesional de Ecocardiograma Doppler Cardíaco para generación de reportes clínicos">
+    <title>Eco Doppler Cardíaco - Calculadora Profesional</title>
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap"
+        rel="stylesheet">
+
+    <!-- Styles -->
+    <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+
+    <div class="container">
+        <header class="app-header">
+            <h1>Eco Doppler Cardíaco</h1>
+            <p class="version">Versión 13.0 Pro</p>
+        </header>
+
+        <!-- Datos Físicos y Filiación -->
+        <section class="card">
+            <h2 class="section-title">Datos del Paciente</h2>
+            <div class="grid">
+                <div class="form-group">
+                    <label for="paciente_id">HC / ID Paciente</label>
+                    <input type="text" id="paciente_id" placeholder="Ej: JP-1234">
+                </div>
+                <div class="form-group">
+                    <label for="edad">Edad (años)</label>
+                    <input type="number" id="edad" placeholder="Ej: 65" min="0" max="120">
+                </div>
+                <div class="form-group">
+                    <label for="sexo">Sexo</label>
+                    <select id="sexo">
+                        <option value="M">Masculino</option>
+                        <option value="F">Femenino</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="peso">Peso (kg)</label>
+                    <input type="number" id="peso" placeholder="kg" min="20" max="300" step="0.1">
+                </div>
+                <div class="form-group">
+                    <label for="altura">Altura (cm)</label>
+                    <input type="number" id="altura" placeholder="cm" min="100" max="250" step="1">
+                </div>
+                <div class="form-group">
+                    <label for="sc_display">Superficie Corporal (m²)</label>
+                    <input type="text" id="sc_display" class="calculated-value" disabled>
+                </div>
+                <div class="form-group">
+                    <label for="ventana">Calidad Ventana Acústica</label>
+                    <select id="ventana">
+                        <option value="no">Buena</option>
+                        <option value="si">Mala Ventana (Limita evaluación)</option>
+                    </select>
+                </div>
+            </div>
+        </section>
+
+        <!-- VI y Motilidad Parietal -->
+        <section class="card">
+            <h2 class="section-title">1. Ventrículo Izquierdo y Motilidad</h2>
+
+            <div class="grid">
+                <div class="form-group">
+                    <label for="siv">Septum (mm)</label>
+                    <input type="number" id="siv" value="9" min="5" max="25" step="1">
+                </div>
+                <div class="form-group">
+                    <label for="pp">Pared Posterior (mm)</label>
+                    <input type="number" id="pp" value="9" min="5" max="25" step="1">
+                </div>
+                <div class="form-group">
+                    <label for="ddvi">Diámetro Diastólico (mm)</label>
+                    <input type="number" id="ddvi" value="46" min="30" max="75" step="1">
+                </div>
+                <div class="form-group">
+                    <label for="dsvi">Diámetro Sistólico (mm)</label>
+                    <input type="number" id="dsvi" placeholder="Opcional" min="20" max="60" step="1">
+                </div>
+                <div class="form-group">
+                    <label for="fevi">FEy (%) Simpson</label>
+                    <input type="number" id="fevi" value="65" min="10" max="100" step="1">
+                </div>
+            </div>
+
+            <!-- Masa VI Display -->
+            <div class="info-banner">
+                <div id="masa_info" class="live-calc">
+                    <span class="calc-label">Masa VI:</span>
+                    <span class="calc-value">-</span>
+                </div>
+            </div>
+
+            <!-- Ritmo y Conducción -->
+            <div class="grid grid-2col">
+                <div class="form-group">
+                    <label for="ritmo">Ritmo Cardíaco</label>
+                    <select id="ritmo">
+                        <option value="sinusal">Ritmo Sinusal</option>
+                        <option value="fa">Fibrilación Auricular (FA)</option>
+                        <option value="flutter">Aleteo / Flutter Auricular</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="conduccion">Conducción / QRS</label>
+                    <select id="conduccion">
+                        <option value="normal">QRS Angosto / Normal</option>
+                        <option value="bcri">BCRI (Bloqueo Rama Izq)</option>
+                        <option value="bcrd">BCRD (Bloqueo Rama Der)</option>
+                        <option value="marcapasos">Marcapasos</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Motilidad -->
+            <div class="form-group full-width">
+                <label for="motilidad_global">Motilidad Parietal Global</label>
+                <select id="motilidad_global">
+                    <option value="normal">Conservada (Sin alteraciones segmentarias)</option>
+                    <option value="hipo_global">Hipocinesia Global (Sin zona focal)</option>
+                    <option value="segmentaria">Alteraciones Segmentarias (Infarto/Isquemia)</option>
+                </select>
+            </div>
+
+            <!-- Motilidad Segmentaria (Hidden by default) -->
+            <div id="box_motilidad" class="advanced-box" style="display: none;">
+                <h3 class="subsection-title">Detalle Alteración Segmentaria</h3>
+                <div class="grid grid-2col">
+                    <div class="form-group">
+                        <label for="mot_territorio">Territorio Arterial</label>
+                        <select id="mot_territorio">
+                            <option value="da">Territorio DA (Anterior/Septal/Apex)</option>
+                            <option value="cd">Territorio CD (Inferior/Inf-Septal)</option>
+                            <option value="cx">Territorio Cx (Lateral/Posterior)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="mot_tipo">Tipo de Alteración</label>
+                        <select id="mot_tipo">
+                            <option value="hipocinesia">Hipocinesia Segmentaria</option>
+                            <option value="aquinesia">Acinesia/Aquinesia</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Análisis Diastólico -->
+            <div class="subsection">
+                <h3 class="subsection-title">🧠 Análisis Diastólico (ASE 2016)</h3>
+
+                <div class="grid">
+                    <div class="form-group">
+                        <label for="onda_e">Onda E (cm/s)</label>
+                        <input type="number" id="onda_e" placeholder="Doppler Mitral" min="20" max="200" step="1">
+                    </div>
+                    <div class="form-group">
+                        <label for="onda_a">Onda A (cm/s)</label>
+                        <input type="number" id="onda_a" placeholder="Doppler Mitral" min="10" max="150" step="1">
+                    </div>
+                    <div class="form-group">
+                        <label for="onda_e_prime">e' Promedio (cm/s)</label>
+                        <input type="number" id="onda_e_prime" placeholder="TDI Septal+Lateral" min="3" max="25"
+                            step="0.1">
+                    </div>
+                    <div class="form-group">
+                        <label for="ea_ratio_display">Relación E/A</label>
+                        <input type="text" id="ea_ratio_display" class="calculated-value" disabled>
+                    </div>
+                    <div class="form-group">
+                        <label for="ee_ratio_display">Relación E/e'</label>
+                        <input type="text" id="ee_ratio_display" class="calculated-value" disabled>
+                    </div>
+                </div>
+
+                <!-- Semáforo Diastólico -->
+                <div id="diastole_result" class="diastole-badge status-neutral">
+                    Esperando datos Doppler...
+                </div>
+                <input type="hidden" id="diastole_text_hidden">
+            </div>
+        </section>
+
+        <!-- Aurícula Izquierda -->
+        <section class="card">
+            <h2 class="section-title">2. Aurícula Izquierda</h2>
+            <div class="grid">
+                <div class="form-group">
+                    <label for="vol_ai">Vol. Indexado AI (ml/m²)</label>
+                    <input type="number" id="vol_ai" value="28" min="10" max="100" step="1">
+                </div>
+            </div>
+        </section>
+
+        <!-- Válvula Mitral -->
+        <section class="card">
+            <h2 class="section-title">3. Válvula Mitral</h2>
+            <div class="grid">
+                <div class="form-group grid-span-2">
+                    <label for="morf_mitral">Morfología</label>
+                    <select id="morf_mitral">
+                        <option value="Valvas finas y móviles, apertura conservada">Valvas finas y móviles (Normal)
+                        </option>
+                        <option value="Leve engrosamiento fibroso de las valvas sin restricción de apertura">Leve
+                            engrosamiento fibroso</option>
+                        <option value="Calcificación del anillo mitral (MAC) sin afectación de las valvas">Calcificación
+                            Anillo (MAC)</option>
+                        <option value="Esclerocalcificación valvular severa con restricción de la movilidad">
+                            Esclerocalcificación Severa</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="im_grado">Insuficiencia Mitral</label>
+                    <select id="im_grado">
+                        <option value="no">No significativa</option>
+                        <option value="leve">Leve</option>
+                        <option value="moderada">Moderada</option>
+                        <option value="severa">Severa</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="em_grado">Estenosis Mitral</label>
+                    <select id="em_grado">
+                        <option value="no">No</option>
+                        <option value="leve">Leve</option>
+                        <option value="moderada">Moderada</option>
+                        <option value="severa">Severa</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Caja Avanzada Mitral (Progressive Disclosure) -->
+            <div id="box_mitral" class="advanced-box box-mitral" style="display: none;">
+                <h3 class="subsection-title">Cuantificación Valvular Mitral</h3>
+
+                <!-- Estenosis Mitral -->
+                <div id="em_fields" style="display: none;">
+                    <h4 style="font-size: 0.9rem; color: #DC2626; margin-bottom: 0.5rem; font-weight: 600;">Estenosis
+                        Mitral</h4>
+                    <div class="grid grid-2col">
+                        <div class="form-group">
+                            <label for="em_grad_medio">Gradiente Medio (mmHg)</label>
+                            <input type="number" id="em_grad_medio" step="0.1">
+                        </div>
+                        <div class="form-group">
+                            <label for="em_area_pht">Área por PHT (cm²)</label>
+                            <input type="number" id="em_area_pht" step="0.01">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Insuficiencia Mitral -->
+                <div id="im_fields" style="display: none;">
+                    <h4 style="font-size: 0.9rem; color: #DC2626; margin-bottom: 0.5rem; font-weight: 600;">
+                        Insuficiencia Mitral</h4>
+                    <div class="grid">
+                        <div class="form-group">
+                            <label for="im_vc">Vena Contracta (mm)</label>
+                            <input type="number" id="im_vc" step="0.1">
+                        </div>
+                        <div class="form-group">
+                            <label for="im_ore">ORE (cm²)</label>
+                            <input type="number" id="im_ore" step="0.01" placeholder="PISA">
+                        </div>
+                        <div class="form-group">
+                            <label for="im_vr">Vol. Regurgitante (ml)</label>
+                            <input type="number" id="im_vr" step="1" placeholder="PISA">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Válvula Aórtica y Aorta -->
+        <section class="card">
+            <h2 class="section-title">4. Válvula Aórtica y Aorta</h2>
+            <div class="grid">
+                <div class="form-group grid-span-2">
+                    <label for="morf_aortica">Morfología Valvular</label>
+                    <select id="morf_aortica">
+                        <option value="Válvula trivalva, sigmoideas finas y móviles">Trivalva Fina (Normal)</option>
+                        <option value="Esclerosis valvular aórtica (engrosamiento focal) sin restricción de apertura">
+                            Esclerosis (Sin restricción)</option>
+                        <option
+                            value="Esclerocalcificación valvular severa con restricción significativa de la apertura">
+                            Esclerocalcificación Severa (EAo)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="ea_grado">Estenosis Aórtica</label>
+                    <select id="ea_grado">
+                        <option value="no">No</option>
+                        <option value="leve">Leve</option>
+                        <option value="moderada">Moderada</option>
+                        <option value="severa">Severa</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="ia_grado">Insuficiencia Aórtica</label>
+                    <select id="ia_grado">
+                        <option value="no">No</option>
+                        <option value="leve">Leve</option>
+                        <option value="moderada">Moderada</option>
+                        <option value="severa">Severa</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="ao_raiz">Raíz Aórtica (mm)</label>
+                    <input type="number" id="ao_raiz" placeholder="Ej: 32" min="20" max="60" step="1">
+                </div>
+                <div class="form-group">
+                    <label for="ao_asc">Ao. Ascendente (mm)</label>
+                    <input type="number" id="ao_asc" placeholder="Ej: 34" min="20" max="70" step="1">
+                </div>
+            </div>
+
+            <!-- Caja Avanzada Aorta (Progressive Disclosure) -->
+            <div id="box_aorta" class="advanced-box box-aorta" style="display: none;">
+                <h3 class="subsection-title">Cuantificación Valvular Aórtica</h3>
+
+                <!-- Estenosis Aórtica -->
+                <div id="ea_fields" style="display: none;">
+                    <h4 style="font-size: 0.9rem; color: #FD7E14; margin-bottom: 0.5rem; font-weight: 600;">Estenosis
+                        Aórtica</h4>
+                    <div class="grid">
+                        <div class="form-group">
+                            <label for="ea_vmax">Vmax (m/s)</label>
+                            <input type="number" id="ea_vmax" step="0.1">
+                        </div>
+                        <div class="form-group">
+                            <label for="ea_grad_medio">Gradiente Medio (mmHg)</label>
+                            <input type="number" id="ea_grad_medio" step="1">
+                        </div>
+                        <div class="form-group">
+                            <label for="ea_ava">AVA (cm²)</label>
+                            <input type="number" id="ea_ava" step="0.01" placeholder="Continuidad">
+                        </div>
+                        <div class="form-group">
+                            <label for="ea_ava_index">AVA Index (cm²/m²)</label>
+                            <input type="number" id="ea_ava_index" step="0.01">
+                        </div>
+                        <div class="form-group">
+                            <label for="ea_coef">Coef. Adimensional</label>
+                            <input type="number" id="ea_coef" step="0.01" placeholder="VTI ratio">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Insuficiencia Aórtica -->
+                <div id="ia_fields" style="display: none;">
+                    <h4 style="font-size: 0.9rem; color: #FD7E14; margin-bottom: 0.5rem; font-weight: 600;">
+                        Insuficiencia Aórtica</h4>
+                    <div class="grid grid-2col">
+                        <div class="form-group">
+                            <label for="ia_jet_ratio">Jet/TSVI (%)</label>
+                            <input type="number" id="ia_jet_ratio" step="1">
+                        </div>
+                        <div class="form-group">
+                            <label for="ia_pht">PHT (ms)</label>
+                            <input type="number" id="ia_pht" step="1">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Cavidades Derechas y Pericardio -->
+        <section class="card">
+            <h2 class="section-title">5, 6 & 7. Cavidades Derechas y Pericardio</h2>
+            <div class="grid">
+                <div class="form-group">
+                    <label for="tapse">TAPSE (mm)</label>
+                    <input type="number" id="tapse" value="22" min="5" max="40" step="1">
+                </div>
+                <div class="form-group">
+                    <label for="vel_it">Vel. Max IT (m/s)</label>
+                    <input type="number" id="vel_it" value="1.5" min="0.5" max="5" step="0.1">
+                </div>
+                <div class="form-group">
+                    <label for="pad">PAD (mmHg)</label>
+                    <input type="number" id="pad" value="5" min="0" max="20" step="1">
+                </div>
+                <div class="form-group">
+                    <label for="it_grado">Insuficiencia Tricúspide</label>
+                    <select id="it_grado">
+                        <option value="leve">Leve</option>
+                        <option value="moderada">Moderada</option>
+                        <option value="severa">Severa</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- PSAP Display -->
+            <div class="info-banner">
+                <div id="psap_info" class="live-calc">
+                    <span class="calc-label">PSAP Estimada:</span>
+                    <span class="calc-value">-</span>
+                </div>
+            </div>
+        </section>
+
+        <!-- Mini Calculadoras -->
+        <section class="card">
+            <h2 class="section-title">🧮 Calculadoras Hemodinámicas</h2>
+
+            <!-- Ecuación de Continuidad -->
+            <div class="mini-calc-container">
+                <button type="button" class="calc-toggle-btn" id="toggle_continuidad">
+                    ▶ Ecuación de Continuidad (AVA)
+                </button>
+                <div id="calc_continuidad" class="mini-calc-box" style="display: none;">
+                    <div class="mini-calc-grid">
+                        <div class="form-group">
+                            <label for="cont_diam_tsvi">Diámetro TSVI (mm)</label>
+                            <input type="number" id="cont_diam_tsvi" step="0.1">
+                        </div>
+                        <div class="form-group">
+                            <label for="cont_vti_tsvi">VTI TSVI (cm)</label>
+                            <input type="number" id="cont_vti_tsvi" step="0.1">
+                        </div>
+                        <div class="form-group">
+                            <label for="cont_vti_ao">VTI Ao (cm)</label>
+                            <input type="number" id="cont_vti_ao" step="0.1">
+                        </div>
+                    </div>
+                    <div class="calc-result" id="cont_result"></div>
+                    <div style="display: flex; gap: 0.5rem; margin-top: 0.5rem;">
+                        <button type="button" class="btn-calc-action" id="btn_calc_continuidad">Calcular AVA</button>
+                        <button type="button" class="btn-calc-inject" id="btn_inject_ava">Inyectar en Aorta</button>
+                    </div>
+                </div>
+            </div>
+
+            <!--PISA -->
+            <div class="mini-calc-container">
+                <button type="button" class="calc-toggle-btn" id="toggle_pisa">
+                    ▶ PISA (Cuantificación IM)
+                </button>
+                <div id="calc_pisa" class="mini-calc-box" style="display: none;">
+                    <div class="mini-calc-grid">
+                        <div class="form-group">
+                            <label for="pisa_radio">Radio PISA (mm)</label>
+                            <input type="number" id="pisa_radio" step="0.1">
+                        </div>
+                        <div class="form-group">
+                            <label for="pisa_valiasing">V Aliasing (cm/s)</label>
+                            <input type="number" id="pisa_valiasing" step="1" value="40">
+                        </div>
+                        <div class="form-group">
+                            <label for="pisa_vmax">Vmax IM (m/s)</label>
+                            <input type="number" id="pisa_vmax" step="0.1">
+                        </div>
+                        <div class="form-group">
+                            <label for="pisa_vti">VTI IM (cm)</label>
+                            <input type="number" id="pisa_vti" step="0.1">
+                        </div>
+                    </div>
+                    <div class="calc-result" id="pisa_result"></div>
+                    <div style="display: flex; gap: 0.5rem; margin-top: 0.5rem;">
+                        <button type="button" class="btn-calc-action" id="btn_calc_pisa">Calcular ORE/VR</button>
+                        <button type="button" class="btn-calc-inject" id="btn_inject_pisa">Inyectar en Mitral</button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Quality Control Box -->
+        <section class="card">
+            <div id="qc_box" class="qc-box">
+                <h3 style="margin-bottom: 0.5rem; font-size: 1rem; font-weight: 700;">⚠️ Control de Calidad</h3>
+                <div id="qc_alerts"></div>
+            </div>
+        </section>
+
+        <!-- Botones de Acción -->
+        <section class="action-buttons">
+            <button id="btn_reset" class="btn btn-secondary">
+                <span>🗑️</span> BORRAR TODO
+            </button>
+            <button id="btn_generate" class="btn btn-primary">
+                <span>📋</span> GENERAR INFORME
+            </button>
+            <button id="btn_copy" class="btn btn-success">
+                <span>📄</span> COPIAR INFORME
+            </button>
+            <button id="btn_dataset" class="btn btn-info">
+                <span>📊</span> COPIAR DATASET
+            </button>
+        </section>
+
+        <!-- Área de Resultado -->
+        <section class="card">
+            <h2 class="section-title">Informe Generado</h2>
+            <textarea id="resultado" class="report-output"
+                placeholder="El informe compacto se generará aquí...&#10;&#10;Complete los datos del paciente y presione 'GENERAR INFORME'"></textarea>
+        </section>
+
+        <footer class="app-footer">
+            <p>Calculadora Ecodoppler Cardíaco v14.0 Pro | Fórmulas ASE/EACVI 2016</p>
+        </footer>
+    </div>
+
+    <!-- JavaScript Modules -->
+    <script src="js/hemodynamics.js"></script>
+    <script src="js/validator.js"></script>
+    <script src="js/ui-controller.js"></script>
+    <script src="app.js"></script>
+
+</body>
+
+</html>

@@ -1,0 +1,124 @@
+/* ========================================
+   Voice Recognition Styles
+   ======================================== */
+
+/* Header layout for voice controls */
+.app-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    text-align: left;
+}
+
+.voice-controls {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+/* Voice button */
+.btn-voice {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 0.75rem 1.25rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.875rem;
+    min-width: 160px;
+    transition: all 0.3s ease;
+}
+
+.btn-voice:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 16px rgba(102, 126, 234, 0.3);
+}
+
+.btn-voice.active {
+    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    animation: voicePulse 2s ease-in-out infinite;
+}
+
+@keyframes voicePulse {
+
+    0%,
+    100% {
+        box-shadow: 0 0 0 0 rgba(245, 87, 108, 0.7);
+    }
+
+    50% {
+        box-shadow: 0 0 0 10px rgba(245, 87, 108, 0);
+    }
+}
+
+#voice-icon {
+    font-size: 1.25rem;
+}
+
+/* Voice indicator */
+.voice-indicator {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: white;
+    font-size: 0.875rem;
+    font-weight: 500;
+}
+
+.pulse-dot {
+    width: 8px;
+    height: 8px;
+    background: #f5576c;
+    border-radius: 50%;
+    animation: pulseDot 1.5s ease-in-out infinite;
+}
+
+@keyframes pulseDot {
+
+    0%,
+    100% {
+        opacity: 1;
+        transform: scale(1);
+    }
+
+    50% {
+        opacity: 0.5;
+        transform: scale(1.5);
+    }
+}
+
+/* Field highlight animation when filled by voice */
+.field-highlight {
+    animation: fieldPulse 0.6s ease-in-out;
+    border-color: #0891b2 !important;
+    box-shadow: 0 0 0 3px rgba(8, 145, 178, 0.2) !important;
+}
+
+@keyframes fieldPulse {
+
+    0%,
+    100% {
+        transform: scale(1);
+    }
+
+    50% {
+        transform: scale(1.02);
+    }
+}
+
+/* Responsive voice controls */
+@media (max-width: 768px) {
+    .app-header {
+        flex-direction: column;
+        gap: 1rem;
+    }
+
+    .voice-controls {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .btn-voice {
+        flex: 1;
+    }
+}
