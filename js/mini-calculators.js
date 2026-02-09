@@ -14,25 +14,27 @@ class MiniCalculators {
      * @returns {object} - Results containing areaTSVI, ava, avaIndex
      */
     calculateContinuity(diamTSVI, vtiTSVI, vtiAo, bsa = 1) {
-        if (!diamTSVI || !vtiTSVI || !vtiAo) return null;
+        // We strictly need VTIs for Coef
+        if (!vtiTSVI || !vtiAo) return null;
 
-        // Convert mm to cm and calculate radius
-        const radio = diamTSVI / 20;
-
-        //Area TSVI = π × r²
-        const areaTSVI = Math.PI * Math.pow(radio, 2);
-
-        // AVA = (Area_TSVI × VTI_TSVI) / VTI_Ao
-        const ava = (areaTSVI * vtiTSVI) / vtiAo;
-
-        // AVA indexada
-        const avaIndex = bsa > 0 ? ava / bsa : 0;
-
-        return {
-            areaTSVI: areaTSVI.toFixed(2),
-            ava: ava.toFixed(2),
-            avaIndex: avaIndex.toFixed(2)
+        const result = {
+            coef: (vtiTSVI / vtiAo).toFixed(2)
         };
+
+        // If we have diameter, calculate AVA
+        if (diamTSVI > 0) {
+            // Convert mm to cm and calculate area
+            const radio = diamTSVI / 20;
+            const areaTSVI = Math.PI * Math.pow(radio, 2);
+            const ava = (areaTSVI * vtiTSVI) / vtiAo;
+            const avaIndex = bsa > 0 ? ava / bsa : 0;
+
+            result.areaTSVI = areaTSVI.toFixed(2);
+            result.ava = ava.toFixed(2);
+            result.avaIndex = avaIndex.toFixed(2);
+        }
+
+        return result;
     }
 
     /**

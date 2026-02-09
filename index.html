@@ -16,7 +16,7 @@
         rel="stylesheet">
 
     <!-- Styles -->
-    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="styles.css?v=14.7">
 </head>
 
 <body>
@@ -139,9 +139,8 @@
             <div class="form-group full-width">
                 <label for="motilidad_global">Motilidad Parietal Global</label>
                 <select id="motilidad_global">
-                    <option value="normal">Conservada (Sin alteraciones segmentarias)</option>
-                    <option value="hipo_global">Hipocinesia Global (Sin zona focal)</option>
-                    <option value="segmentaria">Alteraciones Segmentarias (Infarto/Isquemia)</option>
+                    <option value="conservada">Conservada</option>
+                    <option value="alterada">Alterada</option>
                 </select>
             </div>
 
@@ -201,6 +200,100 @@
                 </div>
                 <input type="hidden" id="diastole_text_hidden">
             </div>
+        </section>
+
+        <!-- Motilidad Parietal Regional -->
+        <section class="card motility-section" id="motility-regional-section" style="display: none;">
+            <h2 class="section-title">🫀 Motilidad Parietal Regional (17 Segmentos AHA)</h2>
+
+            <div class="motility-controls">
+                <div class="wmsi-display">
+                    <span class="calc-label">WMSI:</span>
+                    <span id="wmsi-value" class="calc-value">1.00</span>
+                </div>
+                <div class="form-group">
+                    <label for="pattern-selector">Patrón Especial:</label>
+                    <select id="pattern-selector">
+                        <option value="none">Ninguno (Manual)</option>
+
+                        <optgroup label="🔴 Isquémicos">
+                            <option value="ischemic_da">DA (Anterior/Septal/Ápex)</option>
+                            <option value="ischemic_cd">CD (Inferior/Inferoseptal)</option>
+                            <option value="ischemic_cx">Cx (Lateral/Inferolateral)</option>
+                            <option value="ischemic_multivessel">Multivaso (DA+CD)</option>
+                        </optgroup>
+
+                        <optgroup label="🫀 Takotsubo">
+                            <option value="takotsubo_apical">Apical (Clásico)</option>
+                            <option value="takotsubo_mid">Medioventricular</option>
+                            <option value="takotsubo_inverted">Invertido (Basal)</option>
+                            <option value="takotsubo_focal">Focal (Anterolateral)</option>
+                        </optgroup>
+
+                        <optgroup label="💔 Miocardiopatías">
+                            <option value="dilated_cm">Miocardiopatía Dilatada</option>
+                            <option value="hypertensive_cm">Cardiopatía Hipertensiva</option>
+                            <option value="chagas">Chagas (Apical + Inferior)</option>
+                        </optgroup>
+
+                        <optgroup label="🌐 Territorios Combinados / Selección Especial">
+                            <option value="da_cx">Anterior + Anterolateral (DA/Cx)</option>
+                            <option value="da_cd_wrap">DA Envolvente (Wrap-around)</option>
+                            <option value="cx_cd">Inferior + Inferolateral (Cx/CD)</option>
+                            <option value="multivessel">Multivaso (DA+Cx+CD)</option>
+                            <option value="left_main">Tronco Coronaria Izquierda</option>
+                            <option value="da_distal">DA Distal / Apical Pura</option>
+                        </optgroup>
+
+                        <optgroup label="⚡ Disincronía / Post-Q / Eléctricos">
+                            <option value="bcri">BCRI / BRI (Rama Izquierda)</option>
+                            <option value="bcrd">BCRD (Rama Derecha)</option>
+                            <option value="pacemaker">Marcapasos (MCP)</option>
+                            <option value="post_surgery">Post Cirugía Cardíaca (CRM/Valvular)</option>
+                        </optgroup>
+
+                        <optgroup label="⚠️ Patrones Especiales (Aneurismas)">
+                            <option value="aneurysm_anterior">Aneurisma Anterior</option>
+                            <option value="aneurysm_apical">Aneurisma Apical</option>
+                            <option value="aneurysm_inferior">Aneurisma Inferior</option>
+                        </optgroup>
+                    </select>
+                </div>
+                <button type="button" class="btn-reset" id="btn-reset-motility">🔄 Resetear Todo</button>
+            </div>
+
+            <div id="motility-warning" class="warning-box" style="display: none;"></div>
+
+            <!-- Pre-informe en tiempo real -->
+            <div class="motility-preview" id="motility-preview">
+                <h3>📋 Vista Previa</h3>
+                <p id="preview-text">No hay alteraciones registradas.</p>
+            </div>
+
+            <div class="bullseye-container" id="bullseye-container">
+                <svg id="svg-bullseye" width="450" height="450"></svg>
+            </div>
+
+            <div class="motility-legend">
+                <div class="legend-item">
+                    <span class="legend-color" style="background: #10b981;"></span>
+                    <span>Normal (1)</span>
+                </div>
+                <div class="legend-item">
+                    <span class="legend-color" style="background: #fbbf24;"></span>
+                    <span>Hipoquinesia (2)</span>
+                </div>
+                <div class="legend-item">
+                    <span class="legend-color" style="background: #ef4444;"></span>
+                    <span>Aquinesia (3)</span>
+                </div>
+                <div class="legend-item">
+                    <span class="legend-color" style="background: #a855f7;"></span>
+                    <span>Disquinesia (4)</span>
+                </div>
+            </div>
+
+            <p class="instruction-text">💡 Haga click en cada segmento para cambiar su estado de motilidad.</p>
         </section>
 
         <!-- Aurícula Izquierda -->
@@ -431,18 +524,57 @@
                 </div>
 
                 <!-- Insuficiencia Aórtica -->
-                <div id="ia_fields" style="display: none;">
-                    <h4 style="font-size: 0.9rem; color: #FD7E14; margin-bottom: 0.5rem; font-weight: 600;">
-                        Insuficiencia Aórtica</h4>
-                    <div class="grid grid-2col">
-                        <div class="form-group">
-                            <label for="ia_jet_ratio">Jet/TSVI (%)</label>
-                            <input type="number" id="ia_jet_ratio" step="1">
+                <!-- Módulo Avanzado de Insuficiencia Aórtica -->
+                <div id="ia_fields" class="iao-module-container">
+                    <div class="iao-title">
+                        <span>INSUFICIENCIA AÓRTICA (IAo)</span>
+                        <div style="display: flex; gap: 0.5rem; align-items: center;">
+                            <span style="font-size: 0.8rem; font-weight: normal; color: #666;">Pre-llenar:</span>
+                            <button id="btn_iao_leve" class="preset-btn preset-leve">LEVE</button>
+                            <button id="btn_iao_moderada" class="preset-btn preset-moderada">MOD</button>
+                            <button id="btn_iao_severa" class="preset-btn preset-severa">SEV</button>
                         </div>
-                        <div class="form-group">
-                            <label for="ia_pht">PHT (ms)</label>
-                            <input type="number" id="ia_pht" step="1">
+                        <span id="iao_severity_badge" class="severity-badge badge-none">No evaluada</span>
+                    </div>
+
+                    <div class="iao-grid">
+                        <!-- Parametros Cuantitativos -->
+                        <div class="iao-input-group">
+                            <label for="iao_vc">Vena Contracta (cm)</label>
+                            <input type="number" id="iao_vc" step="0.01" placeholder="Ej: 0.4">
                         </div>
+                        <div class="iao-input-group">
+                            <label for="iao_pht">PHT (ms)</label>
+                            <input type="number" id="iao_pht" step="1" placeholder="Ej: 400">
+                        </div>
+                        <div class="iao-input-group">
+                            <label for="iao_jet_width">Ancho Jet / TSVI (%)</label>
+                            <input type="number" id="iao_jet_width" step="1" placeholder="Ej: 30">
+                        </div>
+                        <div class="iao-input-group">
+                            <label for="iao_rvol">Vol. Regurgitante (ml)</label>
+                            <input type="number" id="iao_rvol" step="1" placeholder="Ej: 45">
+                        </div>
+                        <div class="iao-input-group">
+                            <label for="iao_eroa">EROA (cm²)</label>
+                            <input type="number" id="iao_eroa" step="0.01" placeholder="Ej: 0.2">
+                        </div>
+
+                        <!-- Alcance del Jet -->
+                        <div class="iao-input-group">
+                            <label for="iao_jet_alcance">Alcance del Jet</label>
+                            <select id="iao_jet_alcance">
+                                <option value="tsvi">TSVI (Inmediato)</option>
+                                <option value="mitral">Hasta Válvula Mitral</option>
+                                <option value="apex">Hasta Ápex VI</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Parametros Cualitativos -->
+                    <div class="iao-checkbox-group">
+                        <input type="checkbox" id="iao_flujo_reverso">
+                        <label for="iao_flujo_reverso">Flujo reverso holodiastólico en Aorta Descendente</label>
                     </div>
                 </div>
             </div>
@@ -472,7 +604,8 @@
                 </div>
                 <div class="form-group">
                     <label for="s_prima_vd">S' VD (cm/s)</label>
-                    <input type="number" id="s_prima_vd" placeholder="Tissue Doppler" min="5" max="25" step="0.1">
+                    <input type="number" id="s_prima_vd" value="14" placeholder="Tissue Doppler" min="5" max="25"
+                        step="0.1">
                 </div>
                 <div class="form-group">
                     <label for="vel_it">Vel. Max IT (m/s)</label>
@@ -654,10 +787,15 @@
     <script src="js/validator.js"></script>
     <script src="js/mini-calculators.js"></script>
     <script src="js/quality-control.js"></script>
-    <script src="js/ui-controller.js"></script>
+    <!-- Motility System -->
+    <script src="js/motility-model.js?v=14.6"></script>
+    <script src="js/motility-controller.js?v=14.6"></script>
+    <script src="js/motility-svg.js?v=14.6"></script>
+    <script src="js/ui-controller.js?v=14.6"></script>
     <script src="js/ui-extensions.js"></script>
     <script src="js/ui-lanus.js"></script>
     <script src="js/ui-aorta-display.js"></script>
+    <script src="js/aortic-regurgitation.js"></script>
     <script src="js/voice-recognition.js"></script>
     <script src="app.js"></script>
 

@@ -74,18 +74,25 @@ UIController.prototype.calcContinuity = function () {
     const vtiAo = parseFloat(document.getElementById('cont_vti_ao').value);
     const bsa = this.state.bsa || 1;
 
-    if (!diam || !vtiTSVI || !vtiAo) {
-        alert('⚠️ Complete todos los campos');
+    // Only strictly require VTIs. Diameter is optional for Coef.
+    if (!vtiTSVI || !vtiAo) {
+        alert('⚠️ Ingrese al menos VTI TSVI y VTI Ao');
         return;
     }
 
     const result = this.miniCalc.calculateContinuity(diam, vtiTSVI, vtiAo, bsa);
 
     if (result) {
-        document.getElementById('cont_result').innerHTML =
-            `<strong>Área TSVI:</strong> ${result.areaTSVI} cm² | 
-             <strong>AVA:</strong> ${result.ava} cm² | 
-             <strong>AVA Index:</strong> ${result.avaIndex} cm²/m²`;
+        let html = `<strong>Coef. Adim:</strong> ${result.coef}`;
+
+        if (result.ava) {
+            html += ` | <strong>AVA:</strong> ${result.ava} cm² | 
+                     <strong>AVA Index:</strong> ${result.avaIndex} cm²/m²`;
+        } else {
+            html += ` <small>(Ingrese Diámetro para calcular AVA)</small>`;
+        }
+
+        document.getElementById('cont_result').innerHTML = html;
     }
 };
 
@@ -101,16 +108,19 @@ UIController.prototype.injectAVA = function () {
     const result = this.miniCalc.calculateContinuity(diam, vtiTSVI, vtiAo, bsa);
 
     if (result) {
-        document.getElementById('ea_ava').value = result.ava;
-        document.getElementById('ea_ava_index').value = result.avaIndex;
-
-        // Calculate and inject coef if both VTI values are available
-        const coef = this.miniCalc.calculateAdimensionalCoef(vtiTSVI, vtiAo);
-        if (coef) {
-            document.getElementById('ea_coef').value = coef;
+        // Always inject Coef if we have it
+        if (result.coef) {
+            document.getElementById('ea_coef').value = result.coef;
         }
 
-        this.showToast('✅ AVA inyectada en la sección aórtica');
+        // Only inject AVA if calculated
+        if (result.ava) {
+            document.getElementById('ea_ava').value = result.ava;
+            document.getElementById('ea_ava_index').value = result.avaIndex;
+            this.showToast('✅ AVA y Coeficiente inyectados');
+        } else {
+            this.showToast('✅ Solo Coeficiente Adimensional inyectado (Falta Diámetro)');
+        }
     }
 };
 

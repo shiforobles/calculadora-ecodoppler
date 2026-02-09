@@ -5,11 +5,12 @@
 
 class UIController {
 
-    constructor(calculator, validator, miniCalc, qualityControl) {
+    constructor(calculator, validator, miniCalc, qualityControl, motilityController) {
         this.calc = calculator;
         this.validator = validator;
         this.miniCalc = miniCalc || null;
         this.qc = qualityControl || null;
+        this.motility = motilityController || null;
         this.state = {
             bsa: 0,
             lvMass: 0,
@@ -72,6 +73,64 @@ class UIController {
         if (window.VoiceRecognition) {
             this.voiceRecognition = new VoiceRecognition(this);
             this.attachVoiceControls();
+        }
+
+        // Motility System - v14.3
+        if (this.motility) {
+            const patternSelector = document.getElementById('pattern-selector');
+            const btnResetMotility = document.getElementById('btn-reset-motility');
+            if (patternSelector) {
+                patternSelector.addEventListener('change', (e) => {
+                    this.motility.setPattern(e.target.value);
+                });
+            }
+            if (btnResetMotility) {
+                btnResetMotility.addEventListener('click', () => {
+                    this.motility.reset();
+                    if (patternSelector) patternSelector.value = 'none';
+                });
+            }
+
+            // Anatomical View Extension
+            if (window.MotilityAnatomicalView) {
+                this.anatomicalView = new MotilityAnatomicalView(this.motility);
+
+                const toggleView = document.getElementById('toggle-anatomical-view');
+                const bullseyeContainer = document.getElementById('bullseye-container');
+                const anatomicalContainer = document.getElementById('anatomical-container');
+
+                if (toggleView && bullseyeContainer && anatomicalContainer) {
+                    toggleView.addEventListener('change', (e) => {
+                        if (e.target.checked) {
+                            // Show Anatomical
+                            bullseyeContainer.style.display = 'none';
+                            anatomicalContainer.style.display = 'block';
+                        } else {
+                            // Show Bullseye
+                            bullseyeContainer.style.display = 'block';
+                            anatomicalContainer.style.display = 'none';
+                        }
+                    });
+                }
+            }
+        }
+
+        // Show/Hide Regional Motility Section - v14.4
+        const motGlobal = document.getElementById('motilidad_global');
+        const motRegionalSection = document.getElementById('motility-regional-section');
+        if (motGlobal && motRegionalSection) {
+            motGlobal.addEventListener('change', (e) => {
+                if (e.target.value === 'alterada') {
+                    motRegionalSection.style.display = 'block';
+                } else {
+                    motRegionalSection.style.display = 'none';
+                    if (this.motility) {
+                        this.motility.reset();
+                        const ps = document.getElementById('pattern-selector');
+                        if (ps) ps.value = 'none';
+                    }
+                }
+            });
         }
 
         // Initial calculation and valve box visibility
@@ -331,18 +390,6 @@ class UIController {
         // Systolic function
         report += `Función Sistólica: FEy ${fevi}% (Simpson biplano).\n`;
 
-        // Wall motion
-        const motilidad = document.getElementById('motilidad_global').value;
-        if (motilidad === 'normal') {
-            report += `Sin alteraciones segmentarias de la motilidad parietal.\n`;
-        } else if (motilidad === 'hipo_global') {
-            report += `Hipocinesia global de la motilidad parietal.\n`;
-        } else {
-            const territorio = document.getElementById('mot_territorio').options[document.getElementById('mot_territorio').selectedIndex].text;
-            const tipo = document.getElementById('mot_tipo').options[document.getElementById('mot_tipo').selectedIndex].text;
-            report += `${tipo} en ${territorio}.\n`;
-        }
-
         // Diastolic function
         const ondaE = document.getElementById('onda_e').value;
         const ondaA = document.getElementById('onda_a').value;
@@ -354,9 +401,16 @@ class UIController {
             report += `Evaluación Doppler Mitral y Tisular: Onda E ${ondaE} cm/s, Onda A ${ondaA} cm/s (Relación E/A ${eaRatio}), e' promedio ${ePrime} cm/s (Relación E/e' ${eeRatio}).\n`;
         }
 
+        // Motility parietal (if enabled)
+        if (this.motility) {
+            report += this.motility.generateMotilityReport();
+        }
+
         // ========== 2. AURÍCULA IZQUIERDA ==========
         report += `2. AURÍCULA IZQUIERDA\n`;
-        const volAi = document.getElementById('vol_ai').value;
+        const volAi = parseFloat(document.getElementById('vol_ai').value);
+
+        // Volume only (severity classification goes to conclusions)
         report += `Volumen indexado: ${volAi} ml/m² (Referencia: <34 ml/m²).\n`;
 
         // ========== 3. VÁLVULA MITRAL ==========
@@ -408,19 +462,32 @@ class UIController {
             const eaVmax = document.getElementById('ea_vmax').value;
             const eaGradMedio = document.getElementById('ea_grad_medio').value;
             const eaAva = document.getElementById('ea_ava').value;
+            const eaAvaIndex = document.getElementById('ea_ava_index').value;
+            const eaCoef = document.getElementById('ea_coef').value;
 
             let params = [];
             if (eaVmax) params.push(`Vmax ${eaVmax} m/s`);
             if (eaGradMedio) params.push(`Gradiente medio ${eaGradMedio} mmHg`);
             if (eaAva) params.push(`Área ${eaAva} cm²`);
+            if (eaAvaIndex) params.push(`AVA indexada ${eaAvaIndex} cm²/m²`);
+            if (eaCoef) params.push(`Coef. adimensional ${eaCoef}`);
             if (params.length > 0) {
                 report += `Parámetros de estenosis: ${params.join(', ')}.\n`;
             }
         }
 
-        // Aortic Regurgitation - No parameters typically
-        if (iaGrado !== 'no') {
-            // Parameters go in conclusions only
+        // Aortic Regurgitation - Advanced Module v14.1
+        if (window.aorticRegurgitationModule) {
+            // ONLY FINDINGS in description (Mapeo, params)
+            const iaoFindings = window.aorticRegurgitationModule.generateFindings();
+            if (iaoFindings) {
+                report += `${iaoFindings}\n`;
+            } else if (iaGrado !== 'no') {
+                // Fallback if manual grade is selected but no advanced data entered
+                report += `Insuficiencia Aórtica ${iaGrado}.\n`;
+            }
+        } else if (iaGrado !== 'no') {
+            report += `Insuficiencia Aórtica ${iaGrado}.\n`;
         }
 
         const aoRaiz = document.getElementById('ao_raiz').value;
@@ -523,10 +590,17 @@ class UIController {
 
         let conclusionNum = 1;
 
-        // 1. Rhythm
+        // 1. Rhythm and Conduction
         const ritmo = document.getElementById('ritmo').options[document.getElementById('ritmo').selectedIndex].text;
         const conduccion = document.getElementById('conduccion').options[document.getElementById('conduccion').selectedIndex].text;
-        report += `${conclusionNum}. ${ritmo}.\n`;
+        const conduccionValue = document.getElementById('conduccion').value;
+
+        // Include conduction disorders in conclusions
+        if (conduccionValue === 'normal') {
+            report += `${conclusionNum}. ${ritmo}.\n`;
+        } else {
+            report += `${conclusionNum}. ${ritmo} con ${conduccion}.\n`;
+        }
         conclusionNum++;
 
         // 2. LV Geometry and Function
@@ -538,13 +612,42 @@ class UIController {
             const dilated = this.calc.isLVDilated(ddvi, sexo);
 
             if (this.state.geometry === 'Geometría Normal') {
-                viConclusion += `Ventrículo izquierdo de diámetros y espesores conservados, con geometría ventricular normal. `;
+                viConclusion += `Ventrículo izquierdo de diámetros y espesores conservados, con geometría ventricular normal`;
             } else {
                 viConclusion += `Ventrículo izquierdo con ${this.state.geometry.toLowerCase()}`;
                 if (dilated) viConclusion += ` con dilatación ventricular`;
-                viConclusion += `. `;
             }
         }
+
+        // Motility conclusion (integrate here)
+        if (this.motility) {
+            const motilityConclusion = this.motility.generateConclusion();
+            if (motilityConclusion && motilityConclusion.trim() !== '') {
+                // Remove trailing period, lowercase first letter, preserve DA/CD/Cx/WMSI
+                let motilityText = motilityConclusion.trim();
+                if (motilityText.endsWith('.')) {
+                    motilityText = motilityText.slice(0, -1);
+                }
+                // Lowercase only the first character
+                motilityText = motilityText.charAt(0).toLowerCase() + motilityText.slice(1);
+
+                // Ensure DA, CD, Cx, and WMSI are uppercase
+                motilityText = motilityText.replace(/\bda\b/gi, 'DA')
+                    .replace(/\bcd\b/gi, 'CD')
+                    .replace(/\bcx\b/gi, 'Cx')
+                    .replace(/\bwmsi\b/gi, 'WMSI');
+
+                // Use "e" instead of "y" before words starting with "i" or "hi" (but not "hie" like hiena)
+                const firstWord = motilityText.split(' ')[0].toLowerCase();
+                if (firstWord.startsWith('i') || (firstWord.startsWith('hi') && !firstWord.startsWith('hie'))) {
+                    viConclusion += ` e ${motilityText}`;
+                } else {
+                    viConclusion += ` y ${motilityText}`;
+                }
+            }
+        }
+
+        viConclusion += `.`;
 
         // Systolic function
         if (fevi >= 50) {
@@ -558,9 +661,10 @@ class UIController {
         report += `${conclusionNum}. ${viConclusion}\n`;
         conclusionNum++;
 
-        // 3. Diastolic Function
-        if (this.state.diastolicResult && this.state.diastolicResult.grade !== 'Indeterminado') {
+        // 3. Diastolic Function (ALWAYS include, even if Indeterminado)
+        if (this.state.diastolicResult) {
             const diastolicDesc = this.state.diastolicResult.description;
+            const diastolicGrade = this.state.diastolicResult.grade;
 
             // Simplify for conclusions
             if (diastolicDesc.includes('Normal')) {
@@ -571,21 +675,27 @@ class UIController {
                 report += `${conclusionNum}. Disfunción Diastólica Grado II. PFDVI elevadas.\n`;
             } else if (diastolicDesc.includes('Grado III')) {
                 report += `${conclusionNum}. Disfunción Diastólica Grado III. PFDVI severamente elevadas.\n`;
+            } else if (diastolicGrade === 'Indeterminado') {
+                report += `${conclusionNum}. Función Diastólica Indeterminada (datos insuficientes).\n`;
             } else {
                 report += `${conclusionNum}. ${diastolicDesc}\n`;
             }
             conclusionNum++;
         }
 
-        // 4. LA dimensions
-        if (volAi > 34) {
-            report += `${conclusionNum}. Aurícula izquierda dilatada.\n`;
+        // 4. LA dimensions with severity
+        if (volAi > 48) {
+            report += `${conclusionNum}. Aurícula izquierda severamente dilatada.\n`;
+        } else if (volAi >= 42) {
+            report += `${conclusionNum}. Aurícula izquierda moderadamente dilatada.\n`;
+        } else if (volAi >= 34) {
+            report += `${conclusionNum}. Aurícula izquierda levemente dilatada.\n`;
         } else {
             report += `${conclusionNum}. Aurícula izquierda de dimensiones conservadas.\n`;
         }
         conclusionNum++;
 
-        // 5. Valvular pathology (if significant)
+        // 6. Valvular pathology (if significant)
         if (morfMitral.includes('Prolapso') || morfMitral.includes('Flail') || morfMitral.includes('Calcificación') || imGrado !== 'no' || emGrado !== 'no') {
             if (morfMitral.includes('Prolapso') || morfMitral.includes('Flail')) {
                 report += `${conclusionNum}. ${morfMitral}`;
@@ -605,28 +715,44 @@ class UIController {
             }
         }
 
-        if (morfAortica.includes('Bicúspide') || morfAortica.includes('Calcificación masiva') || eaGrado !== 'no' || iaGrado !== 'no') {
+        // Check for advanced IAo conclusion (v14.1)
+        let iaoAdv = window.aorticRegurgitationModule ? window.aorticRegurgitationModule.generateConclusion() : null;
+
+        if (morfAortica.includes('Bicúspide') || morfAortica.includes('Calcificación masiva') || eaGrado !== 'no' || iaGrado !== 'no' || iaoAdv) {
+
+            // Build the string
+            let line = `${conclusionNum}. `;
+            let hasContent = false;
+
             if (morfAortica.includes('Bicúspide')) {
-                report += `${conclusionNum}. ${morfAortica}`;
-                if (eaGrado !== 'no' || iaGrado !== 'no') {
-                    report += ` con `;
-                    if (eaGrado !== 'no') report += `estenosis ${eaGrado}`;
-                    if (iaGrado !== 'no') {
-                        if (eaGrado !== 'no') report += ` e insuficiencia ${iaGrado}`;
-                        else report += `insuficiencia ${iaGrado}`;
-                    }
+                line += `${morfAortica}`;
+                hasContent = true;
+                if (eaGrado !== 'no') line += ` con estenosis ${eaGrado}`;
+
+                if (iaoAdv) {
+                    if (eaGrado !== 'no') line += ` e ${iaoAdv.toLowerCase()}`;
+                    else line += ` con ${iaoAdv.toLowerCase()}`;
+                } else if (iaGrado !== 'no') {
+                    if (eaGrado !== 'no') line += ` e insuficiencia ${iaGrado}`;
+                    else line += ` con insuficiencia ${iaGrado}`;
                 }
-                report += `.\n`;
-                conclusionNum++;
-            } else if (eaGrado !== 'no' || iaGrado !== 'no') {
-                let valvular = '';
-                if (eaGrado !== 'no') valvular += `Estenosis aórtica ${eaGrado}`;
-                if (iaGrado !== 'no') {
-                    if (valvular) valvular += ` e i`;
-                    else valvular += `I`;
-                    valvular += `nsuficiencia aórtica ${iaGrado}`;
+            } else {
+                // Not bicuspid
+                let parts = [];
+                if (eaGrado !== 'no') parts.push(`Estenosis aórtica ${eaGrado}`);
+
+                if (iaoAdv) parts.push(iaoAdv);
+                else if (iaGrado !== 'no') parts.push(`Insuficiencia aórtica ${iaGrado}`);
+
+                if (parts.length > 0) {
+                    line += parts.join(' e ');
+                    hasContent = true;
                 }
-                report += `${conclusionNum}. ${valvular}.\n`;
+            }
+
+            if (hasContent) {
+                if (!line.endsWith('.')) line += '.';
+                report += `${line}\n`;
                 conclusionNum++;
             }
         }
@@ -755,7 +881,11 @@ class UIController {
     /**
      * Copy dataset in TSV format for Excel
      */
+    /**
+     * Copy dataset in TSV format for Excel
+     */
     async copyDataset() {
+        // --- 1. Basic Data ---
         const fecha = new Date().toLocaleDateString('es-ES');
         const hc = document.getElementById('paciente_id').value || '-';
         const edad = document.getElementById('edad').value || '-';
@@ -763,31 +893,85 @@ class UIController {
         const sc = document.getElementById('sc_display').value || '-';
         const ritmo = document.getElementById('ritmo').value;
         const cond = document.getElementById('conduccion').value;
+
+        // --- 2. Ventriculo Izquierdo ---
         const ddvi = document.getElementById('ddvi').value || '-';
         const masa = this.state.lvMassIndex > 0 ? this.state.lvMassIndex.toFixed(0) : '-';
         const geo = this.state.geometry || '-';
         const fey = document.getElementById('fevi').value || '-';
         const mot = document.getElementById('motilidad_global').value;
+
+        // --- 3. Diastolic / Auriculas ---
         const diastole = document.getElementById('diastole_text_hidden').value || 'Indeterminado';
         const ee = document.getElementById('ee_ratio_display').value || '-';
         const ea = document.getElementById('ea_ratio_display').value || '-';
         const volAi = document.getElementById('vol_ai').value || '-';
+
+        // --- 4. Valvular Basics (Existing Cols) ---
         const eao = document.getElementById('ea_grado').value;
         const im = document.getElementById('im_grado').value;
+
+        // --- 5. Right Heart (Existing Cols) ---
         const tapse = document.getElementById('tapse').value || '-';
         const psap = this.state.psap || '-';
 
-        // Tab-separated values (22 columns)
+        // --- NEW PARAMETERS (Appended) ---
+
+        // A. Estenosis Aortica
+        const eaVmax = document.getElementById('ea_vmax')?.value || '-';
+        const eaGrad = document.getElementById('ea_grad_medio')?.value || '-';
+        const eaAva = document.getElementById('ea_ava')?.value || '-';
+        const eaCoef = document.getElementById('ea_coef')?.value || '-';
+
+        // B. Insuficiencia Aortica
+        const iaGrado = document.getElementById('ia_grado')?.value || '-';
+        const iaoVc = document.getElementById('iao_vc')?.value || '-';
+        const iaoPht = document.getElementById('iao_pht')?.value || '-';
+        const iaoRvol = document.getElementById('iao_rvol')?.value || '-';
+        const iaoEroa = document.getElementById('iao_eroa')?.value || '-';
+        const iaoAlcance = document.getElementById('iao_jet_alcance')?.value || '-';
+        const iaoReverso = document.getElementById('iao_flujo_reverso')?.checked ? 'Si' : 'No';
+
+        // C. Valvula Mitral (Extended)
+        const emGrado = document.getElementById('em_grado')?.value || '-';
+        const emGrad = document.getElementById('em_grad_medio')?.value || '-';
+        const imOre = document.getElementById('im_ore')?.value || '-'; // PISA
+        const imVr = document.getElementById('im_vr')?.value || '-';   // PISA
+
+        // D. Motilidad Detallada (Segmental)
+        let motDetalle = '-';
+        if (window.motilityController) {
+            // Try to get a summary text if available, or generate one
+            if (window.motilityController.generateReportString) {
+                // Capture the report string but maybe strip headers?
+                // Or just use the global textual description if it's detailed.
+                // Actually, user wants "motilidad parietal en el territorio afectado".
+                // Let's use the summary text generated by the controller.
+                // We can re-generate it cleanly?
+                // Or assume it's part of the main report?
+                // Let's assume user wants a compact string: "Inf-Bas: Hipo, Ant-Med: Akin..."
+                // For now, let's export the conclusion string for motility.
+                motDetalle = window.motilityController.generateConclusion() || '-';
+            }
+        }
+
+        // Tab-separated values (Original 22 + New)
+        // Original: 22 cols (indices 0-21)
         const row = [
             fecha, hc, edad, sexo, sc, ritmo, cond, ddvi, masa, geo,
-            fey, mot, diastole, ee, ea, volAi, eao, '-', im, '-', tapse, psap
+            fey, mot, diastole, ee, ea, volAi, eao, '-', im, '-', tapse, psap,
+            // Appended:
+            eaVmax, eaGrad, eaAva, eaCoef,
+            iaGrado, iaoVc, iaoPht, iaoRvol, iaoEroa, iaoAlcance, iaoReverso,
+            emGrado, emGrad, imOre, imVr,
+            motDetalle
         ].join('\t');
 
         try {
             await navigator.clipboard.writeText(row);
-            this.showToast('✅ Dataset (22 columnas) copiado. Pegue en Excel.');
+            this.showToast(`✅ Dataset copiado (${row.split('\t').length} columnas). Pegue en Excel.`);
         } catch (err) {
-            alert('✅ Dataset copiado al portapapeles (22 columnas para Excel)');
+            alert('✅ Dataset copiado al portapapeles');
         }
     }
 

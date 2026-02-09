@@ -17,7 +17,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const validator = new InputValidator();
     const miniCalc = new MiniCalculators();
     const qualityControl = new QualityControl();
-    const uiController = new UIController(calculator, validator, miniCalc, qualityControl);
+
+    // Initialize Motility System
+    const motilityController = new MotilityController();
+    const motilitySVG = new MotilitySVG(motilityController);
+
+    const uiController = new UIController(calculator, validator, miniCalc, qualityControl, motilityController);
 
     // Initialize UI controller (sets up event listeners)
     uiController.init();
@@ -28,7 +33,9 @@ document.addEventListener('DOMContentLoaded', () => {
         validator,
         miniCalc,
         qualityControl,
-        uiController
+        uiController,
+        motilityController,
+        motilitySVG
     };
 
     // Make available globally for console debugging
