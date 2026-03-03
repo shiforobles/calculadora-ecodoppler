@@ -5,9 +5,13 @@
 
 class MotilityController {
     constructor() {
-        this.state = this.loadFromStorage() || this.getDefaultState();
-        this.pattern = localStorage.getItem('motility-pattern') || 'none';
+        this.state = this.getDefaultState();
+        this.pattern = 'none';
         this.listeners = [];
+
+        // Clean up any lingering storage from previous versions to ensure it resets for new studies
+        sessionStorage.removeItem('motility-state');
+        sessionStorage.removeItem('motility-pattern');
     }
 
     // Initialize with all segments normal
@@ -160,7 +164,7 @@ class MotilityController {
         return lowerWall;
     }
 
-    // Generate motility report section (grouped by WALLS for clinical clarity)
+    // Generate motility report section - NEW VERSION (Grouped by Complete/Partial Walls)
     generateMotilityReport() {
         const abnormal = this.getAbnormalSegments();
         const totalAbnormal = abnormal.hypokinetic.length + abnormal.akinetic.length + abnormal.dyskinetic.length;
@@ -191,9 +195,9 @@ class MotilityController {
             const severityText = parts.length === 1 ? parts[0] : parts.join(" y ");
 
             // Different wording based on pattern
-            if (currentPattern.name.includes("Dilatada")) {
+            if (currentPattern && currentPattern.name.includes("Dilatada")) {
                 return `Se observan trastornos segmentarios de la motilidad parietal: ${severityText} global difusa que no respeta un territorio coronario específico (WMSI: ${wmsi}).\n`;
-            } else if (currentPattern.name.includes("Hipertensiva")) {
+            } else if (currentPattern && currentPattern.name.includes("Hipertensiva")) {
                 return `Se observan trastornos segmentarios de la motilidad parietal: ${severityText} con predominio basal y medio ventricular (WMSI: ${wmsi}).\n`;
             } else {
                 return `Se observan trastornos segmentarios de la motilidad parietal: ${severityText} difusa (WMSI: ${wmsi}).\n`;
@@ -222,92 +226,102 @@ class MotilityController {
             return `${description} (WMSI: ${wmsi}).\n`;
         }
 
-        // For combined/special patterns, use standard wall grouping but keep specific conclusion
-        // REVERTED specific description per user request.
-        // Falls through to standard grouping logic below.
+        // For focal/territorial patterns, use smart wall grouping
+        // Step 1: Group all affected segments by wall (regardless of severity initially)
+        const wallData = {};
 
-        // For focal/territorial patterns, group by walls
-        const groupedBySeverity = {
-            aquinesia: {},
-            hipoquinesia: {},
-            disquinesia: {}
-        };
-
-        // Classify segments by severity and wall
-        abnormal.akinetic.forEach(id => {
+        [...abnormal.hypokinetic, ...abnormal.akinetic, ...abnormal.dyskinetic].forEach(id => {
             const wall = this.getWallName(id);
             const level = this.getLevel(id);
-            if (!groupedBySeverity.aquinesia[wall]) groupedBySeverity.aquinesia[wall] = [];
-            groupedBySeverity.aquinesia[wall].push(level);
+            const severity = abnormal.akinetic.includes(id) ? 'aquinesia' :
+                abnormal.dyskinetic.includes(id) ? 'disquinesia' : 'hipoquinesia';
+
+            if (!wallData[wall]) {
+                wallData[wall] = { levels: new Set(), severity: severity };
+            }
+            wallData[wall].levels.add(level);
         });
 
-        abnormal.hypokinetic.forEach(id => {
-            const wall = this.getWallName(id);
-            const level = this.getLevel(id);
-            if (!groupedBySeverity.hipoquinesia[wall]) groupedBySeverity.hipoquinesia[wall] = [];
-            groupedBySeverity.hipoquinesia[wall].push(level);
-        });
+        // Step 2: Identify complete walls (all 3 levels) vs partial walls
+        const completeWalls = [];
+        const partialWalls = [];
 
-        abnormal.dyskinetic.forEach(id => {
-            const wall = this.getWallName(id);
-            const level = this.getLevel(id);
-            if (!groupedBySeverity.disquinesia[wall]) groupedBySeverity.disquinesia[wall] = [];
-            groupedBySeverity.disquinesia[wall].push(level);
-        });
-
-        // Build description by severity
-        const parts = [];
-
-        ['aquinesia', 'hipoquinesia', 'disquinesia'].forEach(severity => {
-            const walls = groupedBySeverity[severity];
-            if (Object.keys(walls).length === 0) return;
-
-            const wallDescriptions = [];
-            Object.entries(walls).forEach(([wall, levels]) => {
-                // Sort levels: basal, media, apical
-                const sortedLevels = levels.sort((a, b) => {
-                    const order = { basal: 0, media: 1, apical: 2 };
-                    return order[a] - order[b];
-                });
-
-                // Remove duplicates
-                const uniqueLevels = [...new Set(sortedLevels)];
-
-                // Format levels text
-                let levelsText = '';
-                if (uniqueLevels.length === 3) {
-                    levelsText = 'basal, media y apical';
-                } else if (uniqueLevels.length === 2) {
-                    levelsText = uniqueLevels.join(' y ');
-                } else {
-                    levelsText = uniqueLevels[0];
-                }
-
-                const wallName = this.formatWallName(wall);
-
-                // Special handling for Apex to avoid "pared apical (apical)"
-                if (wallName.toLowerCase() === 'apical' && levelsText === 'apical') {
-                    wallDescriptions.push(`nivel apical`);
-                } else {
-                    wallDescriptions.push(`pared ${wallName} (${levelsText})`);
-                }
-            });
-
-            // Join with commas and "y" for the last element
-            let wallDescText = "";
-            if (wallDescriptions.length === 1) {
-                wallDescText = wallDescriptions[0];
-            } else if (wallDescriptions.length === 2) {
-                wallDescText = wallDescriptions.join(' y ');
+        Object.entries(wallData).forEach(([wall, data]) => {
+            const levelArray = Array.from(data.levels);
+            if (levelArray.length === 3) {
+                completeWalls.push({ wall, severity: data.severity, levels: levelArray });
             } else {
-                const last = wallDescriptions.pop();
-                wallDescText = wallDescriptions.join(', ') + ' y ' + last;
+                partialWalls.push({ wall, severity: data.severity, levels: levelArray });
+            }
+        });
+
+        // Step 3: Build clinical description
+        let description = "Se observan trastornos segmentarios de la motilidad parietal, con ";
+
+        if (completeWalls.length > 0) {
+            // Start with first complete wall
+            const mainWall = completeWalls[0];
+            const wallName = this.formatWallName(mainWall.wall);
+            description += `${mainWall.severity} de la pared ${wallName} (basal, media y apical)`;
+
+            // Add other complete walls
+            for (let i = 1; i < completeWalls.length; i++) {
+                const w = completeWalls[i];
+                const wName = this.formatWallName(w.wall);
+                description += ` y de la pared ${wName} (basal, media y apical)`;
             }
 
-            parts.push(`${severity} de ${wallDescText}`);
-        });
+            // Add partial walls as extensions
+            if (partialWalls.length > 0) {
+                description += ", con extensión ";
+                const extensions = partialWalls.map(w => {
+                    const wName = this.formatWallName(w.wall);
+                    const levels = this.formatLevels(Array.from(w.levels));
 
-        return `Se observan trastornos segmentarios de la motilidad parietal, con ${parts.join('; ')} (WMSI: ${this.calculateWMSI()}).\n`;
+                    // Special handling: "septum" for septal walls
+                    if (wName.includes('septal')) {
+                        // Keep as "pared anteroseptal" etc.
+                        return `a la pared ${wName} (${levels})`;
+                    } else if (wName === 'apical') {
+                        // "al ápex" instead of "a la pared apical"
+                        return `al ápex`;
+                    } else {
+                        return `a la pared ${wName} (${levels})`;
+                    }
+                }).join(' y ');
+                description += extensions;
+            }
+        } else {
+            // Only partial walls - list them all
+            const parts = partialWalls.map((w, idx) => {
+                const wName = this.formatWallName(w.wall);
+                const levels = this.formatLevels(Array.from(w.levels));
+
+                if (idx === 0) {
+                    return `${w.severity} de la pared ${wName} (${levels})`;
+                } else {
+                    return `de la pared ${wName} (${levels})`;
+                }
+            });
+            description += parts.join(' y ');
+        }
+
+        return description + ` (WMSI: ${wmsi}).\n`;
+    }
+
+    // Helper function to format level arrays
+    formatLevels(levels) {
+        // Sort levels: basal, media, apical
+        const order = { basal: 0, media: 1, apical: 2 };
+        levels.sort((a, b) => order[a] - order[b]);
+
+        if (levels.length === 3) {
+            return 'basal, media y apical';
+        } else if (levels.length === 2) {
+            return levels.join(' y ');
+        } else {
+            return levels[0];
+        }
     }
 
     // Generate conclusion (smart format based on territories)
@@ -414,7 +428,7 @@ class MotilityController {
     // Set special pattern
     setPattern(patternName) {
         this.pattern = patternName;
-        localStorage.setItem('motility-pattern', patternName);
+        sessionStorage.setItem('motility-pattern', patternName);
 
         // Apply pattern if not 'none'
         if (patternName !== 'none' && MotilityModel.PATTERNS[patternName]) {
@@ -442,7 +456,7 @@ class MotilityController {
         this.state = this.getDefaultState();
         this.pattern = 'none';
         this.saveToStorage();
-        localStorage.setItem('motility-pattern', 'none');
+        sessionStorage.setItem('motility-pattern', 'none');
         this.notifyListeners('all');
         this.updateUI();
         this.updatePreview();
@@ -450,11 +464,11 @@ class MotilityController {
 
     // Persistence
     saveToStorage() {
-        localStorage.setItem('motility-state', JSON.stringify(this.state));
+        sessionStorage.setItem('motility-state', JSON.stringify(this.state));
     }
 
     loadFromStorage() {
-        const saved = localStorage.getItem('motility-state');
+        const saved = sessionStorage.getItem('motility-state');
         return saved ? JSON.parse(saved) : null;
     }
 

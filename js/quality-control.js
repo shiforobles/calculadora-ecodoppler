@@ -35,30 +35,8 @@ class QualityControl {
                 'DSVI debe ser menor que DDVI. Verifique las mediciones.');
         }
 
-        // Rule 4: IM severa sin cuantificación
-        if (formData.im_grado === 'severa' && (!formData.im_ore || parseFloat(formData.im_ore) === 0)) {
-            this.addAlert('warning',
-                'Se recomienda cuantificar ORE en insuficiencia mitral severa');
-        }
-
-        // Rule 5: FEy muy baja sin alteración motilidad
-        if (formData.fevi && formData.fevi < 40 && formData.motilidad === 'normal') {
-            this.addAlert('warning',
-                'FEy <40% sugiere revisar análisis de motilidad parietal');
-        }
-
-        // Rule 6: EA moderada/severa sin gradientes
-        if ((formData.ea_grado === 'moderada' || formData.ea_grado === 'severa') &&
-            (!formData.ea_grad_medio || parseFloat(formData.ea_grad_medio) === 0)) {
-            this.addAlert('info',
-                'Se recomienda medir gradientes en estenosis aórtica moderada/severa');
-        }
-
-        // Rule 7: IM severa sin vena contracta
-        if (formData.im_grado === 'severa' && (!formData.im_vc || parseFloat(formData.im_vc) === 0)) {
-            this.addAlert('info',
-                'Considere medir vena contracta en IM severa');
-        }
+        // Removed annoying live warnings about missing expected measurements 
+        // (Rules 4, 6, 7) because they trigger prematurely before the user has a chance to type.
 
         return this.alerts;
     }

@@ -18,6 +18,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const miniCalc = new MiniCalculators();
     const qualityControl = new QualityControl();
 
+    // Initialize Smart Modules
+    window.mitralRegurgitation = new MitralRegurgitationModule();
+    window.mitralStenosis = new MitralStenosisModule();
+    window.aorticStenosis = new AorticStenosisModule();
+    window.aorticRegurgitationModule = new AorticRegurgitationModule();
+
     // Initialize Motility System
     const motilityController = new MotilityController();
     const motilitySVG = new MotilitySVG(motilityController);
@@ -40,6 +46,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Make available globally for console debugging
     window.EcoDoppler = app;
+    window.UIController = uiController;
+    window.MotilityController = motilityController;
+    window.HemodynamicsCalculator = calculator;
 
     console.log('✅ Eco Doppler Cardíaco v14.0 Pro inicializado correctamente');
     console.log('💡 Acceda a window.EcoDoppler desde la consola para debugging');

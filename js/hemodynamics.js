@@ -6,7 +6,7 @@
  */
 
 class HemodynamicsCalculator {
-    
+
     /**
      * Calculate Body Surface Area using Mosteller formula
      * @param {number} weight - Weight in kg
@@ -29,16 +29,16 @@ class HemodynamicsCalculator {
      */
     calculateLVMass(ddvi, pp, siv) {
         if (!ddvi || !pp || !siv) return 0;
-        
+
         // Convert mm to cm
         const ddviCm = ddvi / 10;
         const ppCm = pp / 10;
         const sivCm = siv / 10;
-        
+
         // Devereux formula: 0.8 × {1.04 × [(DDVI + PP + SIV)³ - DDVI³]} + 0.6
         const sum = ddviCm + ppCm + sivCm;
         const mass = 0.8 * (1.04 * (Math.pow(sum, 3) - Math.pow(ddviCm, 3))) + 0.6;
-        
+
         return mass;
     }
 
@@ -65,13 +65,13 @@ class HemodynamicsCalculator {
      */
     classifyLVGeometry(massIndex, rwt, sex) {
         if (!massIndex || !rwt) return "Datos insuficientes";
-        
+
         // Sex-specific LV mass index thresholds
         const limit = sex === 'M' ? 115 : 95;
-        
+
         const hypertrophy = massIndex > limit;
         const concentric = rwt > 0.42;
-        
+
         if (!hypertrophy && !concentric) {
             return "Geometría Normal";
         } else if (!hypertrophy && concentric) {
@@ -110,20 +110,68 @@ class HemodynamicsCalculator {
      * @returns {Object} { grade, description, severity }
      */
     classifyDiastolicFunction(params) {
-        const { E, A, ePrime, LAVolIndex = 28, TRVel = 0, LVEF = 60, wallMotion = 'normal' } = params;
-        
+        const { E, A, ePrime, LAVolIndex = 28, TRVel = 0, LVEF = 60, wallMotion = 'normal', ritmo = 'sinusal' } = params;
+
         // Check if we have minimum required data
-        if (!E || !A || !ePrime) {
+        // For FA, we don't need 'A' wave
+        const isFA = (ritmo === 'fa' || ritmo === 'flutter');
+
+        if (!E || (!isFA && !A) || !ePrime) {
             return {
                 grade: "Indeterminado",
                 description: "Esperando datos Doppler...",
                 severity: "neutral"
             };
         }
-        
+
         const EeRatio = E / ePrime;
-        const EARatio = E / A;
-        
+        // Only calculate E/A if not FA/Flutter and A is present
+        const EARatio = (!isFA && A) ? E / A : null;
+
+        // --- ATRIAL FIBRILLATION ALGORITHM (EACVI 2016) ---
+        if (isFA) {
+            if (LVEF >= 50) {
+                // For preserved EF in FA
+                // Simplified approach for this calculator based on E/e' and TR velocity
+                if (EeRatio > 14 || TRVel > 2.8) {
+                    return {
+                        grade: "II", // Usually raised pressures in FA context with these markers
+                        description: "FA: Presiones de llenado VI elevadas (E/e' > 14 o IT > 2.8).",
+                        severity: "red"
+                    };
+                } else if (EeRatio < 11 && TRVel < 2.8) {
+                    return {
+                        grade: "Normal/I", // Normal pressures
+                        description: "FA: Presiones de llenado VI normales.",
+                        severity: "green"
+                    };
+                } else {
+                    return {
+                        grade: "Indeterminado",
+                        description: "FA: Función Diastólica Indeterminada.",
+                        severity: "yellow"
+                    };
+                }
+            } else {
+                // Reduced EF in FA usually implies dysfunction, check pressures
+                if (EeRatio > 14 || TRVel > 2.8) {
+                    return {
+                        grade: "III", // Restrictive physiology likely
+                        description: "FA + FEy Deprimida: Presiones de llenado elevadas.",
+                        severity: "red"
+                    };
+                } else {
+                    return {
+                        grade: "I/II",
+                        description: "FA + FEy Deprimida: Presiones de llenado no elevadas o indeterminadas.",
+                        severity: "yellow"
+                    };
+                }
+            }
+        }
+
+        // --- SINUS RHYTHM ALGORITHM (Standard) ---
+
         // Special case: Supernormal pattern (Athletic heart)
         if (EARatio > 2 && ePrime >= 10) {
             return {
@@ -132,7 +180,7 @@ class HemodynamicsCalculator {
                 severity: "green"
             };
         }
-        
+
         // Special case: Restrictive pattern (Grade III)
         if (EARatio > 2 && ePrime < 10) {
             return {
@@ -141,19 +189,19 @@ class HemodynamicsCalculator {
                 severity: "red"
             };
         }
-        
+
         // Determine if heart has structural/functional disease
-        const diseased = (LVEF < 50 || wallMotion !== 'normal');
-        
+        const diseased = (LVEF < 50 || wallMotion !== 'normal' || LAVolIndex > 34 || TRVel > 2.8);
+
         // Algorithm for normal hearts (LVEF ≥50% and no wall motion abnormalities)
         if (!diseased) {
             let criteria = 0;
-            
+
             if (ePrime < 9) criteria++;
             if (EeRatio > 14) criteria++;
             if (LAVolIndex > 34) criteria++;
             if (TRVel > 2.8) criteria++;
-            
+
             if (criteria < 2) {
                 return {
                     grade: "Normal",
@@ -171,7 +219,7 @@ class HemodynamicsCalculator {
                 // Proceed to diseased heart algorithm below
             }
         }
-        
+
         // Algorithm for diseased hearts or ≥3 criteria in normal hearts
         // Grade I: E/A ≤0.8 and E ≤50 cm/s
         if (EARatio <= 0.8 && E <= 50) {
@@ -181,27 +229,27 @@ class HemodynamicsCalculator {
                 severity: "green"
             };
         }
-        
+
         // Grade II vs Grade I (when E/A > 0.8 or E > 50)
         // Use additional criteria to determine filling pressures
         let criteriaP = 0;
         let dataPoints = 0;
-        
+
         if (EeRatio !== null && !isNaN(EeRatio)) {
             dataPoints++;
             if (EeRatio > 14) criteriaP++;
         }
-        
+
         if (TRVel !== null && TRVel > 0) {
             dataPoints++;
             if (TRVel > 2.8) criteriaP++;
         }
-        
+
         if (LAVolIndex !== null && !isNaN(LAVolIndex)) {
             dataPoints++;
             if (LAVolIndex > 34) criteriaP++;
         }
-        
+
         // Need at least 2 data points to classify
         if (dataPoints < 2) {
             return {
@@ -210,7 +258,7 @@ class HemodynamicsCalculator {
                 severity: "yellow"
             };
         }
-        
+
         // ≥50% of criteria met → Grade II (elevated pressures)
         if (criteriaP >= 2) {
             return {
@@ -243,11 +291,11 @@ class HemodynamicsCalculator {
      */
     calculatePSAP(trVelocity, rap = 5) {
         if (!trVelocity || trVelocity <= 0) return 0;
-        
+
         // Simplified Bernoulli equation: ΔP = 4V²
         const gradient = 4 * Math.pow(trVelocity, 2);
         const psap = Math.round(gradient + rap);
-        
+
         return psap;
     }
 
@@ -265,7 +313,9 @@ class HemodynamicsCalculator {
     }
 }
 
-// Export for use in other modules
+// Export for use in other modules or global scope
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = HemodynamicsCalculator;
+} else {
+    window.HemodynamicsCalculator = HemodynamicsCalculator;
 }

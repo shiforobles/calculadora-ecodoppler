@@ -28,6 +28,10 @@
                 <p class="version">Versión 14.0 Pro</p>
             </div>
             <div class="voice-controls">
+                <button id="btn-theme-toggle" class="btn btn-voice" title="Cambiar Tema"
+                    style="min-width: 50px; padding: 0.75rem;">
+                    <span id="theme-icon">🌙</span>
+                </button>
                 <button id="btn-voice-toggle" class="btn btn-voice" title="Dictado por voz">
                     <span id="voice-icon">🎤</span>
                     <span id="voice-status">Iniciar Dictado</span>
@@ -70,11 +74,57 @@
                     <input type="text" id="sc_display" class="calculated-value" disabled>
                 </div>
                 <div class="form-group">
+                    <label for="bmi_display">IMC (Riesgo)</label>
+                    <input type="text" id="bmi_display" class="calculated-value" disabled>
+                </div>
+                <div class="form-group" style="grid-column: 1 / -1;">
+                    <div id="bsa_alert_container"
+                        style="display:none; margin-top: 0.5rem; padding: 0.75rem; border-radius: 6px; font-weight: 500; font-size: 0.9rem; display: flex; align-items: center; gap: 0.5rem;">
+                        <span id="bsa_alert_icon"></span>
+                        <span id="bsa_alert_text"></span>
+                    </div>
+                </div>
+                <div class="form-group">
                     <label for="ventana">Calidad Ventana Acústica</label>
                     <select id="ventana">
                         <option value="no">Buena</option>
                         <option value="si">Mala Ventana (Limita evaluación)</option>
                     </select>
+                </div>
+            </div>
+        </section>
+
+        <!-- Antecedentes Clínicos (Nuevo Módulo) -->
+        <section class="card" style="background-color: #f0f7ff; border-left: 5px solid #3b82f6;">
+            <h2 class="section-title" style="color: #1e40af;">Antecedentes Clínicos de Relevancia</h2>
+            <div class="grid grid-3col">
+                <div class="checkbox-group">
+                    <input type="checkbox" id="ant_hta">
+                    <label for="ant_hta">HTA</label>
+                </div>
+                <div class="checkbox-group">
+                    <input type="checkbox" id="ant_isquemia">
+                    <label for="ant_isquemia">C. Isquémica</label>
+                </div>
+                <!-- CRM -->
+                <div class="checkbox-group">
+                    <input type="checkbox" id="ant_crm">
+                    <label for="ant_crm">CRM (Revasc. Miocárdica)</label>
+                </div>
+                <!-- EPOC -->
+                <div class="checkbox-group">
+                    <input type="checkbox" id="ant_epoc">
+                    <label for="ant_epoc">EPOC / Pulmonar</label>
+                </div>
+                <!-- FA -->
+                <div class="checkbox-group">
+                    <input type="checkbox" id="ant_fa">
+                    <label for="ant_fa">FA Previa</label>
+                </div>
+                <!-- Marcapasos -->
+                <div class="checkbox-group">
+                    <input type="checkbox" id="ant_marcapasos">
+                    <label for="ant_marcapasos">Marcapasos / CDI</label>
                 </div>
             </div>
         </section>
@@ -337,6 +387,36 @@
             </div>
         </section>
 
+        <!-- Septum Interauricular (ASIA/FOP) -->
+        <section class="card">
+            <h2 class="section-title">Evaluación Septum Interauricular</h2>
+
+            <div class="checkbox-group" style="margin-bottom: 1rem;">
+                <input type="checkbox" id="asia_check">
+                <label for="asia_check">Evaluar Septum / ASIA</label>
+            </div>
+
+            <div id="asia_fields" style="display: none; padding-top: 1rem; border-top: 1px solid var(--color-border);">
+                <div class="grid grid-2col">
+                    <div class="form-group">
+                        <label for="asia_excursion">Excursión Total (mm)</label>
+                        <input type="number" id="asia_excursion" placeholder="Ej: 11" min="0" max="30" step="1">
+                        <div id="asia_feedback" class="qc-alert"
+                            style="display: none; margin-top: 0.5rem; text-align: center;"></div>
+                    </div>
+                    <div class="form-group">
+                        <label for="asia_shunt">Shunt / Permeabilidad</label>
+                        <select id="asia_shunt">
+                            <option value="no">Sin Shunt evidente</option>
+                            <option value="color">Paso por Doppler Color</option>
+                            <option value="burbujas_basal">Test Burbujas Positivo (Basal)</option>
+                            <option value="burbujas_valsalva">Test Burbujas Positivo (Valsalva)</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </section>
+
         <!-- Válvula Mitral -->
         <section class="card">
             <h2 class="section-title">3. Válvula Mitral</h2>
@@ -370,6 +450,7 @@
                     <label for="im_grado">Insuficiencia Mitral</label>
                     <select id="im_grado">
                         <option value="no">No significativa</option>
+                        <option value="minima">Mínima</option>
                         <option value="leve">Leve</option>
                         <option value="moderada">Moderada</option>
                         <option value="severa">Severa</option>
@@ -390,38 +471,174 @@
             <div id="box_mitral" class="advanced-box box-mitral" style="display: none;">
                 <h3 class="subsection-title">Cuantificación Valvular Mitral</h3>
 
-                <!-- Estenosis Mitral -->
-                <div id="em_fields" style="display: none;">
-                    <h4 style="font-size: 0.9rem; color: #DC2626; margin-bottom: 0.5rem; font-weight: 600;">Estenosis
-                        Mitral</h4>
-                    <div class="grid grid-2col">
-                        <div class="form-group">
-                            <label for="em_grad_medio">Gradiente Medio (mmHg)</label>
-                            <input type="number" id="em_grad_medio" step="0.1">
+                <!-- Estenosis Mitral (Smart Layout) -->
+                <div id="em_fields" class="iao-module-container" style="display: none; border-left: 4px solid #9333ea;">
+                    <div class="iao-title">
+                        <span>ESTENOSIS MITRAL (EM)</span>
+                        <div style="display: flex; gap: 0.5rem; align-items: center;">
+                            <span style="font-size: 0.8rem; font-weight: normal; color: #666;">Pre-llenar:</span>
+                            <button id="btn_em_leve" class="preset-btn preset-leve">LEVE</button>
+                            <button id="btn_em_moderada" class="preset-btn preset-moderada">MOD</button>
+                            <button id="btn_em_severa" class="preset-btn preset-severa">SEV</button>
                         </div>
-                        <div class="form-group">
+                        <span id="em_severity_badge" class="severity-badge badge-none">No evaluada</span>
+                    </div>
+
+                    <div class="iao-grid">
+                        <div class="iao-input-group">
+                            <label for="em_grad_medio">Gradiente Medio (mmHg)</label>
+                            <input type="number" id="em_grad_medio" step="0.1" placeholder="Ej: 10">
+                        </div>
+                        <div class="iao-input-group">
                             <label for="em_area_pht">Área por PHT (cm²)</label>
-                            <input type="number" id="em_area_pht" step="0.01">
+                            <input type="number" id="em_area_pht" step="0.01" placeholder="Ej: 1.0">
                         </div>
                     </div>
                 </div>
 
-                <!-- Insuficiencia Mitral -->
-                <div id="im_fields" style="display: none;">
-                    <h4 style="font-size: 0.9rem; color: #DC2626; margin-bottom: 0.5rem; font-weight: 600;">
-                        Insuficiencia Mitral</h4>
-                    <div class="grid">
-                        <div class="form-group">
-                            <label for="im_vc">Vena Contracta (mm)</label>
-                            <input type="number" id="im_vc" step="0.1">
+                <!-- Insuficiencia Mitral (Smart Layout) -->
+                <div id="im_fields" class="iao-module-container" style="display: none; border-left: 4px solid #dc2626;">
+                    <div class="iao-title">
+                        <span>INSUFICIENCIA MITRAL (IM)</span>
+                        <div style="display: flex; gap: 0.5rem; align-items: center;">
+                            <span style="font-size: 0.8rem; font-weight: normal; color: #666;">Pre-llenar:</span>
+                            <button id="btn_im_leve" class="preset-btn preset-leve">LEVE</button>
+                            <button id="btn_im_moderada" class="preset-btn preset-moderada">MOD</button>
+                            <button id="btn_im_severa" class="preset-btn preset-severa">SEV</button>
                         </div>
-                        <div class="form-group">
+                        <span id="im_severity_badge" class="severity-badge badge-none">No evaluada</span>
+                    </div>
+
+                    <div class="iao-grid">
+                        <div class="iao-input-group">
+                            <label for="im_vc">Vena Contracta (mm)</label>
+                            <input type="number" id="im_vc" step="0.1" placeholder="Ej: 7.0">
+                        </div>
+                        <div class="iao-input-group">
                             <label for="im_ore">ORE (cm²)</label>
                             <input type="number" id="im_ore" step="0.01" placeholder="PISA">
                         </div>
-                        <div class="form-group">
+                        <div class="iao-input-group">
                             <label for="im_vr">Vol. Regurgitante (ml)</label>
                             <input type="number" id="im_vr" step="1" placeholder="PISA">
+                        </div>
+                        <div class="iao-input-group">
+                            <label for="im_area_jet">Alcance del Jet / AI</label>
+                            <select id="im_area_jet">
+                                <option value="" selected disabled>Seleccionar...</option>
+                                <option value="leve">Llega a 1/3 de AI</option>
+                                <option value="moderada">Llega a 2/3 de AI</option>
+                                <option value="severa">Llega a Pared Posterior</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Qualitative Params -->
+                    <div class="iao-checkbox-group" style="margin-top: 1rem;">
+                        <input type="checkbox" id="im_inversion_venas">
+                        <label for="im_inversion_venas">Inversión sistólica en venas pulmonares</label>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 4. Prótesis Valvulares -->
+        <section class="card" id="protesis_section">
+            <h2 class="section-title">4. Prótesis Valvulares</h2>
+            <div class="grid">
+                <div class="form-group grid-span-4">
+                    <div class="checkbox-group"
+                        style="padding: 10px; background: #fdf2f8; border-radius: 8px; border: 1px solid #fbcfe8;">
+                        <input type="checkbox" id="prot_check">
+                        <label for="prot_check" style="font-weight: bold; color: #be185d;">¿Paciente Portador de
+                            Prótesis Valvular?</label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Prosthesis Details Container -->
+            <div id="protesis_container" style="display: none; margin-top: 15px;">
+                <div class="grid">
+                    <div class="form-group">
+                        <label for="prot_posicion">Posición</label>
+                        <select id="prot_posicion">
+                            <option value="aortica">Aórtica</option>
+                            <option value="mitral">Mitral</option>
+                            <option value="tricuspide">Tricúspide</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="prot_tipo">Tipo de Prótesis</label>
+                        <select id="prot_tipo">
+                            <option value="mecanica">Mecánica</option>
+                            <option value="biologica">Biológica</option>
+                            <option value="tavi">TAVI</option>
+                            <option value="mitraclip">Mitraclip / Reparación</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="prot_numero">Número/Modelo (Opc.)</label>
+                        <input type="text" id="prot_numero" placeholder="Ej: Desconocido o 21 mm">
+                    </div>
+                    <div class="form-group">
+                        <label for="prot_insuficiencia">Insuficiencia</label>
+                        <select id="prot_insuficiencia">
+                            <option value="no">No / Fisiológica</option>
+                            <option value="intraprotesica">Intraprotésica</option>
+                            <option value="paravalvular">Paravalvular (Leak)</option>
+                        </select>
+                    </div>
+
+                    <!-- Parámetros Doppler -->
+                    <div class="form-group grid-span-4">
+                        <h4 style="margin: 10px 0 5px 0; color: #4b5563; border-bottom: 1px solid #e5e7eb;">Hemodinamia
+                            Doppler</h4>
+                    </div>
+                    <div class="form-group">
+                        <label for="prot_vmax">Velocidad Máxima (m/s)</label>
+                        <input type="number" id="prot_vmax" step="0.1" placeholder="Ej: 2.5">
+                    </div>
+                    <div class="form-group">
+                        <label for="prot_gm">Gradiente Medio (mmHg)</label>
+                        <input type="number" id="prot_gm" step="1" placeholder="Ej: 14">
+                    </div>
+                    <div class="form-group">
+                        <label for="prot_vti_pr">VTI Prótesis (cm)</label>
+                        <input type="number" id="prot_vti_pr" step="0.1" placeholder="Ej: 45">
+                    </div>
+                    <div class="form-group" id="prot_at_container">
+                        <label for="prot_at">Tiemp. Acel. (ms) [Aórt]</label>
+                        <input type="number" id="prot_at" step="1" placeholder="Ej: 70">
+                    </div>
+                    <div class="form-group" id="prot_pht_container" style="display: none;">
+                        <label for="prot_pht">PHT (ms) [Mitral]</label>
+                        <input type="number" id="prot_pht" step="1" placeholder="Ej: 130">
+                    </div>
+
+                    <!-- TSVI Para EOA/DVI -->
+                    <div class="form-group grid-span-4">
+                        <h4 style="margin: 10px 0 5px 0; color: #4b5563; border-bottom: 1px solid #e5e7eb;">TSVI (Para
+                            cálculo DVI / EOA)</h4>
+                    </div>
+                    <div class="form-group">
+                        <label for="prot_diam_tsvi">Diámetro TSVI (mm)</label>
+                        <input type="number" id="prot_diam_tsvi" step="0.1" placeholder="Ej: 21">
+                    </div>
+                    <div class="form-group">
+                        <label for="prot_vti_tsvi">VTI TSVI (cm)</label>
+                        <input type="number" id="prot_vti_tsvi" step="0.1" placeholder="Ej: 18">
+                    </div>
+
+                    <!-- Resultado Visual -->
+                    <div class="form-group grid-span-4">
+                        <div id="prot_feedback"
+                            style="display: none; padding: 12px; border-radius: 6px; font-weight: bold; text-align: center; margin-top: 10px;">
+                            <!-- Alert goes here -->
+                        </div>
+                        <div id="prot_metrics"
+                            style="display: none; text-align: center; font-size: 0.9em; color: #6b7280; margin-top: 5px;">
+                            DVI: <span id="prot_dvi_disp">-</span> | EOA: <span id="prot_eoa_disp">-</span> cm² | iEOA:
+                            <span id="prot_ieoa_disp">-</span> cm²/m²
                         </div>
                     </div>
                 </div>
@@ -430,7 +647,7 @@
 
         <!-- Válvula Aórtica y Aorta -->
         <section class="card">
-            <h2 class="section-title">4. Válvula Aórtica y Aorta</h2>
+            <h2 class="section-title">5. Válvula Aórtica y Aorta</h2>
             <div class="grid">
                 <div class="form-group grid-span-2">
                     <label for="morf_aortica">Morfología Valvular</label>
@@ -468,6 +685,7 @@
                     <label for="ia_grado">Insuficiencia Aórtica</label>
                     <select id="ia_grado">
                         <option value="no">No</option>
+                        <option value="minima">Mínima</option>
                         <option value="leve">Leve</option>
                         <option value="moderada">Moderada</option>
                         <option value="severa">Severa</option>
@@ -495,28 +713,37 @@
             <div id="box_aorta" class="advanced-box box-aorta" style="display: none;">
                 <h3 class="subsection-title">Cuantificación Valvular Aórtica</h3>
 
-                <!-- Estenosis Aórtica -->
-                <div id="ea_fields" style="display: none;">
-                    <h4 style="font-size: 0.9rem; color: #FD7E14; margin-bottom: 0.5rem; font-weight: 600;">Estenosis
-                        Aórtica</h4>
-                    <div class="grid">
-                        <div class="form-group">
+                <!-- Estenosis Aórtica (Smart Layout) -->
+                <div id="ea_fields" class="iao-module-container" style="display: none; border-left: 4px solid #f97316;">
+                    <div class="iao-title">
+                        <span>ESTENOSIS AÓRTICA (EA)</span>
+                        <div style="display: flex; gap: 0.5rem; align-items: center;">
+                            <span style="font-size: 0.8rem; font-weight: normal; color: #666;">Pre-llenar:</span>
+                            <button id="btn_ea_leve" class="preset-btn preset-leve">LEVE</button>
+                            <button id="btn_ea_moderada" class="preset-btn preset-moderada">MOD</button>
+                            <button id="btn_ea_severa" class="preset-btn preset-severa">SEV</button>
+                        </div>
+                        <span id="ea_severity_badge" class="severity-badge badge-none">No evaluada</span>
+                    </div>
+
+                    <div class="iao-grid">
+                        <div class="iao-input-group">
                             <label for="ea_vmax">Vmax (m/s)</label>
-                            <input type="number" id="ea_vmax" step="0.1">
+                            <input type="number" id="ea_vmax" step="0.1" placeholder="Ej: 4.0">
                         </div>
-                        <div class="form-group">
+                        <div class="iao-input-group">
                             <label for="ea_grad_medio">Gradiente Medio (mmHg)</label>
-                            <input type="number" id="ea_grad_medio" step="1">
+                            <input type="number" id="ea_grad_medio" step="1" placeholder="Ej: 45">
                         </div>
-                        <div class="form-group">
+                        <div class="iao-input-group">
                             <label for="ea_ava">AVA (cm²)</label>
                             <input type="number" id="ea_ava" step="0.01" placeholder="Continuidad">
                         </div>
-                        <div class="form-group">
+                        <div class="iao-input-group">
                             <label for="ea_ava_index">AVA Index (cm²/m²)</label>
                             <input type="number" id="ea_ava_index" step="0.01">
                         </div>
-                        <div class="form-group">
+                        <div class="iao-input-group">
                             <label for="ea_coef">Coef. Adimensional</label>
                             <input type="number" id="ea_coef" step="0.01" placeholder="VTI ratio">
                         </div>
@@ -580,9 +807,9 @@
             </div>
         </section>
 
-        <!-- Cavidades Derechas y Pericardio -->
+        <!-- Cavidades Derechas y Válvulas -->
         <section class="card">
-            <h2 class="section-title">5, 6 & 7. Cavidades Derechas y Pericardio</h2>
+            <h2 class="section-title">6 & 7. Cavidades Derechas y Válvulas</h2>
             <div class="grid">
                 <div class="form-group">
                     <label for="ad_estado">Aurícula Derecha</label>
@@ -613,16 +840,21 @@
                 </div>
                 <div class="form-group">
                     <label for="pad">PAD (mmHg)</label>
-                    <input type="number" id="pad" value="5" min="0" max="20" step="1">
-                </div>
-                <div class="form-group">
-                    <label for="it_grado">Insuficiencia Tricúspide</label>
-                    <select id="it_grado">
-                        <option value="leve">Leve</option>
-                        <option value="moderada">Moderada</option>
-                        <option value="severa">Severa</option>
+                    <select id="pad">
+                        <option value="5">5 mmHg (VCI normal, colapso total)</option>
+                        <option value="10">10 mmHg (VCI intermedia, colapso >50%)</option>
+                        <option value="15">15 mmHg (VCI dilatada, colapso <50%)< /option>
+                        <option value="20">20 mmHg (VCI dilatada, sin colapso)</option>
+                        <option value="25">25 mmHg (VCI fija / turgente / reverso)</option>
                     </select>
                 </div>
+                <div class="form-group">
+                    <label for="paat">Tiempo de Aceleración Pulmonar (ms)</label>
+                    <input type="number" id="paat" placeholder="Ej: 110" min="20" max="200" step="1">
+                    <span id="paat_badge" class="severity-badge badge-none"
+                        style="display:none; margin-top:5px;">Sugestivo HTP</span>
+                </div>
+
             </div>
 
             <!-- AD Measurement Box (Progressive Disclosure) -->
@@ -634,6 +866,13 @@
                         <input type="number" id="ad_area" placeholder="≤18 normal" min="5" max="40" step="0.1">
                     </div>
                 </div>
+                <div class="grid grid-2col" style="margin-top: 10px;">
+                    <div class="form-group">
+                        <label for="ad_area_index">Área Indexada (cm²/m²)</label>
+                        <input type="number" id="ad_area_index" placeholder="Auto-calculado" step="0.1" readonly
+                            style="background-color: #f3f4f6;">
+                    </div>
+                </div>
             </div>
 
             <!-- VD Measurement Box (Progressive Disclosure) -->
@@ -643,6 +882,14 @@
                     <div class="form-group">
                         <label for="vd_basal">Diámetro Basal (mm)</label>
                         <input type="number" id="vd_basal" placeholder="≤41 normal" min="20" max="70" step="1">
+                    </div>
+                    <div class="form-group">
+                        <label for="vd_medio">Diámetro Medio (mm)</label>
+                        <input type="number" id="vd_medio" placeholder="≤35 normal" min="15" max="60" step="1">
+                    </div>
+                    <div class="form-group">
+                        <label for="vd_longitud">Longitud (mm)</label>
+                        <input type="number" id="vd_longitud" placeholder="≤83 normal" min="40" max="120" step="1">
                     </div>
                 </div>
             </div>
@@ -664,10 +911,7 @@
                         </label>
                     </div>
                     <div class="form-group">
-                        <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
-                            <input type="checkbox" id="htp_aceleracion" style="width: auto;">
-                            <span>Tiempo aceleración pulmonar corto</span>
-                        </label>
+                        <!-- Checkbox removed, replaced by PAAT input -->
                     </div>
                 </div>
             </div>
@@ -677,6 +921,198 @@
                 <div id="psap_info" class="live-calc">
                     <span class="calc-label">PSAP Estimada:</span>
                     <span class="calc-value">-</span>
+                </div>
+            </div>
+
+            <!-- Módulo Tricúspide Avanzado (Integrated v14.8) -->
+            <div class="subsection" style="border-top: 2px solid #e5e7eb; margin-top: 2rem; padding-top: 1rem;">
+                <h3 class="subsection-title" style="color: #0891b2;">Evaluación Tricúspide Avanzada</h3>
+
+                <div class="grid">
+                    <!-- Basic Evaluator -->
+                    <div class="form-group">
+                        <label for="it_grado">Grado de Insuficiencia</label>
+                        <select id="it_grado">
+                            <option value="no_valorable">No valorable</option>
+                            <option value="leve" selected>Leve</option>
+                            <option value="moderada">Moderada</option>
+                            <option value="severa">Severa</option>
+                            <option value="masiva">Masiva</option>
+                            <option value="torrencial">Torrencial</option>
+                        </select>
+                    </div>
+
+                    <!-- Mechanism Removed -->
+                </div>
+
+                <!-- Advanced Box (Border Cyan) -->
+                <div id="box_tricuspide" class="advanced-box"
+                    style="display: none; border-left: 4px solid #06b6d4; background: #ecfeff;">
+
+                    <!-- Quick Fill Buttons -->
+                    <div style="margin-bottom: 1rem; display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                        <button type="button" class="btn-xs" onclick="setTricuspidValues('leve')"
+                            style="background: #dcfce7; color: #166534; border: 1px solid #86efac;">Leve</button>
+                        <button type="button" class="btn-xs" onclick="setTricuspidValues('moderada')"
+                            style="background: #fef9c3; color: #854d0e; border: 1px solid #fde047;">Mod</button>
+                        <button type="button" class="btn-xs" onclick="setTricuspidValues('severa')"
+                            style="background: #fee2e2; color: #991b1b; border: 1px solid #fca5a5;">Sev</button>
+                        <button type="button" class="btn-xs" onclick="setTricuspidValues('masiva')"
+                            style="background: #e11d48; color: white; border: 1px solid #9f1239;">Masiva</button>
+                        <button type="button" class="btn-xs" onclick="setTricuspidValues('torrencial')"
+                            style="background: #4c0519; color: #fecdd3; border: 1px solid #881337;">Torrencial</button>
+                    </div>
+
+                    <!-- Row 1: VC, Radio, Vmax (m/s), Hepatic (4 cols) -->
+                    <div class="grid" style="grid-template-columns: repeat(4, 1fr); gap: 1rem;">
+                        <!-- Vena Contracta -->
+                        <div class="form-group">
+                            <label for="it_vc">VC (mm)</label>
+                            <input type="number" id="it_vc" step="0.1" placeholder="Ej: 7.0">
+                            <!-- Badge Container -->
+                            <div id="it_qc_badge" class="severity-badge badge-none"
+                                style="display:none; margin-top:5px;">-</div>
+                        </div>
+
+                        <!-- Radio PISA -->
+                        <div class="form-group">
+                            <label for="it_pisa_radio">Radio (mm)</label>
+                            <input type="number" id="it_pisa_radio" step="0.1" placeholder="Ej: 9">
+                        </div>
+
+                        <!-- Vmax IT (New, Synced) -->
+                        <div class="form-group">
+                            <label for="it_vel_max">Vmax (m/s)</label>
+                            <input type="number" id="it_vel_max" step="0.1" placeholder="Ej: 3.5">
+                        </div>
+
+                        <!-- Hepatic Flow -->
+                        <div class="form-group">
+                            <label for="it_flujo_hep">Flujo Hepático</label>
+                            <select id="it_flujo_hep">
+                                <option value="normal">Normal (S predominant)</option>
+                                <option value="reverso">Reverso Sistólico</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Row 2: ORE, VR (2 cols) -->
+                    <div class="grid grid-2col" style="margin-top: 1rem;">
+                        <div class="form-group">
+                            <label for="it_ore">ORE (cm²)</label>
+                            <input type="number" id="it_ore" step="0.01" placeholder="Manual/Calc"
+                                style="font-weight: bold; color: #155e75;">
+                        </div>
+                        <div class="form-group">
+                            <label for="it_vr">Vol. Regurgitante (ml)</label>
+                            <input type="number" id="it_vr" step="1" placeholder="Manual/Calc"
+                                style="font-weight: bold; color: #155e75;">
+                        </div>
+                    </div>
+
+                    <!-- PISA Calculator Toggle -->
+                    <div style="margin-top: 1rem;">
+                        <button type="button" id="btn_toggle_pisa_it" class="btn-secondary"
+                            style="width: 100%; border-color: #06b6d4; color: #0891b2; font-size: 0.9em;">
+                            🧮 Calculadora PISA (Va, Vmax, VTI)
+                        </button>
+                    </div>
+
+                    <!-- PISA Container (Calc parameters only) -->
+                    <div id="pisa_it_container"
+                        style="display: none; margin-top: 1rem; padding: 1rem; background: white; border-radius: 0.5rem; border: 1px solid #cffafe;">
+                        <div class="grid" style="grid-template-columns: repeat(2, 1fr); gap: 1rem;">
+                            <div class="form-group">
+                                <label for="it_pisa_va">Vel. Aliasing (cm/s)</label>
+                                <input type="number" id="it_pisa_va" step="1" placeholder="Ej: 30">
+                            </div>
+                            <div class="form-group">
+                                <label for="it_vti">VTI Jet (cm)</label>
+                                <input type="number" id="it_vti" step="1" placeholder="Ej: 100">
+                            </div>
+                        </div>
+
+                        <div style="margin: 1rem 0;">
+                            <button type="button" id="btn_calc_pisa_it" class="btn-primary"
+                                style="background-color: #0891b2; width: 100%;">Calcular PISA</button>
+                        </div>
+
+                        <div style="font-size: 0.8em; color: #666; text-align: center;">
+                            * Los resultados se completarán en los campos manuales de arriba.
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 6. Válvula Tricúspide (New Module v14.7) -->
+        <section class="card">
+            <h2 class="section-title">7. Evaluación del Pericardio</h2>
+
+            <div class="checkbox-container"
+                style="background-color: #f0fdf4; border: 1px solid #bbf7d0; padding: 15px; border-radius: 8px;">
+                <label class="checkbox-label"
+                    style="font-size: 1.1em; font-weight: 600; color: #166534; width: 100%; cursor: pointer;">
+                    <input type="checkbox" id="pe_presente" style="width: 20px; height: 20px;">
+                    ¿Presencia de Derrame Pericárdico?
+                </label>
+
+                <!-- Feedback for Normal State -->
+                <div id="pe_normal_feedback"
+                    style="margin-top: 10px; color: #15803d; font-weight: 500; padding-left: 28px;">
+                    ✅ Pericardio libre de ecos.
+                </div>
+            </div>
+
+            <!-- Advanced Pericardium Box -->
+            <div id="pe_advanced_box"
+                style="display: none; border-left: 4px solid #f43f5e; background-color: #fff1f2; padding: 20px; margin-top: 15px; border-radius: 6px;">
+                <h3 style="color: #be123c; margin-top: 0; font-size: 1.1rem; margin-bottom: 1rem;">⚠️ Evaluación de
+                    Derrame</h3>
+
+                <div class="grid grid-2col">
+                    <div class="form-group">
+                        <label for="pe_tamano">Separación Máxima Diástole (mm)</label>
+                        <input type="number" id="pe_tamano" placeholder="mm" min="0" step="1">
+                        <div id="pe_feedback" class="validation-badge badge-none" style="margin-top: 5px;"></div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="pe_ubicacion">Ubicación / Distribución</label>
+                        <select id="pe_ubicacion">
+                            <option value="global">Global / Circunferencial</option>
+                            <option value="posterior">Posterior</option>
+                            <option value="anterior">Anterior</option>
+                            <option value="lateral">Lateral</option>
+                            <option value="apical">Apical</option>
+                            <option value="loculado">Loculado / Tabicado</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div style="margin-top: 20px; background: rgba(255, 255, 255, 0.5); padding: 15px; border-radius: 8px;">
+                    <label
+                        style="font-weight: 700; color: #9f1239; display: flex; align-items: center; gap: 8px; margin-bottom: 12px; border-bottom: 1px solid #fecdd3; padding-bottom: 8px;">
+                        <span>🚨 Signos de Alarma (Taponamiento)</span>
+                    </label>
+                    <div class="grid grid-2col">
+                        <div class="checkbox-group">
+                            <input type="checkbox" id="pe_colapso_ad">
+                            <label for="pe_colapso_ad" style="color: #881337;">Colapso Sistólico AD</label>
+                        </div>
+                        <div class="checkbox-group">
+                            <input type="checkbox" id="pe_colapso_vd">
+                            <label for="pe_colapso_vd" style="color: #881337;">Colapso Diastólico VD</label>
+                        </div>
+                        <div class="checkbox-group">
+                            <input type="checkbox" id="pe_variacion_flujo">
+                            <label for="pe_variacion_flujo" style="color: #881337;">Var. Flujo Mitral >25%</label>
+                        </div>
+                        <div class="checkbox-group">
+                            <input type="checkbox" id="pe_vci_dilatada">
+                            <label for="pe_vci_dilatada" style="color: #881337;">VCI Dilatada s/colapso</label>
+                        </div>
+                    </div>
                 </div>
             </div>
         </section>
@@ -788,14 +1224,15 @@
     <script src="js/mini-calculators.js"></script>
     <script src="js/quality-control.js"></script>
     <!-- Motility System -->
-    <script src="js/motility-model.js?v=14.6"></script>
-    <script src="js/motility-controller.js?v=14.6"></script>
-    <script src="js/motility-svg.js?v=14.6"></script>
-    <script src="js/ui-controller.js?v=14.6"></script>
+    <script src="js/motility-model.js"></script>
+    <script src="js/motility-controller.js"></script>
+    <script src="js/motility-svg.js"></script>
+    <script src="js/ui-controller.js"></script>
     <script src="js/ui-extensions.js"></script>
     <script src="js/ui-lanus.js"></script>
     <script src="js/ui-aorta-display.js"></script>
     <script src="js/aortic-regurgitation.js"></script>
+    <script src="js/valvulopathy-modules.js"></script>
     <script src="js/voice-recognition.js"></script>
     <script src="app.js"></script>
 

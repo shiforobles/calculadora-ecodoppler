@@ -76,6 +76,17 @@ class AorticRegurgitationModule {
             });
         }
 
+        // Preset buttons
+        ['leve', 'moderada', 'severa'].forEach(severity => {
+            const btn = document.getElementById(`btn_iao_${severity}`);
+            if (btn) {
+                btn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    this.fillPreset(severity);
+                });
+            }
+        });
+
         // Initial update
         this.updateState();
     }

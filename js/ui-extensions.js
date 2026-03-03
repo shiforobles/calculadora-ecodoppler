@@ -16,9 +16,13 @@ UIController.prototype.toggleValveBoxes = function () {
     const imFields = document.getElementById('im_fields');
     const emFields = document.getElementById('em_fields');
 
-    if (imGrado !== 'no' || emGrado !== 'no') {
+    // Only show box if NOT 'no' AND NOT 'minima' (unless Stenosis is present)
+    const showMitralBox = (imGrado !== 'no' && imGrado !== 'minima') || (emGrado !== 'no');
+
+    if (showMitralBox) {
         mitralBox.style.display = 'block';
-        imFields.style.display = imGrado !== 'no' ? 'block' : 'none';
+        // Only showfields if NOT minima
+        imFields.style.display = (imGrado !== 'no' && imGrado !== 'minima') ? 'block' : 'none';
         emFields.style.display = emGrado !== 'no' ? 'block' : 'none';
     } else {
         mitralBox.style.display = 'none';
@@ -31,9 +35,12 @@ UIController.prototype.toggleValveBoxes = function () {
     const iaFields = document.getElementById('ia_fields');
     const eaFields = document.getElementById('ea_fields');
 
-    if (iaGrado !== 'no' || eaGrado !== 'no') {
+    // Only show box if NOT 'no' AND NOT 'minima' (unless Stenosis is present)
+    const showAortaBox = (iaGrado !== 'no' && iaGrado !== 'minima') || (eaGrado !== 'no');
+
+    if (showAortaBox) {
         aortaBox.style.display = 'block';
-        iaFields.style.display = iaGrado !== 'no' ? 'block' : 'none';
+        iaFields.style.display = (iaGrado !== 'no' && iaGrado !== 'minima') ? 'block' : 'none';
         eaFields.style.display = eaGrado !== 'no' ? 'block' : 'none';
     } else {
         aortaBox.style.display = 'none';
