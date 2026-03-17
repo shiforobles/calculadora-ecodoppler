@@ -130,121 +130,195 @@ class AorticRegurgitationModule {
         };
     }
 
-    determineSeverity(data) {
-        // A. CRITERIOS DE SEVERIDAD (SEVERA)
-        // VC > 6 mm
-        // PHT < 200 ms
-        // Jet Width >= 65%
-        // Alcance: "apex"
-        // RVol >= 60 ml
-        // EROA >= 0.30 cm2
-        // Flujo Reverso: true
+    classifyCriterion(key, value) {
+        if (value === 0 || value === '' || value === false || value === null || isNaN(value)) return null;
 
-        // Count severe criteria? Or check if ANY severe criteria is met?
-        // User prompt: "Si cumple CUALQUIERA de estos" -> Suggests Severity trigger.
-        // However, guidelines usually require corroboration. User instruction is strict: "Cualquiera de estos".
+        switch (key) {
+            case 'vc':
+                if (value > 0.6) return { level: 'severa', weight: 3 };
+                if (value >= 0.3) return { level: 'moderada', weight: 3 };
+                return { level: 'leve', weight: 3 };
+            case 'pht':
+                if (value < 200) return { level: 'severa', weight: 2 };
+                if (value <= 500) return { level: 'moderada', weight: 2 };
+                return { level: 'leve', weight: 2 };
+            case 'jetWidth':
+                if (value >= 65) return { level: 'severa', weight: 1 };
+                if (value >= 25) return { level: 'moderada', weight: 1 };
+                return { level: 'leve', weight: 1 };
+            case 'rvol':
+                if (value >= 60) return { level: 'severa', weight: 2 };
+                if (value >= 30) return { level: 'moderada', weight: 2 };
+                return { level: 'leve', weight: 2 };
+            case 'eroa':
+                if (value >= 0.30) return { level: 'severa', weight: 4 };
+                if (value >= 0.10) return { level: 'moderada', weight: 4 };
+                return { level: 'leve', weight: 4 };
+            case 'alcance':
+                if (value === 'apex') return { level: 'severa', weight: 1 };
+                if (value === 'mitral') return { level: 'moderada', weight: 1 };
+                if (value === 'tsvi') return { level: 'leve', weight: 1 };
+                return null;
+            case 'flujoReverso':
+                if (value === true) return { level: 'severa', weight: 5, isQualitative: true };
+                return null;
+            default:
+                return null;
+        }
+    }
 
-        if (
-            (data.vc > 0.6) ||
-            (data.pht > 0 && data.pht < 200) ||
-            (data.jetWidth >= 65) ||
-            (data.alcance === 'apex') ||
-            (data.rvol >= 60) ||
-            (data.eroa >= 0.30) ||
-            (data.flujoReverso)
-        ) {
+    updateCriterionBadges(data) {
+        const mapping = {
+            vc: 'badge_iao_vc',
+            pht: 'badge_iao_pht',
+            jetWidth: 'badge_iao_jet_width',
+            rvol: 'badge_iao_rvol',
+            eroa: 'badge_iao_eroa',
+            alcance: 'badge_iao_jet_alcance',
+            flujoReverso: 'badge_iao_flujo_reverso'
+        };
+
+        const classes = {
+            'leve': 'cb-mild',
+            'moderada': 'cb-moderate',
+            'severa': 'cb-severe'
+        };
+        const labels = {
+            'leve': 'Leve',
+            'moderada': 'Mod',
+            'severa': 'Sev'
+        };
+
+        Object.keys(mapping).forEach(key => {
+            const badgeId = mapping[key];
+            const badgeEl = document.getElementById(badgeId);
+            if (!badgeEl) return;
+
+            const inputEl = badgeEl.parentElement.querySelector('input, select');
+            const result = this.classifyCriterion(key, data[key]);
+            
+            badgeEl.className = 'criterion-badge';
+            if (inputEl) {
+                inputEl.classList.remove('input-mild', 'input-moderate', 'input-severe');
+            }
+            
+            if (result) {
+                badgeEl.textContent = labels[result.level];
+                badgeEl.classList.add(classes[result.level]);
+                badgeEl.style.display = 'inline-flex';
+
+                if (inputEl) {
+                    if (result.level === 'leve') inputEl.classList.add('input-mild');
+                    else if (result.level === 'moderada') inputEl.classList.add('input-moderate');
+                    else if (result.level === 'severa') inputEl.classList.add('input-severe');
+                }
+            } else {
+                badgeEl.textContent = '—';
+                badgeEl.style.display = 'none';
+            }
+        });
+    }
+
+    resolveConflict(criteriaResults) {
+        const validResults = criteriaResults.filter(r => r !== null);
+        if (validResults.length === 0) return { level: 'No evaluada', color: 'gray', class: 'badge-none' };
+
+        const levels = validResults.map(r => r.level);
+        
+        const hasSevera = validResults.some(r => r.level === 'severa');
+        const hasModerada = validResults.some(r => r.level === 'moderada');
+        const hasLeve = validResults.some(r => r.level === 'leve');
+
+        const severeCount = levels.filter(l => l === 'severa').length;
+
+        if (hasSevera) {
+            if (severeCount === 1 && validResults.length > 1 && hasModerada) {
+                return { level: 'Mod-Severa', color: 'red-orange', class: 'badge-borderline-high' };
+            }
+            if (severeCount === 1 && validResults.length > 1 && hasLeve && !hasModerada) {
+                 return { level: 'Moderada', color: 'yellow', class: 'badge-moderate' };
+            }
             return { level: 'Severa', color: 'red', class: 'badge-severe' };
         }
 
-        // B. CRITERIOS DE LEVEDAD (LEVE)
-        // VC < 0.3 cm
-        // PHT > 500 ms
-        // Jet Width < 25%
-        // Alcance: "tsvi"
-        // RVol < 30 ml
-        // EROA < 0.10 cm2
-
-        // Logic: Checks for Mild conditions. 
-        // If it's not Severe and meets Mild criteria (or most of them?), return Mild.
-        // Let's check if it meets ANY Mild criteria and NO Severe/Moderate indicators?
-        // Simplification: If not Severe, check Mild thresholds.
-
-        if (
-            (data.vc > 0 && data.vc < 0.3) ||
-            (data.pht > 500) ||
-            (data.jetWidth > 0 && data.jetWidth < 25) ||
-            (data.rvol > 0 && data.rvol < 30) ||
-            (data.eroa > 0 && data.eroa < 0.10)
-        ) {
-            // Need to be careful. A single "VC=0.2" shouldn't override "PHT=400" (Moderate).
-            // But user prompt structure implies discrete checks.
-            // Let's assume if it doesn't hit Severe, we check "Moderate" (Gray Zone).
-            // Moderate is "Cualquier valor intermedio".
-            // So logic: Check Severe -> if no, check Moderate -> if no, assume Mild?
-            // Or Check Mild inputs?
-
-            // To be safe with "Gray Zone", everything not Severe and not explicitly Mild is Moderate.
-            // But what defines explicitly Mild? 
-            // If ALL provided values are in Mild range?
-
-            // Let's count indicators.
-            let mildCount = 0;
-            let modCount = 0;
-
-            if (data.vc > 0) { data.vc < 0.3 ? mildCount++ : modCount++; }
-            if (data.pht > 0) { data.pht > 500 ? mildCount++ : modCount++; }
-            if (data.jetWidth > 0) { data.jetWidth < 25 ? mildCount++ : modCount++; }
-            if (data.rvol > 0) { data.rvol < 30 ? mildCount++ : modCount++; }
-            if (data.eroa > 0) { data.eroa < 0.10 ? mildCount++ : modCount++; }
-
-            // Specific condition: Alcance 'mitral' is Moderate.
-            if (data.alcance === 'mitral') modCount++;
-            if (data.alcance === 'tsvi') mildCount++;
-
-            if (modCount === 0 && mildCount > 0) {
-                return { level: 'Leve', color: 'green', class: 'badge-mild' };
-            } else if (modCount > 0 || mildCount > 0) {
-                return { level: 'Moderada', color: 'yellow', class: 'badge-moderate' };
-            }
+        if (hasModerada && hasLeve) {
+            return { level: 'Leve-Mod', color: 'orange', class: 'badge-borderline-low' };
         }
 
-        // Default if absolute zeros or logic fallthrough (should be covered above)
-        // If data is empty/zero
-        const hasData = Object.values(data).some(v => (typeof v === 'number' && v > 0) || (typeof v === 'boolean' && v === true));
-        if (!hasData && data.alcance === 'tsvi') return { level: 'No evaluada', color: 'gray', class: 'badge-none' };
+        if (hasModerada) {
+            return { level: 'Moderada', color: 'yellow', class: 'badge-moderate' };
+        }
 
-        // If we have some data but didn't trigger Severe, and logic above puts it in Moderate/Mild bucket.
-        // Fallback for intermediate values without explicit checks above:
-        return { level: 'Moderada', color: 'yellow', class: 'badge-moderate' };
+        if (hasLeve) {
+            return { level: 'Leve', color: 'green', class: 'badge-mild' };
+        }
+
+        return { level: 'No evaluada', color: 'gray', class: 'badge-none' };
+    }
+
+    determineSeverity(data) {
+        const results = [
+            this.classifyCriterion('vc', data.vc),
+            this.classifyCriterion('pht', data.pht),
+            this.classifyCriterion('jetWidth', data.jetWidth),
+            this.classifyCriterion('rvol', data.rvol),
+            this.classifyCriterion('eroa', data.eroa),
+            this.classifyCriterion('alcance', data.alcance),
+            this.classifyCriterion('flujoReverso', data.flujoReverso)
+        ];
+        return this.resolveConflict(results);
     }
 
     updateState() {
         const data = this.getValues();
+        // Since alcance 'tsvi' is default, to avoid showing Leve erroneously on new untouched form:
+        const hasMetric = Object.values(data).some(v => typeof v === 'number' && v > 0);
+        if (!hasMetric && !data.flujoReverso && data.alcance === 'tsvi') {
+            data.alcance = null; // Ignore default when computing fresh state without metrics
+        }
+        
+        this.updateCriterionBadges(data);
         const severity = this.determineSeverity(data);
 
         // Update Badge UI
-        const badgeEl = document.getElementById(this.output.badge);
-        if (badgeEl) {
-            badgeEl.textContent = severity.level;
-            badgeEl.className = `severity-badge ${severity.class}`;
+        const badges = [
+            document.getElementById(this.output.badge),
+            document.getElementById(this.output.badge.replace('severity', 'conclusion'))
+        ];
 
-            // Apply specific styles if classes aren't in CSS yet
-            if (severity.color === 'red') {
-                badgeEl.style.backgroundColor = '#fecaca'; // red-200
-                badgeEl.style.color = '#991b1b'; // red-800
-                badgeEl.style.border = '1px solid #ef4444';
-            } else if (severity.color === 'green') {
-                badgeEl.style.backgroundColor = '#bbf7d0'; // green-200
-                badgeEl.style.color = '#166534'; // green-800
-                badgeEl.style.border = '1px solid #22c55e';
-            } else if (severity.color === 'yellow') {
-                badgeEl.style.backgroundColor = '#fef08a'; // yellow-200
-                badgeEl.style.color = '#854d0e'; // yellow-800
-                badgeEl.style.border = '1px solid #eab308';
-            } else {
-                badgeEl.style.backgroundColor = '#e5e7eb';
-                badgeEl.style.color = '#374151';
-                badgeEl.style.border = '1px solid #d1d5db';
+        badges.forEach(badgeEl => {
+            if (badgeEl) {
+                badgeEl.textContent = severity.level;
+                badgeEl.className = `severity-badge ${severity.class}`;
+
+                if (severity.color === 'red') {
+                    badgeEl.style.backgroundColor = '#fecaca'; badgeEl.style.color = '#991b1b'; badgeEl.style.border = '1px solid #ef4444';
+                } else if (severity.color === 'red-orange') {
+                    badgeEl.style.backgroundColor = '#fca5a5'; badgeEl.style.color = '#7f1d1d'; badgeEl.style.border = '1px solid #f87171';
+                } else if (severity.color === 'orange') {
+                    badgeEl.style.backgroundColor = '#fed7aa'; badgeEl.style.color = '#9a3412'; badgeEl.style.border = '1px solid #fb923c';
+                } else if (severity.color === 'green') {
+                    badgeEl.style.backgroundColor = '#bbf7d0'; badgeEl.style.color = '#166534'; badgeEl.style.border = '1px solid #22c55e';
+                } else if (severity.color === 'yellow') {
+                    badgeEl.style.backgroundColor = '#fef08a'; badgeEl.style.color = '#854d0e'; badgeEl.style.border = '1px solid #eab308';
+                } else {
+                    badgeEl.style.backgroundColor = '#e5e7eb'; badgeEl.style.color = '#374151'; badgeEl.style.border = '1px solid #d1d5db';
+                }
+            }
+        });
+
+        // Sync with main select for report generation
+        // Note: For Aortic Regurgitation, the main select ID is 'ia_grado'
+        const mainSelect = document.getElementById('ia_grado');
+        if (mainSelect && severity) {
+            let val = severity.level.toLowerCase();
+            if (val === 'leve-mod') val = 'leve-moderada';
+            if (val === 'mod-severa') val = 'moderada-severa';
+            
+            if (val !== 'no evaluada') {
+                if (mainSelect.value !== val) {
+                    mainSelect.value = val;
+                }
             }
         }
     }

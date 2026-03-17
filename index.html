@@ -16,7 +16,7 @@
         rel="stylesheet">
 
     <!-- Styles -->
-    <link rel="stylesheet" href="styles.css?v=14.7">
+    <link rel="stylesheet" href="styles.css?v=14.8">
 </head>
 
 <body>
@@ -452,7 +452,9 @@
                         <option value="no">No significativa</option>
                         <option value="minima">Mínima</option>
                         <option value="leve">Leve</option>
+                        <option value="leve-moderada">Leve-Moderada</option>
                         <option value="moderada">Moderada</option>
+                        <option value="moderada-severa">Moderada-Severa</option>
                         <option value="severa">Severa</option>
                     </select>
                 </div>
@@ -461,7 +463,9 @@
                     <select id="em_grado">
                         <option value="no">No</option>
                         <option value="leve">Leve</option>
+                        <option value="leve-moderada">Leve-Moderada</option>
                         <option value="moderada">Moderada</option>
+                        <option value="moderada-severa">Moderada-Severa</option>
                         <option value="severa">Severa</option>
                     </select>
                 </div>
@@ -486,13 +490,24 @@
 
                     <div class="iao-grid">
                         <div class="iao-input-group">
-                            <label for="em_grad_medio">Gradiente Medio (mmHg)</label>
-                            <input type="number" id="em_grad_medio" step="0.1" placeholder="Ej: 10">
+                            <label for="em_grad_medio">Gradiente Medio (mmHg) <small style="color:#9ca3af">(Sev ≥10)</small></label>
+                            <div class="criterion-input-row">
+                                <input type="number" id="em_grad_medio" step="0.1" placeholder="Ej: 10">
+                                <span class="criterion-badge" id="badge_em_grad_medio">—</span>
+                            </div>
                         </div>
                         <div class="iao-input-group">
-                            <label for="em_area_pht">Área por PHT (cm²)</label>
-                            <input type="number" id="em_area_pht" step="0.01" placeholder="Ej: 1.0">
+                            <label for="em_area_pht">Área por PHT (cm²) <small style="color:#9ca3af">(Sev ≤1.5)</small></label>
+                            <div class="criterion-input-row">
+                                <input type="number" id="em_area_pht" step="0.01" placeholder="Ej: 1.0">
+                                <span class="criterion-badge" id="badge_em_area_pht">—</span>
+                            </div>
                         </div>
+                    </div>
+                    <!-- Conclusion Prominente -->
+                    <div class="module-conclusion">
+                        <span class="conclusion-text">Severidad Global Calculada:</span>
+                        <span id="em_conclusion_badge" class="severity-badge badge-none">No evaluada</span>
                     </div>
                 </div>
 
@@ -511,25 +526,37 @@
 
                     <div class="iao-grid">
                         <div class="iao-input-group">
-                            <label for="im_vc">Vena Contracta (mm)</label>
-                            <input type="number" id="im_vc" step="0.1" placeholder="Ej: 7.0">
+                            <label for="im_vc">Vena Contracta (mm) <small style="color:#9ca3af">(Sev ≥7)</small></label>
+                            <div class="criterion-input-row">
+                                <input type="number" id="im_vc" step="0.1" placeholder="Ej: 7.0">
+                                <span class="criterion-badge" id="badge_im_vc">—</span>
+                            </div>
                         </div>
                         <div class="iao-input-group">
-                            <label for="im_ore">ORE (cm²)</label>
-                            <input type="number" id="im_ore" step="0.01" placeholder="PISA">
+                            <label for="im_ore">ORE (cm²) <small style="color:#9ca3af">(Sev ≥0.40)</small></label>
+                            <div class="criterion-input-row">
+                                <input type="number" id="im_ore" step="0.01" placeholder="PISA">
+                                <span class="criterion-badge" id="badge_im_ore">—</span>
+                            </div>
                         </div>
                         <div class="iao-input-group">
-                            <label for="im_vr">Vol. Regurgitante (ml)</label>
-                            <input type="number" id="im_vr" step="1" placeholder="PISA">
+                            <label for="im_vr">Vol. Regurgitante (ml) <small style="color:#9ca3af">(Sev ≥60)</small></label>
+                            <div class="criterion-input-row">
+                                <input type="number" id="im_vr" step="1" placeholder="PISA">
+                                <span class="criterion-badge" id="badge_im_vr">—</span>
+                            </div>
                         </div>
                         <div class="iao-input-group">
                             <label for="im_area_jet">Alcance del Jet / AI</label>
-                            <select id="im_area_jet">
-                                <option value="" selected disabled>Seleccionar...</option>
-                                <option value="leve">Llega a 1/3 de AI</option>
-                                <option value="moderada">Llega a 2/3 de AI</option>
-                                <option value="severa">Llega a Pared Posterior</option>
-                            </select>
+                            <div class="criterion-input-row">
+                                <select id="im_area_jet">
+                                    <option value="" selected disabled>Seleccionar...</option>
+                                    <option value="leve">Llega a 1/3 de AI</option>
+                                    <option value="moderada">Llega a 2/3 de AI</option>
+                                    <option value="severa">Llega a Pared Posterior</option>
+                                </select>
+                                <span class="criterion-badge" id="badge_im_area_jet">—</span>
+                            </div>
                         </div>
                     </div>
 
@@ -537,6 +564,12 @@
                     <div class="iao-checkbox-group" style="margin-top: 1rem;">
                         <input type="checkbox" id="im_inversion_venas">
                         <label for="im_inversion_venas">Inversión sistólica en venas pulmonares</label>
+                        <span class="criterion-badge" id="badge_im_inversion" style="margin-left:auto;">—</span>
+                    </div>
+                    <!-- Conclusion Prominente -->
+                    <div class="module-conclusion">
+                        <span class="conclusion-text">Severidad Global Calculada:</span>
+                        <span id="im_conclusion_badge" class="severity-badge badge-none">No evaluada</span>
                     </div>
                 </div>
             </div>
@@ -676,8 +709,11 @@
                     <label for="ea_grado">Estenosis Aórtica</label>
                     <select id="ea_grado">
                         <option value="no">No</option>
+                        <option value="esclerosis">Esclerosis</option>
                         <option value="leve">Leve</option>
+                        <option value="leve-moderada">Leve-Moderada</option>
                         <option value="moderada">Moderada</option>
+                        <option value="moderada-severa">Moderada-Severa</option>
                         <option value="severa">Severa</option>
                     </select>
                 </div>
@@ -687,7 +723,9 @@
                         <option value="no">No</option>
                         <option value="minima">Mínima</option>
                         <option value="leve">Leve</option>
+                        <option value="leve-moderada">Leve-Moderada</option>
                         <option value="moderada">Moderada</option>
+                        <option value="moderada-severa">Moderada-Severa</option>
                         <option value="severa">Severa</option>
                     </select>
                 </div>
@@ -728,25 +766,45 @@
 
                     <div class="iao-grid">
                         <div class="iao-input-group">
-                            <label for="ea_vmax">Vmax (m/s)</label>
-                            <input type="number" id="ea_vmax" step="0.1" placeholder="Ej: 4.0">
+                            <label for="ea_vmax">Vmax (m/s) <small style="color:#9ca3af">(Sev ≥4.0)</small></label>
+                            <div class="criterion-input-row">
+                                <input type="number" id="ea_vmax" step="0.1" placeholder="Ej: 4.0">
+                                <span class="criterion-badge" id="badge_ea_vmax">—</span>
+                            </div>
                         </div>
                         <div class="iao-input-group">
-                            <label for="ea_grad_medio">Gradiente Medio (mmHg)</label>
-                            <input type="number" id="ea_grad_medio" step="1" placeholder="Ej: 45">
+                            <label for="ea_grad_medio">Gradiente Medio (mmHg) <small style="color:#9ca3af">(Sev ≥40)</small></label>
+                            <div class="criterion-input-row">
+                                <input type="number" id="ea_grad_medio" step="1" placeholder="Ej: 45">
+                                <span class="criterion-badge" id="badge_ea_grad_medio">—</span>
+                            </div>
                         </div>
                         <div class="iao-input-group">
-                            <label for="ea_ava">AVA (cm²)</label>
-                            <input type="number" id="ea_ava" step="0.01" placeholder="Continuidad">
+                            <label for="ea_ava">AVA (cm²) <small style="color:#9ca3af">(Sev ≤1.0)</small></label>
+                            <div class="criterion-input-row">
+                                <input type="number" id="ea_ava" step="0.01" placeholder="Continuidad">
+                                <span class="criterion-badge" id="badge_ea_ava">—</span>
+                            </div>
                         </div>
                         <div class="iao-input-group">
-                            <label for="ea_ava_index">AVA Index (cm²/m²)</label>
-                            <input type="number" id="ea_ava_index" step="0.01">
+                            <label for="ea_ava_index">AVA Index (cm²/m²) <small style="color:#9ca3af">(Sev ≤0.6)</small></label>
+                            <div class="criterion-input-row">
+                                <input type="number" id="ea_ava_index" step="0.01">
+                                <span class="criterion-badge" id="badge_ea_ava_index">—</span>
+                            </div>
                         </div>
                         <div class="iao-input-group">
-                            <label for="ea_coef">Coef. Adimensional</label>
-                            <input type="number" id="ea_coef" step="0.01" placeholder="VTI ratio">
+                            <label for="ea_coef">Coef. Adimensional <small style="color:#9ca3af">(Sev ≤0.25)</small></label>
+                            <div class="criterion-input-row">
+                                <input type="number" id="ea_coef" step="0.01" placeholder="VTI ratio">
+                                <span class="criterion-badge" id="badge_ea_coef">—</span>
+                            </div>
                         </div>
+                    </div>
+                    <!-- Conclusion Prominente -->
+                    <div class="module-conclusion">
+                        <span class="conclusion-text">Severidad Global Calculada:</span>
+                        <span id="ea_conclusion_badge" class="severity-badge badge-none">No evaluada</span>
                     </div>
                 </div>
 
@@ -767,34 +825,52 @@
                     <div class="iao-grid">
                         <!-- Parametros Cuantitativos -->
                         <div class="iao-input-group">
-                            <label for="iao_vc">Vena Contracta (cm)</label>
-                            <input type="number" id="iao_vc" step="0.01" placeholder="Ej: 0.4">
+                            <label for="iao_vc">Vena Contracta (cm) <small style="color:#9ca3af">(Sev >0.6)</small></label>
+                            <div class="criterion-input-row">
+                                <input type="number" id="iao_vc" step="0.01" placeholder="Ej: 0.4">
+                                <span class="criterion-badge" id="badge_iao_vc">—</span>
+                            </div>
                         </div>
                         <div class="iao-input-group">
-                            <label for="iao_pht">PHT (ms)</label>
-                            <input type="number" id="iao_pht" step="1" placeholder="Ej: 400">
+                            <label for="iao_pht">PHT (ms) <small style="color:#9ca3af">(Sev <200)</small></label>
+                            <div class="criterion-input-row">
+                                <input type="number" id="iao_pht" step="1" placeholder="Ej: 400">
+                                <span class="criterion-badge" id="badge_iao_pht">—</span>
+                            </div>
                         </div>
                         <div class="iao-input-group">
-                            <label for="iao_jet_width">Ancho Jet / TSVI (%)</label>
-                            <input type="number" id="iao_jet_width" step="1" placeholder="Ej: 30">
+                            <label for="iao_jet_width">Ancho Jet / TSVI (%) <small style="color:#9ca3af">(Sev ≥65)</small></label>
+                            <div class="criterion-input-row">
+                                <input type="number" id="iao_jet_width" step="1" placeholder="Ej: 30">
+                                <span class="criterion-badge" id="badge_iao_jet_width">—</span>
+                            </div>
                         </div>
                         <div class="iao-input-group">
-                            <label for="iao_rvol">Vol. Regurgitante (ml)</label>
-                            <input type="number" id="iao_rvol" step="1" placeholder="Ej: 45">
+                            <label for="iao_rvol">Vol. Regurgitante (ml) <small style="color:#9ca3af">(Sev ≥60)</small></label>
+                            <div class="criterion-input-row">
+                                <input type="number" id="iao_rvol" step="1" placeholder="Ej: 45">
+                                <span class="criterion-badge" id="badge_iao_rvol">—</span>
+                            </div>
                         </div>
                         <div class="iao-input-group">
-                            <label for="iao_eroa">EROA (cm²)</label>
-                            <input type="number" id="iao_eroa" step="0.01" placeholder="Ej: 0.2">
+                            <label for="iao_eroa">EROA (cm²) <small style="color:#9ca3af">(Sev ≥0.30)</small></label>
+                            <div class="criterion-input-row">
+                                <input type="number" id="iao_eroa" step="0.01" placeholder="Ej: 0.2">
+                                <span class="criterion-badge" id="badge_iao_eroa">—</span>
+                            </div>
                         </div>
 
                         <!-- Alcance del Jet -->
                         <div class="iao-input-group">
                             <label for="iao_jet_alcance">Alcance del Jet</label>
-                            <select id="iao_jet_alcance">
-                                <option value="tsvi">TSVI (Inmediato)</option>
-                                <option value="mitral">Hasta Válvula Mitral</option>
-                                <option value="apex">Hasta Ápex VI</option>
-                            </select>
+                            <div class="criterion-input-row">
+                                <select id="iao_jet_alcance">
+                                    <option value="tsvi">TSVI (Inmediato)</option>
+                                    <option value="mitral">Hasta Válvula Mitral</option>
+                                    <option value="apex">Hasta Ápex VI</option>
+                                </select>
+                                <span class="criterion-badge" id="badge_iao_jet_alcance">—</span>
+                            </div>
                         </div>
                     </div>
 
@@ -802,6 +878,12 @@
                     <div class="iao-checkbox-group">
                         <input type="checkbox" id="iao_flujo_reverso">
                         <label for="iao_flujo_reverso">Flujo reverso holodiastólico en Aorta Descendente</label>
+                        <span class="criterion-badge" id="badge_iao_flujo_reverso" style="margin-left:auto;">—</span>
+                    </div>
+                    <!-- Conclusion Prominente -->
+                    <div class="module-conclusion" style="margin-top: 1rem;">
+                        <span class="conclusion-text">Severidad Global Calculada:</span>
+                        <span id="iao_conclusion_badge" class="severity-badge badge-none">No evaluada</span>
                     </div>
                 </div>
             </div>
@@ -1230,11 +1312,11 @@
     <script src="js/ui-controller.js?v=15.0"></script>
     <script src="js/ui-extensions.js?v=15.0"></script>
     <script src="js/ui-lanus.js?v=15.0"></script>
-    <script src="js/ui-aorta-display.js"></script>
-    <script src="js/aortic-regurgitation.js"></script>
-    <script src="js/valvulopathy-modules.js"></script>
-    <script src="js/voice-recognition.js"></script>
-    <script src="app.js"></script>
+    <script src="js/ui-aorta-display.js?v=15.1"></script>
+    <script src="js/aortic-regurgitation.js?v=15.5"></script>
+    <script src="js/valvulopathy-modules.js?v=15.5"></script>
+    <script src="js/voice-recognition.js?v=15.1"></script>
+    <script src="app.js?v=15.5"></script>
 
 </body>
 

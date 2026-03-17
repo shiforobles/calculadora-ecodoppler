@@ -102,60 +102,178 @@ class MitralRegurgitationModule {
         };
     }
 
-    determineSeverity(data) {
-        // Criterios ASE 2017
+    classifyCriterion(key, value) {
+        if (value === 0 || value === '' || value === false || value === null || isNaN(value)) return null;
 
-        // Severa
-        if (
-            (data.vc >= 7) ||
-            (data.ore >= 0.40) ||
-            (data.vr >= 60) ||
-            (data.areaJet === 'severa') ||
-            (data.inversionVenas)
-        ) {
+        switch (key) {
+            case 'vc':
+                if (value >= 7) return { level: 'severa', weight: 3 };
+                if (value >= 3) return { level: 'moderada', weight: 3 };
+                return { level: 'leve', weight: 3 };
+            case 'ore':
+                if (value >= 0.40) return { level: 'severa', weight: 4 };
+                if (value >= 0.20) return { level: 'moderada', weight: 4 };
+                return { level: 'leve', weight: 4 };
+            case 'vr':
+                if (value >= 60) return { level: 'severa', weight: 2 };
+                if (value >= 30) return { level: 'moderada', weight: 2 };
+                return { level: 'leve', weight: 2 };
+            case 'areaJet':
+                if (value === 'severa') return { level: 'severa', weight: 1 };
+                if (value === 'moderada') return { level: 'moderada', weight: 1 };
+                if (value === 'leve') return { level: 'leve', weight: 1 };
+                return null;
+            case 'inversionVenas':
+                if (value === true) return { level: 'severa', weight: 5, isQualitative: true };
+                return null;
+            default:
+                return null;
+        }
+    }
+
+    updateCriterionBadges(data) {
+        const mapping = {
+            vc: 'badge_im_vc',
+            ore: 'badge_im_ore',
+            vr: 'badge_im_vr',
+            areaJet: 'badge_im_area_jet',
+            inversionVenas: 'badge_im_inversion'
+        };
+
+        const classes = {
+            'leve': 'cb-mild',
+            'moderada': 'cb-moderate',
+            'severa': 'cb-severe'
+        };
+        const labels = {
+            'leve': 'Leve',
+            'moderada': 'Mod',
+            'severa': 'Sev'
+        };
+
+        Object.keys(mapping).forEach(key => {
+            const badgeId = mapping[key];
+            const badgeEl = document.getElementById(badgeId);
+            if (!badgeEl) return;
+
+            const inputEl = badgeEl.parentElement.querySelector('input, select');
+            const result = this.classifyCriterion(key, data[key]);
+            
+            badgeEl.className = 'criterion-badge';
+            if (inputEl) {
+                inputEl.classList.remove('input-mild', 'input-moderate', 'input-severe');
+            }
+            
+            if (result) {
+                badgeEl.textContent = labels[result.level];
+                badgeEl.classList.add(classes[result.level]);
+                badgeEl.style.display = 'inline-flex';
+
+                if (inputEl) {
+                    if (result.level === 'leve') inputEl.classList.add('input-mild');
+                    else if (result.level === 'moderada') inputEl.classList.add('input-moderate');
+                    else if (result.level === 'severa') inputEl.classList.add('input-severe');
+                }
+            } else {
+                badgeEl.textContent = '—';
+                badgeEl.style.display = 'none';
+            }
+        });
+    }
+
+    resolveConflict(criteriaResults) {
+        const validResults = criteriaResults.filter(r => r !== null);
+        if (validResults.length === 0) return { level: 'No evaluada', color: 'gray', class: 'badge-none' };
+
+        const levels = validResults.map(r => r.level);
+        
+        const hasSevera = validResults.some(r => r.level === 'severa');
+        const hasModerada = validResults.some(r => r.level === 'moderada');
+        const hasLeve = validResults.some(r => r.level === 'leve');
+
+        const severeCount = levels.filter(l => l === 'severa').length;
+
+        if (hasSevera) {
+            // If 1 severe and rest are moderate -> Mod-Severa
+            if (severeCount === 1 && validResults.length > 1 && hasModerada) {
+                return { level: 'Mod-Severa', color: 'red-orange', class: 'badge-borderline-high' };
+            }
+            // If 1 severe and rest are leve -> Conflict, fallback to Moderada
+            if (severeCount === 1 && validResults.length > 1 && hasLeve && !hasModerada) {
+                 return { level: 'Moderada', color: 'yellow', class: 'badge-moderate' };
+            }
             return { level: 'Severa', color: 'red', class: 'badge-severe' };
         }
 
-        // Leve (Specific check for mild values)
-        // VC < 3mm, ORE < 0.20, VR < 30, AreaJet < 20%
-        // We assume Leve if mostly mild indicators
-        let mildCount = 0;
-        let modCount = 0;
+        if (hasModerada && hasLeve) {
+            return { level: 'Leve-Mod', color: 'orange', class: 'badge-borderline-low' };
+        }
 
-        if (data.vc > 0) data.vc < 3 ? mildCount++ : modCount++;
-        if (data.ore > 0) data.ore < 0.20 ? mildCount++ : modCount++;
-        if (data.vr > 0) data.vr < 30 ? mildCount++ : modCount++;
-        if (data.areaJet) data.areaJet === 'leve' ? mildCount++ : modCount++;
+        if (hasModerada) {
+            return { level: 'Moderada', color: 'yellow', class: 'badge-moderate' };
+        }
 
-        if (mildCount > 0 && modCount === 0) {
+        if (hasLeve) {
             return { level: 'Leve', color: 'green', class: 'badge-mild' };
         }
 
-        // Default / Intermediate
-        const hasData = Object.values(data).some(v => (typeof v === 'number' && v > 0) || v === true || (typeof v === 'string' && v !== ''));
-        if (!hasData) return { level: 'No evaluada', color: 'gray', class: 'badge-none' };
+        return { level: 'No evaluada', color: 'gray', class: 'badge-none' };
+    }
 
-        return { level: 'Moderada', color: 'yellow', class: 'badge-moderate' };
+    determineSeverity(data) {
+        const results = [
+            this.classifyCriterion('vc', data.vc),
+            this.classifyCriterion('ore', data.ore),
+            this.classifyCriterion('vr', data.vr),
+            this.classifyCriterion('areaJet', data.areaJet),
+            this.classifyCriterion('inversionVenas', data.inversionVenas)
+        ];
+        return this.resolveConflict(results);
     }
 
     updateState() {
         const data = this.getValues();
+        this.updateCriterionBadges(data);
         const severity = this.determineSeverity(data);
 
-        const badgeEl = document.getElementById(this.output.badge);
-        if (badgeEl) {
-            badgeEl.textContent = severity.level;
-            badgeEl.className = `severity-badge ${severity.class}`;
+        const badges = [
+            document.getElementById(this.output.badge),
+            document.getElementById(this.output.badge.replace('severity', 'conclusion'))
+        ];
 
-            // Inline styles backup
-            if (severity.color === 'red') {
-                badgeEl.style.backgroundColor = '#fecaca'; badgeEl.style.color = '#991b1b'; badgeEl.style.border = '1px solid #ef4444';
-            } else if (severity.color === 'green') {
-                badgeEl.style.backgroundColor = '#bbf7d0'; badgeEl.style.color = '#166534'; badgeEl.style.border = '1px solid #22c55e';
-            } else if (severity.color === 'yellow') {
-                badgeEl.style.backgroundColor = '#fef08a'; badgeEl.style.color = '#854d0e'; badgeEl.style.border = '1px solid #eab308';
-            } else {
-                badgeEl.style.backgroundColor = '#e5e7eb'; badgeEl.style.color = '#374151'; badgeEl.style.border = '1px solid #d1d5db';
+        badges.forEach(badgeEl => {
+            if (badgeEl) {
+                badgeEl.textContent = severity.level;
+                badgeEl.className = `severity-badge ${severity.class}`;
+
+                if (severity.color === 'red') {
+                    badgeEl.style.backgroundColor = '#fecaca'; badgeEl.style.color = '#991b1b'; badgeEl.style.border = '1px solid #ef4444';
+                } else if (severity.color === 'red-orange') {
+                    badgeEl.style.backgroundColor = '#fca5a5'; badgeEl.style.color = '#7f1d1d'; badgeEl.style.border = '1px solid #f87171';
+                } else if (severity.color === 'orange') {
+                    badgeEl.style.backgroundColor = '#fed7aa'; badgeEl.style.color = '#9a3412'; badgeEl.style.border = '1px solid #fb923c';
+                } else if (severity.color === 'green') {
+                    badgeEl.style.backgroundColor = '#bbf7d0'; badgeEl.style.color = '#166534'; badgeEl.style.border = '1px solid #22c55e';
+                } else if (severity.color === 'yellow') {
+                    badgeEl.style.backgroundColor = '#fef08a'; badgeEl.style.color = '#854d0e'; badgeEl.style.border = '1px solid #eab308';
+                } else {
+                    badgeEl.style.backgroundColor = '#e5e7eb'; badgeEl.style.color = '#374151'; badgeEl.style.border = '1px solid #d1d5db';
+                }
+            }
+        });
+
+        // Sync with main select for report generation
+        const mainSelectId = this.output.badge.split('_')[0] + '_grado';
+        const mainSelect = document.getElementById(mainSelectId);
+        if (mainSelect && severity) {
+            let val = severity.level.toLowerCase();
+            if (val === 'leve-mod') val = 'leve-moderada';
+            if (val === 'mod-severa') val = 'moderada-severa';
+            
+            if (val !== 'no evaluada') {
+                if (mainSelect.value !== val) {
+                    mainSelect.value = val;
+                }
             }
         }
     }
@@ -268,44 +386,159 @@ class MitralStenosisModule {
         };
     }
 
-    determineSeverity(data) {
-        // Criterios:
-        // Severa: Area <= 1.5 (Muy severa <= 1.0), GM > 5-10
-        // Leve: Area > 1.5, GM < 5
+    classifyCriterion(key, value) {
+        if (value === 0 || value === '' || value === false || value === null || isNaN(value)) return null;
 
-        if (data.areaPht > 0 && data.areaPht <= 1.5) {
+        switch (key) {
+            case 'areaPht':
+                // MVA <= 1.5 is severe MS by ASE/ESC
+                if (value <= 1.5) return { level: 'severa', weight: 2 };
+                if (value <= 2.0) return { level: 'moderada', weight: 2 };
+                return { level: 'leve', weight: 2 };
+            case 'gradMedio':
+                if (value >= 10) return { level: 'severa', weight: 1 };
+                if (value >= 5) return { level: 'moderada', weight: 1 };
+                return { level: 'leve', weight: 1 };
+            default:
+                return null;
+        }
+    }
+
+    updateCriterionBadges(data) {
+        const mapping = {
+            areaPht: 'badge_em_area_pht',
+            gradMedio: 'badge_em_grad_medio'
+        };
+
+        const classes = {
+            'leve': 'cb-mild',
+            'moderada': 'cb-moderate',
+            'severa': 'cb-severe'
+        };
+        const labels = {
+            'leve': 'Leve',
+            'moderada': 'Mod',
+            'severa': 'Sev'
+        };
+
+        Object.keys(mapping).forEach(key => {
+            const badgeId = mapping[key];
+            const badgeEl = document.getElementById(badgeId);
+            if (!badgeEl) return;
+
+            const inputEl = badgeEl.parentElement.querySelector('input, select');
+            const result = this.classifyCriterion(key, data[key]);
+            
+            badgeEl.className = 'criterion-badge';
+            if (inputEl) {
+                inputEl.classList.remove('input-mild', 'input-moderate', 'input-severe');
+            }
+            
+            if (result) {
+                badgeEl.textContent = labels[result.level];
+                badgeEl.classList.add(classes[result.level]);
+                badgeEl.style.display = 'inline-flex';
+
+                if (inputEl) {
+                    if (result.level === 'leve') inputEl.classList.add('input-mild');
+                    else if (result.level === 'moderada') inputEl.classList.add('input-moderate');
+                    else if (result.level === 'severa') inputEl.classList.add('input-severe');
+                }
+            } else {
+                badgeEl.textContent = '—';
+                badgeEl.style.display = 'none';
+            }
+        });
+    }
+
+    resolveConflict(criteriaResults) {
+        const validResults = criteriaResults.filter(r => r !== null);
+        if (validResults.length === 0) return { level: 'No evaluada', color: 'gray', class: 'badge-none' };
+
+        const levels = validResults.map(r => r.level);
+        
+        const hasSevera = validResults.some(r => r.level === 'severa');
+        const hasModerada = validResults.some(r => r.level === 'moderada');
+        const hasLeve = validResults.some(r => r.level === 'leve');
+
+        const severeCount = levels.filter(l => l === 'severa').length;
+
+        if (hasSevera) {
+            if (severeCount === 1 && validResults.length > 1 && hasModerada) {
+                return { level: 'Mod-Severa', color: 'red-orange', class: 'badge-borderline-high' };
+            }
+            if (severeCount === 1 && validResults.length > 1 && hasLeve && !hasModerada) {
+                 return { level: 'Moderada', color: 'yellow', class: 'badge-moderate' };
+            }
             return { level: 'Severa', color: 'red', class: 'badge-severe' };
         }
-        if (data.gradMedio >= 10) {
-            return { level: 'Severa', color: 'red', class: 'badge-severe' };
+
+        if (hasModerada && hasLeve) {
+            return { level: 'Leve-Mod', color: 'orange', class: 'badge-borderline-low' };
         }
 
-        if (data.areaPht > 1.5 || (data.gradMedio > 0 && data.gradMedio < 5)) {
+        if (hasModerada) {
+            return { level: 'Moderada', color: 'yellow', class: 'badge-moderate' };
+        }
+
+        if (hasLeve) {
             return { level: 'Leve', color: 'green', class: 'badge-mild' };
         }
 
-        const hasData = (data.areaPht > 0 || data.gradMedio > 0);
-        if (!hasData) return { level: 'No evaluada', color: 'gray', class: 'badge-none' };
+        return { level: 'No evaluada', color: 'gray', class: 'badge-none' };
+    }
 
-        return { level: 'Moderada', color: 'yellow', class: 'badge-moderate' };
+    determineSeverity(data) {
+        const results = [
+            this.classifyCriterion('areaPht', data.areaPht),
+            this.classifyCriterion('gradMedio', data.gradMedio)
+        ];
+        return this.resolveConflict(results);
     }
 
     updateState() {
         const data = this.getValues();
+        this.updateCriterionBadges(data);
         const severity = this.determineSeverity(data);
-        const badgeEl = document.getElementById(this.output.badge);
-        if (badgeEl) {
-            badgeEl.textContent = severity.level;
-            badgeEl.className = `severity-badge ${severity.class}`;
+        
+        const badges = [
+            document.getElementById(this.output.badge),
+            document.getElementById(this.output.badge.replace('severity', 'conclusion'))
+        ];
 
-            if (severity.color === 'red') {
-                badgeEl.style.backgroundColor = '#fecaca'; badgeEl.style.color = '#991b1b'; badgeEl.style.border = '1px solid #ef4444';
-            } else if (severity.color === 'green') {
-                badgeEl.style.backgroundColor = '#bbf7d0'; badgeEl.style.color = '#166534'; badgeEl.style.border = '1px solid #22c55e';
-            } else if (severity.color === 'yellow') {
-                badgeEl.style.backgroundColor = '#fef08a'; badgeEl.style.color = '#854d0e'; badgeEl.style.border = '1px solid #eab308';
-            } else {
-                badgeEl.style.backgroundColor = '#e5e7eb'; badgeEl.style.color = '#374151'; badgeEl.style.border = '1px solid #d1d5db';
+        badges.forEach(badgeEl => {
+            if (badgeEl) {
+                badgeEl.textContent = severity.level;
+                badgeEl.className = `severity-badge ${severity.class}`;
+
+                if (severity.color === 'red') {
+                    badgeEl.style.backgroundColor = '#fecaca'; badgeEl.style.color = '#991b1b'; badgeEl.style.border = '1px solid #ef4444';
+                } else if (severity.color === 'red-orange') {
+                    badgeEl.style.backgroundColor = '#fca5a5'; badgeEl.style.color = '#7f1d1d'; badgeEl.style.border = '1px solid #f87171';
+                } else if (severity.color === 'orange') {
+                    badgeEl.style.backgroundColor = '#fed7aa'; badgeEl.style.color = '#9a3412'; badgeEl.style.border = '1px solid #fb923c';
+                } else if (severity.color === 'green') {
+                    badgeEl.style.backgroundColor = '#bbf7d0'; badgeEl.style.color = '#166534'; badgeEl.style.border = '1px solid #22c55e';
+                } else if (severity.color === 'yellow') {
+                    badgeEl.style.backgroundColor = '#fef08a'; badgeEl.style.color = '#854d0e'; badgeEl.style.border = '1px solid #eab308';
+                } else {
+                    badgeEl.style.backgroundColor = '#e5e7eb'; badgeEl.style.color = '#374151'; badgeEl.style.border = '1px solid #d1d5db';
+                }
+            }
+        });
+
+        // Sync with main select for report generation
+        const mainSelectId = this.output.badge.split('_')[0] + '_grado';
+        const mainSelect = document.getElementById(mainSelectId);
+        if (mainSelect && severity) {
+            let val = severity.level.toLowerCase();
+            if (val === 'leve-mod') val = 'leve-moderada';
+            if (val === 'mod-severa') val = 'moderada-severa';
+            
+            if (val !== 'no evaluada') {
+                if (mainSelect.value !== val) {
+                    mainSelect.value = val;
+                }
             }
         }
     }
@@ -341,8 +574,15 @@ class AorticStenosisModule {
         };
 
         this.presets = {
+            esclerosis: {
+                vmax: 2.2,
+                gradMedio: 10,
+                ava: 2.0,
+                avaIndex: 1.1,
+                coef: 0.70
+            },
             leve: {
-                vmax: 2.5,
+                vmax: 2.8,
                 gradMedio: 15,
                 ava: 1.6,
                 avaIndex: 0.9,
@@ -416,53 +656,177 @@ class AorticStenosisModule {
         };
     }
 
-    determineSeverity(data) {
-        // Criterios ASE (Estenosis Aortica)
-        // Severa: Vmax >= 4 m/s, GM >= 40 mmHg, AVA <= 1.0, AVAi <= 0.6
-        // Leve: Vmax < 3 m/s, GM < 20 mmHg, AVA > 1.5
+    classifyCriterion(key, value) {
+        if (value === 0 || value === '' || value === false || value === null || isNaN(value)) return null;
 
-        if (
-            (data.vmax >= 4) ||
-            (data.gradMedio >= 40) ||
-            (data.ava > 0 && data.ava <= 1.0) ||
-            (data.avaIndex > 0 && data.avaIndex <= 0.6)
-        ) {
+        switch (key) {
+            case 'vmax':
+                if (value >= 4) return { level: 'severa', weight: 1 };
+                if (value >= 3) return { level: 'moderada', weight: 1 };
+                if (value >= 2.6) return { level: 'leve', weight: 1 };
+                if (value >= 2.0 && value <= 2.5) return { level: 'esclerosis', weight: 0.5 };
+                return null;
+            case 'gradMedio':
+                if (value >= 40) return { level: 'severa', weight: 1 };
+                if (value >= 20) return { level: 'moderada', weight: 1 };
+                return { level: 'leve', weight: 1 };
+            case 'ava':
+                if (value <= 1.0) return { level: 'severa', weight: 2 };
+                if (value <= 1.5) return { level: 'moderada', weight: 2 };
+                return { level: 'leve', weight: 2 };
+            case 'avaIndex':
+                if (value <= 0.6) return { level: 'severa', weight: 1 };
+                if (value <= 0.85) return { level: 'moderada', weight: 1 };
+                return { level: 'leve', weight: 1 };
+            case 'coef':
+                if (value <= 0.25) return { level: 'severa', weight: 1 };
+                if (value <= 0.50) return { level: 'moderada', weight: 1 };
+                return { level: 'leve', weight: 1 };
+            default:
+                return null;
+        }
+    }
+
+    updateCriterionBadges(data) {
+        const mapping = {
+            vmax: 'badge_ea_vmax',
+            gradMedio: 'badge_ea_grad_medio',
+            ava: 'badge_ea_ava',
+            avaIndex: 'badge_ea_ava_index',
+            coef: 'badge_ea_coef'
+        };
+
+        const classes = {
+            'esclerosis': 'cb-esclerosis',
+            'leve': 'cb-mild',
+            'moderada': 'cb-moderate',
+            'severa': 'cb-severe'
+        };
+        const labels = {
+            'esclerosis': 'Escl.',
+            'leve': 'Leve',
+            'moderada': 'Mod',
+            'severa': 'Sev'
+        };
+
+        Object.keys(mapping).forEach(key => {
+            const badgeId = mapping[key];
+            const badgeEl = document.getElementById(badgeId);
+            if (!badgeEl) return;
+
+            const inputEl = badgeEl.parentElement.querySelector('input, select');
+            const result = this.classifyCriterion(key, data[key]);
+            
+            badgeEl.className = 'criterion-badge';
+            if (inputEl) {
+                inputEl.classList.remove('input-mild', 'input-moderate', 'input-severe');
+            }
+            
+            if (result) {
+                badgeEl.textContent = labels[result.level];
+                badgeEl.classList.add(classes[result.level]);
+                badgeEl.style.display = 'inline-flex';
+
+                if (inputEl) {
+                    if (result.level === 'esclerosis') inputEl.classList.add('input-esclerosis');
+                    else if (result.level === 'leve') inputEl.classList.add('input-mild');
+                    else if (result.level === 'moderada') inputEl.classList.add('input-moderate');
+                    else if (result.level === 'severa') inputEl.classList.add('input-severe');
+                }
+            } else {
+                badgeEl.textContent = '—';
+                badgeEl.style.display = 'none';
+            }
+        });
+    }
+
+    resolveConflict(criteriaResults) {
+        const validResults = criteriaResults.filter(r => r !== null);
+        if (validResults.length === 0) return { level: 'No evaluada', color: 'gray', class: 'badge-none' };
+
+        const levels = validResults.map(r => r.level);
+        
+        const hasSevera = validResults.some(r => r.level === 'severa');
+        const hasModerada = validResults.some(r => r.level === 'moderada');
+        const hasLeve = validResults.some(r => r.level === 'leve');
+        const hasEsclerosis = validResults.some(r => r.level === 'esclerosis');
+
+        const severeCount = levels.filter(l => l === 'severa').length;
+
+        if (hasSevera) {
+            if (severeCount === 1 && validResults.length > 1 && hasModerada) {
+                return { level: 'Mod-Severa', color: 'red-orange', class: 'badge-borderline-high' };
+            }
+            if (severeCount === 1 && validResults.length > 1 && (hasLeve || hasEsclerosis) && !hasModerada) {
+                 return { level: 'Moderada', color: 'yellow', class: 'badge-moderate' };
+            }
             return { level: 'Severa', color: 'red', class: 'badge-severe' };
         }
 
-        if (
-            (data.vmax > 0 && data.vmax < 3) ||
-            (data.gradMedio > 0 && data.gradMedio < 20) ||
-            (data.ava > 1.5)
-        ) {
-            // Check if others are moderate? 
-            // Vmax 2.9 is Leve. Vmax 3.5 is Moderate.
+        if (hasModerada && (hasLeve || hasEsclerosis)) {
+            return { level: 'Leve-Mod', color: 'orange', class: 'badge-borderline-low' };
+        }
+
+        if (hasModerada) {
+            return { level: 'Moderada', color: 'yellow', class: 'badge-moderate' };
+        }
+
+        if (hasLeve) {
             return { level: 'Leve', color: 'green', class: 'badge-mild' };
         }
 
-        const hasData = Object.values(data).some(v => v > 0);
-        if (!hasData) return { level: 'No evaluada', color: 'gray', class: 'badge-none' };
+        if (hasEsclerosis) {
+            return { level: 'Esclerosis', color: 'teal', class: 'badge-esclerosis' };
+        }
 
-        return { level: 'Moderada', color: 'yellow', class: 'badge-moderate' };
+        return { level: 'No evaluada', color: 'gray', class: 'badge-none' };
+    }
+
+    determineSeverity(data) {
+        const results = [
+            this.classifyCriterion('vmax', data.vmax),
+            this.classifyCriterion('gradMedio', data.gradMedio),
+            this.classifyCriterion('ava', data.ava),
+            this.classifyCriterion('avaIndex', data.avaIndex),
+             this.classifyCriterion('coef', data.coef)
+        ];
+        return this.resolveConflict(results);
     }
 
     updateState() {
         const data = this.getValues();
+        // Calculate coef locally if needed, but here we assume it's entered via fields
+        // Since getValues() does not currently extract coef, we must ensure coef is tracked.
+        // Wait, does getValues() get coef? Let's check...
+        data.coef = parseFloat(document.getElementById(this.inputs.coef)?.value) || 0;
+        
+        this.updateCriterionBadges(data);
         const severity = this.determineSeverity(data);
-        const badgeEl = document.getElementById(this.output.badge);
-        if (badgeEl) {
-            badgeEl.textContent = severity.level;
-            badgeEl.className = `severity-badge ${severity.class}`;
+        
+        const badges = [
+            document.getElementById(this.output.badge),
+            document.getElementById(this.output.badge.replace('severity', 'conclusion'))
+        ];
 
-            if (severity.color === 'red') {
-                badgeEl.style.backgroundColor = '#fecaca'; badgeEl.style.color = '#991b1b'; badgeEl.style.border = '1px solid #ef4444';
-            } else if (severity.color === 'green') {
-                badgeEl.style.backgroundColor = '#bbf7d0'; badgeEl.style.color = '#166534'; badgeEl.style.border = '1px solid #22c55e';
-            } else if (severity.color === 'yellow') {
-                badgeEl.style.backgroundColor = '#fef08a'; badgeEl.style.color = '#854d0e'; badgeEl.style.border = '1px solid #eab308';
-            } else {
-                badgeEl.style.backgroundColor = '#e5e7eb'; badgeEl.style.color = '#374151'; badgeEl.style.border = '1px solid #d1d5db';
+        badges.forEach(badgeEl => {
+            if (badgeEl) {
+                badgeEl.textContent = severity.level;
+                badgeEl.className = `severity-badge ${severity.class}`;
+
+                if (severity.color === 'red') {
+                    badgeEl.style.backgroundColor = '#fecaca'; badgeEl.style.color = '#991b1b'; badgeEl.style.border = '1px solid #ef4444';
+                } else if (severity.color === 'red-orange') {
+                    badgeEl.style.backgroundColor = '#fca5a5'; badgeEl.style.color = '#7f1d1d'; badgeEl.style.border = '1px solid #f87171';
+                } else if (severity.color === 'orange') {
+                    badgeEl.style.backgroundColor = '#fed7aa'; badgeEl.style.color = '#9a3412'; badgeEl.style.border = '1px solid #fb923c';
+                } else if (severity.color === 'green') {
+                    badgeEl.style.backgroundColor = '#bbf7d0'; badgeEl.style.color = '#166534'; badgeEl.style.border = '1px solid #22c55e';
+                } else if (severity.color === 'yellow') {
+                    badgeEl.style.backgroundColor = '#fef08a'; badgeEl.style.color = '#854d0e'; badgeEl.style.border = '1px solid #eab308';
+                } else {
+                    badgeEl.style.backgroundColor = '#e5e7eb'; badgeEl.style.color = '#374151'; badgeEl.style.border = '1px solid #d1d5db';
+                }
             }
-        }
+        });
     }
 }

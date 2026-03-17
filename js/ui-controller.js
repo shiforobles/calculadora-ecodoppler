@@ -1014,10 +1014,21 @@ class UIController {
             if (hasProtesis && protPos === 'aortica') {
                 report += getProtesisText();
             } else {
-                report += `${morfAortica}.\n`;
+                if (eaGrado === 'esclerosis') {
+                    const eaVmax = document.getElementById('ea_vmax').value || '-';
+                    if (morfAortica.includes('Esclerosis') || morfAortica.includes('Esclerocalcificación')) {
+                        report += `${morfAortica} con Vmax ${eaVmax} m/s.\n`;
+                    } else if (morfAortica.includes('Normal') || morfAortica.includes('Trivalva')) {
+                        report += `Esclerosis valvular aórtica sin restricción de apertura con Vmax ${eaVmax} m/s.\n`;
+                    } else {
+                        report += `${morfAortica} con esclerosis valvular y Vmax ${eaVmax} m/s.\n`;
+                    }
+                } else {
+                    report += `${morfAortica}.\n`;
+                }
 
                 // Aortic Stenosis - Parameters only
-                if (eaGrado !== 'no') {
+                if (eaGrado !== 'no' && eaGrado !== 'esclerosis') {
                     const eaVmax = document.getElementById('ea_vmax').value;
                     const eaGradMedio = document.getElementById('ea_grad_medio').value;
                     const eaAva = document.getElementById('ea_ava').value;
@@ -1419,7 +1430,8 @@ class UIController {
                 if (morfAortica.includes('Bicúspide')) {
                     line += `${morfAortica}`;
                     hasContent = true;
-                    if (eaGrado !== 'no') line += ` con estenosis ${eaGrado}`;
+                    if (eaGrado === 'esclerosis') line += ` con esclerosis valvular aórtica`;
+                    else if (eaGrado !== 'no') line += ` con estenosis ${eaGrado}`;
 
                     if (iaoAdv) {
                         if (eaGrado !== 'no') line += ` e ${iaoAdv.toLowerCase()}`;
@@ -1434,20 +1446,44 @@ class UIController {
                 } else {
                     // Not bicuspid
                     let parts = [];
-                    if (eaGrado !== 'no') parts.push(`Estenosis aórtica ${eaGrado}`);
+                    if (eaGrado === 'esclerosis') {
+                         if (morfAortica.includes('Normal') || morfAortica.includes('Trivalva') || morfAortica.includes('Esclerosis') || morfAortica.includes('Esclerocalcificación')) {
+                             line += `Esclerosis valvular aórtica`;
+                         } else {
+                             line += `${morfAortica} con esclerosis valvular aórtica`;
+                         }
+                         hasContent = true;
+                    } else if (eaGrado !== 'no') {
+                         parts.push(`Estenosis aórtica ${eaGrado}`);
+                    }
 
                     if (iaoAdv) parts.push(iaoAdv);
                     else if (iaGrado === 'minima') parts.push(`Insuficiencia aórtica mínima`);
                     else if (iaGrado !== 'no') parts.push(`Insuficiencia aórtica ${iaGrado}`);
 
                     if (parts.length > 0) {
-                        line += parts.join(' e ');
-                        hasContent = true;
+                        if (eaGrado === 'esclerosis') {
+                             line += ` e ` + parts.join(' e ');
+                        } else {
+                             line += parts.join(' e ');
+                             hasContent = true;
+                        }
                     }
                 }
 
                 if (hasContent) {
                     if (!line.endsWith('.')) line += '.';
+                    
+                    // Asegurar que comience con mayúscula si la línea empieza con una letra minúscula
+                    const textContent = line.substring(line.indexOf('.') + 2); // Get text after "N. "
+                    if (textContent && textContent.length > 0) {
+                        const firstChar = textContent.charAt(0);
+                        if (firstChar === firstChar.toLowerCase() && firstChar.toUpperCase() !== firstChar.toLowerCase()) {
+                             const capitalized = textContent.charAt(0).toUpperCase() + textContent.slice(1);
+                             line = `${line.substring(0, line.indexOf('.') + 2)}${capitalized}`;
+                        }
+                    }
+
                     report += `${line}\n`;
                     conclusionNum++;
                 }
@@ -1456,6 +1492,7 @@ class UIController {
             // 6. Aortic root/ascending aorta dilation
             if (sc) {
                 const sexo = document.getElementById('sexo').value;
+
                 let aorticDilations = [];
 
                 // Check aortic root with severity (thresholds in cm/m²)

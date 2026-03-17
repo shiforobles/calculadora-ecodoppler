@@ -1385,6 +1385,126 @@ input.invalid {
     border: 1px solid #d1d5db;
 }
 
+.badge-esclerosis {
+    background-color: #ccfbf1; /* Teal 100 */
+    color: #115e59; /* Teal 800 */
+    border: 1px solid #14b8a6; /* Teal 500 */
+}
+
+/* Intermediate severity badges (leve-moderada, moderada-severa) */
+.badge-borderline-low {
+    background-color: #fed7aa;
+    color: #9a3412;
+    border: 1px solid #fb923c;
+}
+
+.badge-borderline-high {
+    background-color: #fca5a5;
+    color: #7f1d1d;
+    border: 1px solid #f87171;
+}
+
+/* Colores Dinámicos para Inputs (Semaforo) */
+.input-esclerosis {
+    background-color: #f0fdfa !important; /* Teal muy claro */
+    border-color: #5eead4 !important;
+    color: #115e59 !important;
+}
+
+.input-mild {
+    background-color: #f0fdf4 !important; /* verde muy claro */
+    border-color: #86efac !important;
+    color: #166534 !important;
+}
+
+.input-moderate {
+    background-color: #fefce8 !important; /* amarillo muy claro */
+    border-color: #fde047 !important;
+    color: #854d0e !important;
+}
+
+.input-severe {
+    background-color: #fef2f2 !important; /* rojo muy claro */
+    border-color: #fca5a5 !important;
+    color: #991b1b !important;
+}
+
+/* Bloque de conclusión de severidad global por módulo */
+.module-conclusion {
+    margin-top: 1rem;
+    padding: 0.75rem 1rem;
+    background-color: #f8fafc;
+    border: 1px dashed #cbd5e1;
+    border-radius: 0.5rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.module-conclusion .conclusion-text {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #475569;
+}
+
+/* Per-criterion mini badges shown inline next to each input */
+.criterion-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.1rem 0.45rem;
+    border-radius: 9999px;
+    font-size: 0.65rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    white-space: nowrap;
+    transition: background-color 0.25s, color 0.25s;
+    min-width: 3.5rem;
+    text-align: center;
+    background-color: #f3f4f6;
+    color: #9ca3af;
+    border: 1px solid #e5e7eb;
+    margin-left: 0.4rem;
+    flex-shrink: 0;
+}
+
+.criterion-badge.cb-mild {
+    background-color: #bbf7d0;
+    color: #166534;
+    border-color: #22c55e;
+}
+
+.criterion-badge.cb-moderate {
+    background-color: #fef08a;
+    color: #854d0e;
+    border-color: #eab308;
+}
+
+.criterion-badge.cb-severe {
+    background-color: #fecaca;
+    color: #991b1b;
+    border-color: #ef4444;
+}
+
+.criterion-badge.cb-esclerosis {
+    background-color: #ccfbf1;
+    color: #115e59;
+    border-color: #14b8a6;
+}
+
+/* Wrapper that puts input + criterion badge on the same row */
+.criterion-input-row {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.criterion-input-row input,
+.criterion-input-row select {
+    flex: 1;
+    min-width: 0;
+}
+
 .preset-btn {
     padding: 0.2rem 0.6rem;
     border-radius: 4px;
