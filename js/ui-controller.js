@@ -1052,11 +1052,11 @@ class UIController {
                     const iaoFindings = window.aorticRegurgitationModule.generateFindings();
                     if (iaoFindings) {
                         report += `${iaoFindings}\n`;
-                    } else if (iaGrado !== 'no') {
+                    } else if (iaGrado !== 'no' && iaGrado !== 'minima') {
                         // Fallback if manual grade is selected but no advanced data entered
                         report += `Insuficiencia Aórtica ${iaGrado}.\n`;
                     }
-                } else if (iaGrado !== 'no') {
+                } else if (iaGrado !== 'no' && iaGrado !== 'minima') {
                     report += `Insuficiencia Aórtica ${iaGrado}.\n`;
                 }
 
@@ -1166,7 +1166,10 @@ class UIController {
             const velIt = document.getElementById('vel_it').value;
 
             if (itGrado === 'no_valorable') {
-                report += `Insuficiencia tricuspídea mínima; PSAP no estimable`;
+                report += `Insuficiencia tricuspídea mínima`;
+                if (!velIt || parseFloat(velIt) < 1.5) {
+                    report += `; PSAP no estimable`;
+                }
             } else {
                 // Sentence case for grades
                 report += `Insuficiencia tricuspídea ${itGrado}`;
@@ -1190,15 +1193,19 @@ class UIController {
                         report += ` Flujo en venas suprahepáticas con reverso sistólico.`;
                     }
                 }
-
-                // Vmax and PSAP
-                if (velIt && parseFloat(velIt) >= 1.5) {
-                    report += ` (Vmax IT ${velIt} m/s)`;
-                    if (this.state.psap > 0) {
-                        report += ` con PSAP estimada: ${this.state.psap} mmHg`;
-                    }
+            }
+            
+            // Vmax and PSAP (Pulled out of else block so it always prints if measured)
+            if (velIt && parseFloat(velIt) >= 1.5) {
+                report += ` (Vmax IT ${velIt} m/s)`;
+                const rap = parseFloat(document.getElementById('pad').value) || 5;
+                const calcPsap = Math.round(4 * Math.pow(parseFloat(velIt), 2) + rap);
+                if (calcPsap > 0) {
+                    report += ` con PSAP estimada: ${calcPsap} mmHg`;
                 }
-            } report += `.\n`;
+            }
+            
+            report += `.\n`;
 
             // ========== 7. VÁLVULA PULMONAR ==========
             report += `7. VÁLVULA PULMONAR\n`;
