@@ -547,7 +547,7 @@ class MitralStenosisModule {
         const data = this.getValues();
         const params = [];
         if (data.gradMedio > 0) params.push(`gradiente medio ${data.gradMedio} mmHg`);
-        if (data.areaPht > 0) params.push(`ávula ${data.areaPht} cm² (PHT)`);
+        if (data.areaPht > 0) params.push(`válvula ${data.areaPht} cm² (PHT)`);
 
         if (params.length > 0) {
             return `Estenosis mitral con ${params.join(' y ')}.`;
@@ -652,7 +652,8 @@ class AorticStenosisModule {
             vmax: parseFloat(document.getElementById(this.inputs.vmax)?.value) || 0,
             gradMedio: parseFloat(document.getElementById(this.inputs.gradMedio)?.value) || 0,
             ava: parseFloat(document.getElementById(this.inputs.ava)?.value) || 0,
-            avaIndex: parseFloat(document.getElementById(this.inputs.avaIndex)?.value) || 0
+            avaIndex: parseFloat(document.getElementById(this.inputs.avaIndex)?.value) || 0,
+            coef: parseFloat(document.getElementById(this.inputs.coef)?.value) || 0
         };
     }
 
@@ -795,11 +796,6 @@ class AorticStenosisModule {
 
     updateState() {
         const data = this.getValues();
-        // Calculate coef locally if needed, but here we assume it's entered via fields
-        // Since getValues() does not currently extract coef, we must ensure coef is tracked.
-        // Wait, does getValues() get coef? Let's check...
-        data.coef = parseFloat(document.getElementById(this.inputs.coef)?.value) || 0;
-        
         this.updateCriterionBadges(data);
         const severity = this.determineSeverity(data);
         

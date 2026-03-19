@@ -8,7 +8,9 @@
 class HemodynamicsCalculator {
 
     /**
-     * Calculate Body Surface Area using Mosteller formula
+     * Calculate Body Surface Area using DuBois formula (1916)
+     * Formula: BSA = 0.007184 × W^0.425 × H^0.725
+     * Note: NOT the Mosteller formula (sqrt(H × W / 3600))
      * @param {number} weight - Weight in kg
      * @param {number} height - Height in cm
      * @returns {number} BSA in m²

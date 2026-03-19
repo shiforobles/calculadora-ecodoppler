@@ -26,8 +26,6 @@ class UIController {
      * Initialize all event listeners
      */
     init() {
-        console.log('UIController initialized');
-
         // Expose Quick Fill function globally
         window.setTricuspidValues = (grade) => this.setTricuspidValues(grade);
 
@@ -356,18 +354,21 @@ class UIController {
     }
 
     /**
-     * Main calculation orchestrator
+     * Main calculation orchestrator (debounced to avoid recalculating on every keystroke)
      */
     calculateAll() {
-        this.calculateBSA();
-        this.calculateLVMassAndGeometry();
-        this.calculateDiastolicFunction();
-        this.calculatePSAP();
-        this.calculateRightChambers();
-        this.evaluarProtesis();
-        if (this.updatePAATBadge) this.updatePAATBadge();
-        if (this.updateAorticDisplay) this.updateAorticDisplay();
-        this.validateInputs();
+        clearTimeout(this._calcDebounceTimer);
+        this._calcDebounceTimer = setTimeout(() => {
+            this.calculateBSA();
+            this.calculateLVMassAndGeometry();
+            this.calculateDiastolicFunction();
+            this.calculatePSAP();
+            this.calculateRightChambers();
+            this.evaluarProtesis();
+            if (this.updatePAATBadge) this.updatePAATBadge();
+            if (this.updateAorticDisplay) this.updateAorticDisplay();
+            this.validateInputs();
+        }, 150);
     }
 
     /**
@@ -377,7 +378,9 @@ class UIController {
         const check = document.getElementById('prot_check');
         if (!check || !check.checked) return;
 
-        const pos = document.getElementById('prot_posicion').value;
+        const posEl = document.getElementById('prot_posicion');
+        if (!posEl) return;
+        const pos = posEl.value;
         const vmax = parseFloat(document.getElementById('prot_vmax').value) || 0;
         const gm = parseFloat(document.getElementById('prot_gm').value) || 0;
         const vtiPr = parseFloat(document.getElementById('prot_vti_pr').value) || 0;
@@ -490,12 +493,16 @@ class UIController {
      * Calculate Right Chambers extensions (e.g. Indexed AD Area)
      */
     calculateRightChambers() {
-        const adArea = parseFloat(document.getElementById('ad_area').value);
+        const adAreaEl = document.getElementById('ad_area');
+        const adAreaIndexEl = document.getElementById('ad_area_index');
+        if (!adAreaEl || !adAreaIndexEl) return;
+
+        const adArea = parseFloat(adAreaEl.value);
         if (adArea > 0 && this.state.bsa > 0) {
             const indexed = adArea / this.state.bsa;
-            document.getElementById('ad_area_index').value = indexed.toFixed(1);
+            adAreaIndexEl.value = indexed.toFixed(1);
         } else {
-            document.getElementById('ad_area_index').value = '';
+            adAreaIndexEl.value = '';
         }
     }
 
@@ -632,7 +639,6 @@ class UIController {
         const wallMotion = document.getElementById('motilidad_global').value;
         const ritmo = document.getElementById('ritmo').value;
 
-        console.log('Calculating Diastolic Function:', { E, A, ePrime, ritmo, wallMotion });
 
         // Update E/A and E/e' ratios
         if (E && A) {
@@ -653,8 +659,6 @@ class UIController {
         this.state.diastolicResult = this.calc.classifyDiastolicFunction({
             E, A, ePrime, LAVolIndex, TRVel, LVEF, wallMotion, ritmo
         });
-
-        console.log('Diastolic Function Result:', this.state.diastolicResult);
 
         // Update semaphore display
         this.updateDiastolicBadge(this.state.diastolicResult);

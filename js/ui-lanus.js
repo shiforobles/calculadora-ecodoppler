@@ -77,7 +77,6 @@ UIController.prototype.injectLanus = function () {
 
     if (result) {
         document.getElementById('vol_ai').value = result.volumeIndexed;
-        console.log(`✅ Vol AI inyectado: ${result.volumeIndexed} ml/m² (${result.classification})`);
 
         // También calcular para mostrar resultado si no está ya visible
         if (!document.getElementById('lanus_result').innerHTML) {

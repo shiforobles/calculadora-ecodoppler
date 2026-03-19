@@ -403,8 +403,6 @@ class MotilityController {
         // SINGLE TERRITORY: Show only predominant severity
         if (affectedTerritories.length === 1) {
             const territory = affectedTerritories[0];
-            const counts = byTerritory[territory];
-
             return `Trastornos de la motilidad Segmentaria en Territorio ${territory}.`;
         }
 
