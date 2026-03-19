@@ -1,6 +1,13 @@
 /**
- * Clinical Voice Recognition System v1.0
- * Continuous speech recognition with semantic field mapping
+ * Clinical Voice Recognition System v2.0
+ *
+ * Mejoras de performance respecto a v1.0:
+ * - interimResults = true  → feedback visual en tiempo real mientras se habla
+ * - maxAlternatives = 3   → mejor matching usando hipótesis alternativas del motor
+ * - Regex pre-compilados  → compilación única al iniciar, no en cada transcripción
+ * - AudioContext reutilizable → evita leak de contextos de audio
+ * - Reinicio instantáneo  → sin delay artificial entre sesiones
+ * - Live transcript pill  → muestra qué está escuchando el motor en tiempo real
  */
 
 class VoiceRecognition {
@@ -10,9 +17,12 @@ class VoiceRecognition {
         this.isActive = false;
         this.manualStop = false;
         this.lastContext = null;
+        this._audioContext = null;       // Reutilizable, creado una sola vez
+        this._transcriptTimer = null;    // Timer para ocultar el live transcript
+        this._compiledPatterns = [];     // Regex pre-compilados
 
-        // Check browser support
-        if (!('webkitSpeechRecognition' in window)) {
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (!SpeechRecognition) {
             console.warn('Speech Recognition not supported in this browser');
             return;
         }
@@ -22,22 +32,22 @@ class VoiceRecognition {
     }
 
     initRecognition() {
-        this.recognition = new webkitSpeechRecognition();
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        this.recognition = new SpeechRecognition();
         this.recognition.continuous = true;
-        this.recognition.interimResults = false;
+        this.recognition.interimResults = true;  // MEJORA: feedback en tiempo real
         this.recognition.lang = 'es-AR';
-        this.recognition.maxAlternatives = 1;
+        this.recognition.maxAlternatives = 3;    // MEJORA: 3 hipótesis por resultado
 
-        // Event handlers
         this.recognition.onstart = () => this.handleStart();
-        this.recognition.onend = () => this.handleEnd();
+        this.recognition.onend   = () => this.handleEnd();
         this.recognition.onresult = (event) => this.handleResult(event);
-        this.recognition.onerror = (event) => this.handleError(event);
+        this.recognition.onerror  = (event) => this.handleError(event);
     }
 
     buildClinicalDictionary() {
         this.dictionary = {
-            // Patient data - EXPANDED
+            // Datos del paciente
             pacienteId: {
                 patterns: [
                     'id', 'i de', 'ide', 'identificación', 'identificacion',
@@ -63,7 +73,7 @@ class VoiceRecognition {
                 type: 'number'
             },
 
-            // LV Biometry - MASSIVELY EXPANDED
+            // Biometría VI
             septum: {
                 patterns: [
                     'septum', 'sep', 'sept', 'se tum', 'ceptum',
@@ -109,19 +119,14 @@ class VoiceRecognition {
                 type: 'number'
             },
 
-            // Diastole - EXPANDED
+            // Diástole
             ondaE: {
                 patterns: [
-                    // E variations
                     'onda e', 'onda ele', 'on da e', 'on da ele',
                     'pico e', 'pico ele', 'pi co e', 'pi co ele',
-                    // E mitral
                     'e mitral', 'ele mitral', 'e mi tral',
-                    // Velocidad E
                     'velocidad e', 'velocidad ele', 'vel e', 'vel ele',
-                    // E temprana
                     'e temprana', 'ele temprana', 'temprana',
-                    // Phonetic
                     'onda é', 'é', 'e diástole', 'e diastole'
                 ],
                 field: 'onda_e',
@@ -129,16 +134,11 @@ class VoiceRecognition {
             },
             ondaA: {
                 patterns: [
-                    // A variations
                     'onda a', 'on da a', 'onda ah',
                     'pico a', 'pi co a', 'pico ah',
-                    // A mitral
                     'a mitral', 'ah mitral', 'a mi tral',
-                    // Velocidad A
                     'velocidad a', 'vel a', 'velocidad ah',
-                    // A tardía
                     'a tardía', 'a tardia', 'tardía', 'tardia',
-                    // Phonetic
                     'onda á', 'a auricular', 'auricular'
                 ],
                 field: 'onda_a',
@@ -154,7 +154,7 @@ class VoiceRecognition {
                 type: 'number'
             },
 
-            // Left Atrium (Lanús) - EXPANDED
+            // Aurícula Izquierda
             volAI: {
                 patterns: [
                     'volumen indexado', 'volumen in dexado', 'vol indexado',
@@ -185,7 +185,7 @@ class VoiceRecognition {
                 type: 'number'
             },
 
-            // Right Chambers - MASSIVELY EXPANDED
+            // Cavidades Derechas
             adArea: {
                 patterns: [
                     'área derecha', 'area derecha', 'ad área', 'ad area',
@@ -225,16 +225,12 @@ class VoiceRecognition {
             },
             velIT: {
                 patterns: [
-                    // Standalone IT (prioritized for velocity)
                     'it', 'i te',
-                    // IT variations
                     'velocidad it', 'velocidad i te', 'it velocidad', 'i te velocidad',
                     'vel it', 'vel i te', 'vmax it', 've max it', 'ite',
-                    // Tricúspide variations
                     'velocidad tricúspide', 'velocidad tricuspide',
                     'tricúspide velocidad', 'tricuspide velocidad',
                     'tri cuspide', 'vmax tricúspide', 'vmax tricuspide',
-                    // Insuficiencia tricúspide
                     'it jet', 'jet it', 'jet tricúspide', 'jet tricuspide'
                 ],
                 field: 'vel_it',
@@ -250,7 +246,7 @@ class VoiceRecognition {
                 type: 'number'
             },
 
-            // Aorta - EXPANDED
+            // Aorta
             aoRaiz: {
                 patterns: [
                     'raíz aórtica', 'raiz aortica', 'raíz', 'ra iz',
@@ -271,7 +267,7 @@ class VoiceRecognition {
             }
         };
 
-        // Valve patterns
+        // Válvulas
         this.valveMap = {
             mitral: {
                 names: ['mitral', 'im', 'em'],
@@ -284,14 +280,11 @@ class VoiceRecognition {
                 esten: 'ea_grado'
             },
             tricuspide: {
-                // REMOVED 'it' to avoid confusion with IT velocity
-                // User will select tricuspid grading manually
                 names: ['tricúspide', 'tricuspídea', 'tricuspide'],
                 insuf: 'it_grado'
             }
         };
 
-        // Grade mapping
         this.gradeMap = {
             'no': 'no',
             'sin': 'no',
@@ -306,12 +299,40 @@ class VoiceRecognition {
             '3': 'severa'
         };
 
-        // Commands
         this.commands = {
             calcular: ['calcular volumen', 'calcular'],
-            generar: ['generar informe', 'generar'],
-            borrar: ['borrar', 'limpiar']
+            generar:  ['generar informe', 'generar'],
+            borrar:   ['borrar', 'limpiar']
         };
+
+        // MEJORA: Pre-compilar todos los patrones una sola vez
+        // En lugar de crear RegExp en cada transcripción, se compilan aquí.
+        this._compiledPatterns = [];
+        for (const fieldData of Object.values(this.dictionary)) {
+            for (const pattern of fieldData.patterns) {
+                this._compiledPatterns.push({
+                    regex: new RegExp(pattern.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i'),
+                    fieldData
+                });
+            }
+        }
+
+        // Pre-compilar patterns de válvulas y grados
+        this._compiledValveNames = [];
+        for (const [valveName, valveData] of Object.entries(this.valveMap)) {
+            for (const name of valveData.names) {
+                this._compiledValveNames.push({
+                    regex: new RegExp('\\b' + name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\b', 'i'),
+                    valveName,
+                    valveData
+                });
+            }
+        }
+
+        this._compiledGrades = Object.entries(this.gradeMap).map(([gradeKey, gradeValue]) => ({
+            regex: new RegExp('\\b' + gradeKey.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\b', 'i'),
+            gradeValue
+        }));
     }
 
     start() {
@@ -319,27 +340,24 @@ class VoiceRecognition {
             alert('Reconocimiento de voz no disponible en este navegador');
             return;
         }
-
         this.isActive = true;
         this.manualStop = false;
-
         try {
             this.recognition.start();
             this.updateUI(true);
         } catch (error) {
-            console.error('Error starting recognition:', error);
-            // Already started, ignore
+            // Ya iniciado, ignorar
         }
     }
 
     stop() {
         this.isActive = false;
         this.manualStop = true;
-
         if (this.recognition) {
             this.recognition.stop();
             this.updateUI(false);
         }
+        this.hideLiveTranscript();
     }
 
     toggle() {
@@ -351,69 +369,79 @@ class VoiceRecognition {
     }
 
     handleStart() {
-        console.log('Voice recognition started');
+        // Sin console.log en producción
     }
 
     handleEnd() {
-        console.log('Voice recognition ended');
-
-        // Auto-restart if not manually stopped
+        // MEJORA: Reinicio instantáneo sin delay artificial
         if (this.isActive && !this.manualStop) {
-            setTimeout(() => {
-                try {
-                    this.recognition.start();
-                } catch (error) {
-                    console.log('Restart failed, retrying...', error);
-                }
-            }, 100);
+            try {
+                this.recognition.start();
+            } catch (error) {
+                // Si falla (estado incorrecto), un tick mínimo es suficiente
+                setTimeout(() => {
+                    try { this.recognition.start(); } catch (_) {}
+                }, 50);
+            }
         }
     }
 
     handleResult(event) {
-        const transcript = event.results[event.results.length - 1][0].transcript.toLowerCase().trim();
-        console.log('Transcript:', transcript);
+        let interimTranscript = '';
+        let finalTranscript  = '';
 
-        // Process the transcript
-        this.processTranscript(transcript);
+        // MEJORA: Procesar tanto resultados intermedios como finales
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+            const result = event.results[i];
+
+            if (result.isFinal) {
+                // Intentar matching con las 3 alternativas antes de descartar
+                let matched = false;
+                for (let alt = 0; alt < result.length && !matched; alt++) {
+                    const text = result[alt].transcript.toLowerCase().trim();
+                    if (alt === 0) finalTranscript = text;
+                    matched = this._tryProcess(text);
+                }
+                if (matched) {
+                    this.updateLiveTranscript(finalTranscript, true);
+                } else {
+                    this.updateLiveTranscript(finalTranscript, false);
+                }
+            } else {
+                // Resultado intermedio: solo mostrar visualmente, nunca llenar campo
+                interimTranscript += result[0].transcript.toLowerCase().trim();
+            }
+        }
+
+        if (interimTranscript) {
+            this.updateLiveTranscript(interimTranscript, null); // null = en progreso
+        }
     }
 
     handleError(event) {
-        console.error('Recognition error:', event.error);
-
-        // Ignore 'no-speech' and 'aborted' errors
         if (event.error === 'no-speech' || event.error === 'aborted') {
             return;
         }
-
-        // For other errors, try to restart if active
         if (this.isActive && !this.manualStop) {
             setTimeout(() => {
-                try {
-                    this.recognition.start();
-                } catch (error) {
-                    console.log('Error restart failed');
-                }
-            }, 500);
+                try { this.recognition.start(); } catch (_) {}
+            }, 300);
         }
+    }
+
+    // Intenta procesar un transcript, devuelve true si encontró match
+    _tryProcess(transcript) {
+        if (this.processCommand(transcript)) return true;
+        if (this.processValve(transcript))   return true;
+        if (this.processField(transcript))   return true;
+        return false;
     }
 
     processTranscript(transcript) {
-        // Check for commands first
-        if (this.processCommand(transcript)) {
-            return;
-        }
-
-        // Check for valve patterns
-        if (this.processValve(transcript)) {
-            return;
-        }
-
-        // Check for field patterns
-        this.processField(transcript);
+        this._tryProcess(transcript);
     }
 
     processCommand(transcript) {
-        // Calcular volumen
         if (transcript.includes('calcular')) {
             if (this.ui.calcLanus) {
                 this.ui.calcLanus();
@@ -421,220 +449,228 @@ class VoiceRecognition {
             }
             return true;
         }
-
-        // Generar informe
         if (transcript.includes('generar')) {
             this.ui.generateReport();
             this.ui.showToast('✓ Informe generado', 'success');
             return true;
         }
-
-        // Borrar
         if (transcript.includes('borrar') || transcript.includes('limpiar')) {
-            // TODO: Clear last filled field
             this.ui.showToast('Borrar no implementado aún', 'warning');
             return true;
         }
-
         return false;
     }
 
     processValve(transcript) {
-        // Skip if transcript contains keywords suggesting a measurement
         if (transcript.includes('velocidad') || transcript.includes('vmax') || transcript.includes('gradiente')) {
             return false;
         }
 
-        // Look for valve + grade patterns with word boundaries
-        for (const [valveName, valveData] of Object.entries(this.valveMap)) {
-            for (const name of valveData.names) {
-                // Use word boundary for name to avoid false matches
-                const nameRegex = new RegExp('\\b' + name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\b', 'i');
-                if (nameRegex.test(transcript)) {
-                    // Found valve, now look for grade with word boundaries
-                    for (const [gradeKey, gradeValue] of Object.entries(this.gradeMap)) {
-                        const gradeRegex = new RegExp('\\b' + gradeKey.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\b', 'i');
-                        if (gradeRegex.test(transcript)) {
-                            // Determine if insuf or esten
-                            let fieldId = null;
-
-                            if (transcript.includes('insuf') || name.startsWith('i')) {
-                                fieldId = valveData.insuf;
-                            } else if (transcript.includes('esten') || name.startsWith('e')) {
-                                fieldId = valveData.esten;
-                            } else {
-                                // Default to insuf
-                                fieldId = valveData.insuf;
-                            }
-
-                            if (fieldId) {
-                                this.fillField(fieldId, gradeValue);
-                                return true;
-                            }
+        // MEJORA: Usar regex pre-compilados en lugar de crearlos aquí
+        for (const { regex, valveName, valveData } of this._compiledValveNames) {
+            if (regex.test(transcript)) {
+                for (const { regex: gradeRx, gradeValue } of this._compiledGrades) {
+                    if (gradeRx.test(transcript)) {
+                        let fieldId = null;
+                        if (transcript.includes('insuf') || valveName.startsWith('i')) {
+                            fieldId = valveData.insuf;
+                        } else if (transcript.includes('esten') || valveName.startsWith('e')) {
+                            fieldId = valveData.esten;
+                        } else {
+                            fieldId = valveData.insuf;
+                        }
+                        if (fieldId) {
+                            this.fillField(fieldId, gradeValue);
+                            return true;
                         }
                     }
                 }
             }
         }
-
         return false;
     }
 
     processField(transcript) {
-        // Extract number if present
         const numberMatch = transcript.match(/(\d+(?:[.,]\d+)?)/);
         const number = numberMatch ? numberMatch[1].replace(',', '.') : null;
 
-        // Look for field patterns with word boundaries
-        for (const [key, fieldData] of Object.entries(this.dictionary)) {
-            for (const pattern of fieldData.patterns) {
-                // Use word boundary to prevent false matches (e.g., 'id' in 'velocidad')
-                const patternRegex = new RegExp(pattern.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
-
-                if (patternRegex.test(transcript)) {
-                    // Number fields require a number
-                    if (fieldData.type === 'number' && number) {
+        // MEJORA: Usar _compiledPatterns pre-compilados (O(n) con objetos ya creados)
+        for (const { regex, fieldData } of this._compiledPatterns) {
+            if (regex.test(transcript)) {
+                if (fieldData.type === 'number' && number) {
+                    this.fillField(fieldData.field, number);
+                    return true;
+                }
+                if (fieldData.type === 'text') {
+                    if (number) {
                         this.fillField(fieldData.field, number);
-                        return true;
-                    }
-
-                    // Text fields can use numbers or text
-                    if (fieldData.type === 'text') {
-                        if (number) {
-                            this.fillField(fieldData.field, number);
-                        } else {
-                            // Extract text after pattern
-                            const words = transcript.split(pattern);
-                            if (words.length > 1) {
-                                const val = words[1].trim().split(' ')[0]; // Take first word
-                                if (val) this.fillField(fieldData.field, val);
-                            }
+                    } else {
+                        const parts = transcript.split(regex);
+                        if (parts.length > 1) {
+                            const val = parts[1].trim().split(' ')[0];
+                            if (val) this.fillField(fieldData.field, val);
                         }
-                        return true;
                     }
+                    return true;
                 }
             }
         }
-
-        // NO context logic - if no field pattern found, ignore the transcript
         return false;
     }
 
     fillField(fieldId, value) {
         const field = document.getElementById(fieldId);
-
-        if (!field) {
-            console.warn(`Field ${fieldId} not found`);
-            return;
-        }
+        if (!field) return;
 
         field.value = value;
-
-        // Trigger change events
-        field.dispatchEvent(new Event('input', { bubbles: true }));
+        field.dispatchEvent(new Event('input',  { bubbles: true }));
         field.dispatchEvent(new Event('change', { bubbles: true }));
 
-        // Highlight field
         this.highlightField(field);
 
-        // Get field label
         const label = field.previousElementSibling?.textContent || field.placeholder || fieldId;
-
-        // Show LARGE visual confirmation
         this.showLargeConfirmation(label, value);
-
-        // Play confirmation beep
         this.playBeep();
-
-        // Show toast (smaller)
         this.ui.showToast(`✓ ${label}: ${value}`, 'success');
-
-        console.log(`Filled ${fieldId} with ${value}`);
     }
 
     highlightField(field) {
         field.classList.add('field-highlight');
-        setTimeout(() => {
-            field.classList.remove('field-highlight');
-        }, 600);
+        setTimeout(() => field.classList.remove('field-highlight'), 600);
     }
 
     /**
-     * Show large visual confirmation overlay
+     * MEJORA: Live transcript pill — muestra qué está escuchando el motor
+     * en tiempo real antes de confirmar el resultado final.
+     *
+     * @param {string} text - Texto reconocido
+     * @param {boolean|null} isFinal - true=confirmado, false=no encontrado, null=en progreso
      */
-    showLargeConfirmation(label, value) {
-        // Remove existing overlay if any
-        const existing = document.getElementById('voice-confirmation-overlay');
-        if (existing) {
-            existing.remove();
+    updateLiveTranscript(text, isFinal) {
+        let pill = document.getElementById('voice-live-transcript');
+        if (!pill) {
+            pill = document.createElement('div');
+            pill.id = 'voice-live-transcript';
+            pill.style.cssText = [
+                'position:fixed', 'bottom:72px', 'left:50%', 'transform:translateX(-50%)',
+                'background:rgba(15,23,42,0.88)', 'color:#f1f5f9',
+                'padding:6px 18px', 'border-radius:20px',
+                'font-size:0.88em', 'font-family:inherit',
+                'max-width:80vw', 'white-space:nowrap', 'overflow:hidden',
+                'text-overflow:ellipsis', 'pointer-events:none',
+                'z-index:9998', 'transition:opacity 0.25s ease',
+                'border:1px solid rgba(255,255,255,0.12)'
+            ].join(';');
+            document.body.appendChild(pill);
         }
 
-        // Create overlay
-        const overlay = document.createElement('div');
-        overlay.id = 'voice-confirmation-overlay';
+        clearTimeout(this._transcriptTimer);
+
+        if (isFinal === null) {
+            // En progreso: mostrar gris con cursor parpadeante
+            pill.style.opacity = '1';
+            pill.style.borderColor = 'rgba(148,163,184,0.4)';
+            pill.textContent = `🎤 ${text}`;
+        } else if (isFinal === true) {
+            // Reconocido correctamente: mostrar verde brevemente
+            pill.style.opacity = '1';
+            pill.style.borderColor = 'rgba(34,197,94,0.6)';
+            pill.textContent = `✓ ${text}`;
+            this._transcriptTimer = setTimeout(() => this.hideLiveTranscript(), 1200);
+        } else {
+            // No encontró campo: mostrar amarillo y desaparecer
+            pill.style.opacity = '1';
+            pill.style.borderColor = 'rgba(234,179,8,0.5)';
+            pill.textContent = `? ${text}`;
+            this._transcriptTimer = setTimeout(() => this.hideLiveTranscript(), 1800);
+        }
+    }
+
+    hideLiveTranscript() {
+        const pill = document.getElementById('voice-live-transcript');
+        if (pill) {
+            pill.style.opacity = '0';
+        }
+    }
+
+    showLargeConfirmation(label, value) {
+        // Reutilizar overlay existente en lugar de recrearlo
+        let overlay = document.getElementById('voice-confirmation-overlay');
+        if (!overlay) {
+            overlay = document.createElement('div');
+            overlay.id = 'voice-confirmation-overlay';
+            document.body.appendChild(overlay);
+        }
+
         overlay.innerHTML = `
             <div class="voice-confirm-content">
                 <div class="voice-confirm-label">${label}</div>
                 <div class="voice-confirm-value">${value}</div>
             </div>
         `;
+        overlay.style.opacity = '1';
 
-        document.body.appendChild(overlay);
-
-        // Auto-remove after 1.5 seconds
-        setTimeout(() => {
+        clearTimeout(this._confirmTimer);
+        this._confirmTimer = setTimeout(() => {
             overlay.style.opacity = '0';
-            setTimeout(() => overlay.remove(), 300);
-        }, 1500);
+        }, 1400);
     }
 
     /**
-     * Play confirmation beep
+     * MEJORA: AudioContext reutilizable — se crea una sola vez y se reutiliza
+     * para todos los beeps, evitando acumular contextos en memoria.
      */
     playBeep() {
-        // Create audio context for beep
         try {
-            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-            const oscillator = audioContext.createOscillator();
-            const gainNode = audioContext.createGain();
+            if (!this._audioContext) {
+                this._audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            const ctx = this._audioContext;
+
+            // Reactivar si el navegador lo suspendió (política de autoplay)
+            if (ctx.state === 'suspended') {
+                ctx.resume();
+            }
+
+            const oscillator = ctx.createOscillator();
+            const gainNode   = ctx.createGain();
 
             oscillator.connect(gainNode);
-            gainNode.connect(audioContext.destination);
+            gainNode.connect(ctx.destination);
 
-            oscillator.frequency.value = 800; // Higher pitch
+            oscillator.frequency.value = 800;
             oscillator.type = 'sine';
 
-            gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
-            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.1);
+            gainNode.gain.setValueAtTime(0.3, ctx.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.1);
 
-            oscillator.start(audioContext.currentTime);
-            oscillator.stop(audioContext.currentTime + 0.1);
-        } catch (error) {
-            console.log('Audio beep not supported');
+            oscillator.start(ctx.currentTime);
+            oscillator.stop(ctx.currentTime + 0.1);
+        } catch (_) {
+            // Silencioso: el beep es accesorio, no crítico
         }
     }
 
     updateUI(isActive) {
-        const btnVoice = document.getElementById('btn-voice-toggle');
-        const voiceStatus = document.getElementById('voice-status');
+        const btnVoice      = document.getElementById('btn-voice-toggle');
+        const voiceStatus   = document.getElementById('voice-status');
         const voiceIndicator = document.getElementById('voice-indicator');
-        const voiceIcon = document.getElementById('voice-icon');
+        const voiceIcon     = document.getElementById('voice-icon');
 
         if (isActive) {
             btnVoice?.classList.add('active');
-            if (voiceStatus) voiceStatus.textContent = 'Detener Dictado';
+            if (voiceStatus)    voiceStatus.textContent   = 'Detener Dictado';
             if (voiceIndicator) voiceIndicator.style.display = 'flex';
-            if (voiceIcon) voiceIcon.textContent = '🔴';
+            if (voiceIcon)      voiceIcon.textContent     = '🔴';
         } else {
             btnVoice?.classList.remove('active');
-            if (voiceStatus) voiceStatus.textContent = 'Iniciar Dictado';
+            if (voiceStatus)    voiceStatus.textContent   = 'Iniciar Dictado';
             if (voiceIndicator) voiceIndicator.style.display = 'none';
-            if (voiceIcon) voiceIcon.textContent = '🎤';
+            if (voiceIcon)      voiceIcon.textContent     = '🎤';
         }
     }
 }
 
-// Export for use in other modules
 if (typeof window !== 'undefined') {
     window.VoiceRecognition = VoiceRecognition;
 }
