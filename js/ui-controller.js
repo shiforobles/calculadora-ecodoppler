@@ -186,6 +186,8 @@ class UIController {
                 if (box) {
                     box.style.display = (val === 'moderada' || val === 'severa' || val === 'masiva' || val === 'torrencial') ? 'block' : 'none';
                 }
+                this.updateITGradeColor();
+                this.validateTricuspidSeverity();
             });
         }
 
@@ -284,6 +286,7 @@ class UIController {
         // Initial calculation and valve box visibility
         this.calculateAll();
         if (this.toggleValveBoxes) this.toggleValveBoxes();
+        this.updateITGradeColor();
     }
 
     /**
@@ -697,10 +700,10 @@ class UIController {
         this.state.psap = this.calc.calculatePSAP(trVel, rap);
         const classification = this.calc.classifyPulmonaryPressure(this.state.psap);
 
-        // Color code based on severity
+        // Color code based on ASE/ERS 2015 severity thresholds
         let color = 'var(--color-primary-dark)';
-        if (this.state.psap > 60) color = 'var(--color-error)';
-        else if (this.state.psap > 45) color = 'var(--color-warning)';
+        if (this.state.psap > 70) color = 'var(--color-error)';
+        else if (this.state.psap > 50) color = 'var(--color-warning)';
         else if (this.state.psap > 35) color = 'var(--color-info)';
 
         document.getElementById('psap_info').innerHTML =
@@ -732,26 +735,37 @@ class UIController {
      * Returns { probability: string, signs: number }
      */
     calculateHTPProbability() {
-        // 1. TR Velocity
+        // 1. TR Velocity (ASE/ERS 2015 cut-points)
         const trVel = parseFloat(document.getElementById('vel_it').value) || 0;
 
-        // 2. Count Indirect Signs
+        // 2. Count indirect signs (ASE/ERS 2015 — Groups A, B, C)
         let signs = 0;
-        if (document.getElementById('htp_septum').checked) signs++;
-        if (document.getElementById('htp_pulmonar').checked) signs++;
-        if (document.getElementById('vd_estado').value === 'dilatado') signs++;
 
-        // 3. Logic
+        // Group A — ventricular morphology
+        if (document.getElementById('htp_septum').checked) signs++;  // septum paradójico / aplanamiento
+        if (document.getElementById('vd_estado').value === 'dilatado') signs++;  // RV dilatado (RV/LV > 1)
+
+        // Group B — pulmonary artery
+        if (document.getElementById('htp_pulmonar').checked) signs++;  // tronco pulmonar dilatado > 25 mm
+        const paatNum = parseFloat(document.getElementById('paat').value);
+        if (paatNum && paatNum < 105) signs++;  // PAAT < 105 ms (aceleración pulmonar corta)
+
+        // Group C — IVC / right atrium
+        const adArea = parseFloat(document.getElementById('ad_area').value);
+        if (adArea && adArea > 18) signs++;  // área AD > 18 cm²
+
+        // 3. Probability logic
         let prob = 'Baja';
 
         if (trVel <= 2.8) {
             if (signs === 0) prob = 'Baja';
-            else prob = 'Intermedia'; // Signs > 0
+            else if (signs >= 2) prob = 'Intermedia';
+            else prob = 'Baja';  // 1 solo signo no sube probabilidad con VTR normal
         } else if (trVel <= 3.4) {
             if (signs === 0) prob = 'Intermedia';
-            else prob = 'Alta'; // Signs > 0
+            else prob = 'Alta';
         } else {
-            prob = 'Alta'; // > 3.4
+            prob = 'Alta';  // VTR > 3.4 m/s → siempre Alta
         }
 
         return { probability: prob, signs };
@@ -1973,6 +1987,25 @@ class UIController {
     }
 
     /**
+     * Color-code the it_grado selector based on selected severity
+     */
+    updateITGradeColor() {
+        const el = document.getElementById('it_grado');
+        if (!el) return;
+        const colors = {
+            'no_valorable': { bg: '',        text: '' },
+            'leve':         { bg: '#dcfce7', text: '#15803d' },
+            'moderada':     { bg: '#fef9c3', text: '#854d0e' },
+            'severa':       { bg: '#fecaca', text: '#b91c1c' },
+            'masiva':       { bg: '#881337', text: '#ffffff' },
+            'torrencial':   { bg: '#4c0519', text: '#ffe4e6' },
+        };
+        const c = colors[el.value] || { bg: '', text: '' };
+        el.style.backgroundColor = c.bg;
+        el.style.color           = c.text;
+    }
+
+    /**
      * Validate Tricuspid Severity (Advanced QC)
      */
     validateTricuspidSeverity() {
@@ -2022,14 +2055,29 @@ class UIController {
             colorObj = { bg: '#fef9c3', text: '#854d0e' }; // Yellow
         }
 
+        // Mismatch check: compare computed grade vs selected grade in dropdown
+        const gradeOrder = ['leve', 'moderada', 'severa', 'masiva', 'torrencial'];
+        const gradeNameMap = { leve: 'leve', moderate: 'moderada', severe: 'severa', massive: 'masiva', torrential: 'torrencial' };
+        const computedGradeName = gradeNameMap[grade] || 'leve';
+        const selectedGrade = document.getElementById('it_grado')?.value;
+        const computedIdx  = gradeOrder.indexOf(computedGradeName);
+        const selectedIdx  = gradeOrder.indexOf(selectedGrade);
+        const mismatch = selectedIdx >= 0 && computedIdx > selectedIdx;
+
         // Apply styles
         feedback.className = `severity-badge badge-${grade}`;
-        feedback.textContent = grade === 'torrential' || grade === 'massive' ? `⚫ ${label}` :
-            (grade === 'severe' ? `🔴 ${label}` :
-                (grade === 'moderate' ? `🟡 ${label}` : `🟢 ${label}`));
+        let icon = grade === 'torrential' || grade === 'massive' ? '⚫' :
+                   (grade === 'severe' ? '🔴' : (grade === 'moderate' ? '🟡' : '🟢'));
+        feedback.textContent = mismatch
+            ? `${icon} ${label} ⚠ (seleccionado: ${selectedGrade})`
+            : `${icon} ${label}`;
+        feedback.title = mismatch
+            ? `Los criterios cuantitativos sugieren ${computedGradeName.toUpperCase()} pero el grado seleccionado es ${selectedGrade?.toUpperCase()}`
+            : '';
 
-        feedback.style.backgroundColor = colorObj.bg;
-        feedback.style.color = colorObj.text;
+        feedback.style.backgroundColor = mismatch ? '#fef3c7' : colorObj.bg;
+        feedback.style.color           = mismatch ? '#92400e'  : colorObj.text;
+        feedback.style.border          = mismatch ? '1px solid #f59e0b' : '';
     }
 
     /**

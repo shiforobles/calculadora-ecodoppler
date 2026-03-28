@@ -930,6 +930,7 @@ input.invalid {
     left: 50%;
     transform: translate(-50%, -50%);
     z-index: 10000;
+    pointer-events: none;
     background: rgba(0, 0, 0, 0.95);
     border-radius: 20px;
     padding: 3rem 4rem;

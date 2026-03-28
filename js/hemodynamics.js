@@ -303,15 +303,19 @@ class HemodynamicsCalculator {
 
     /**
      * Classify Pulmonary Hypertension severity
+     * Thresholds based on ASE/ERS 2015 TR velocity cut-points:
+     *   VTR ≤ 2.8 m/s → PSAP ≤ 36 mmHg (Normal)
+     *   VTR 2.9–3.4 m/s → PSAP 37–51 mmHg (Leve)
+     *   VTR > 3.4 m/s → PSAP > 51 mmHg (Moderada-Severa)
      * @param {number} psap - PSAP in mmHg
      * @returns {string} Classification
      */
     classifyPulmonaryPressure(psap) {
         if (!psap || psap === 0) return "No estimable";
         if (psap < 36) return "Normal";
-        if (psap < 45) return "Levemente elevada";
-        if (psap < 60) return "Moderadamente elevada";
-        return "Severamente elevada";
+        if (psap <= 50) return "Leve";
+        if (psap <= 70) return "Moderada";
+        return "Severa";
     }
 }
 
