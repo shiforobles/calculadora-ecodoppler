@@ -2006,11 +2006,53 @@ class UIController {
     }
 
     /**
+     * Color-code individual IT input fields based on severity thresholds (ACC/AHA 2021)
+     * Called from validateTricuspidSeverity() on every value change.
+     */
+    colorITInputs() {
+        // [moderada, severa, masiva, torrencial] thresholds per field
+        const fields = [
+            { id: 'it_vc',  t: [3,    7,    14,   21  ] },
+            { id: 'it_ore', t: [0.20, 0.40, 0.60, 0.80] },
+            { id: 'it_vr',  t: [30,   45,   60,   75  ] },
+        ];
+        // Colors: [leve, moderada, severa, masiva, torrencial]
+        const palette = [
+            { border: '#86efac', bg: '#f0fdf4' },   // leve — verde
+            { border: '#fde047', bg: '#fefce8' },   // moderada — amarillo
+            { border: '#fca5a5', bg: '#fff5f5' },   // severa — rojo claro
+            { border: '#f43f5e', bg: '#fff1f2' },   // masiva — rojo
+            { border: '#9f1239', bg: '#ffe4e6' },   // torrencial — granate
+        ];
+
+        fields.forEach(({ id, t }) => {
+            const el = document.getElementById(id);
+            if (!el) return;
+            const val = parseFloat(el.value);
+            if (isNaN(val) || el.value === '') {
+                el.style.borderColor = '';
+                el.style.backgroundColor = '';
+                return;
+            }
+            let level = 0;
+            if      (val >= t[3]) level = 4;
+            else if (val >= t[2]) level = 3;
+            else if (val >= t[1]) level = 2;
+            else if (val >= t[0]) level = 1;
+
+            el.style.borderColor     = palette[level].border;
+            el.style.backgroundColor = palette[level].bg;
+        });
+    }
+
+    /**
      * Validate Tricuspid Severity (Advanced QC)
      */
     validateTricuspidSeverity() {
         const feedback = document.getElementById('it_qc_badge');
         if (!feedback) return;
+
+        this.colorITInputs();
 
         // Get values
         const vc = parseFloat(document.getElementById('it_vc').value) || 0;
