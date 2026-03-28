@@ -1966,23 +1966,9 @@ class UIController {
      * @param {string} grade - leve, moderada, severa, masiva, torrencial
      */
     setTricuspidValues(grade) {
-        const values = {
-            'leve': { vc: 2.0, radio: 3.0, ore: 0.10, vr: 15 },
-            'moderada': { vc: 5.0, radio: 6.0, ore: 0.30, vr: 35 },
-            'severa': { vc: 9.0, radio: 9.0, ore: 0.50, vr: 50 },
-            'masiva': { vc: 16.0, radio: 12.0, ore: 0.70, vr: 65 },
-            'torrencial': { vc: 23.0, radio: 15.0, ore: 0.90, vr: 80 }
-        };
-
-        const data = values[grade];
-        if (data) {
-            document.getElementById('it_vc').value = data.vc;
-            document.getElementById('it_pisa_radio').value = data.radio;
-            document.getElementById('it_ore').value = data.ore.toFixed(2);
-            document.getElementById('it_vr').value = data.vr;
-
-            // Trigger validation
-            this.validateTricuspidSeverity();
+        // Delegated to TricuspidRegurgitationModule
+        if (window.tricuspidRegurgitation) {
+            window.tricuspidRegurgitation.fillPreset(grade);
         }
     }
 

@@ -23,6 +23,7 @@ document.addEventListener('DOMContentLoaded', () => {
     window.mitralStenosis = new MitralStenosisModule();
     window.aorticStenosis = new AorticStenosisModule();
     window.aorticRegurgitationModule = new AorticRegurgitationModule();
+    window.tricuspidRegurgitation = new TricuspidRegurgitationModule();
 
     // Initialize Motility System
     const motilityController = new MotilityController();

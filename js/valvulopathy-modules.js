@@ -826,3 +826,224 @@ class AorticStenosisModule {
         });
     }
 }
+
+// ============================================================
+// TRICUSPID REGURGITATION MODULE
+// Criteria: ACC/AHA 2021 — VC, ORE, VR, Hepatic Flow
+// Grades: Leve / Moderada / Severa / Masiva / Torrencial
+// ============================================================
+class TricuspidRegurgitationModule {
+    constructor() {
+        this.inputs = {
+            vc:       'it_vc',
+            ore:      'it_ore',
+            vr:       'it_vr',
+            flujoHep: 'it_flujo_hep'
+        };
+        this.output = {
+            badge:      'it_severity_badge',
+            conclusion: 'it_conclusion_badge'
+        };
+
+        this.presets = {
+            leve:      { vc: 2.0,  ore: 0.10, vr: 15,  radio: 3.0  },
+            moderada:  { vc: 5.0,  ore: 0.30, vr: 35,  radio: 6.0  },
+            severa:    { vc: 9.0,  ore: 0.50, vr: 50,  radio: 9.0  },
+            masiva:    { vc: 16.0, ore: 0.70, vr: 65,  radio: 12.0 },
+            torrencial:{ vc: 23.0, ore: 0.90, vr: 80,  radio: 15.0 }
+        };
+
+        this.init();
+    }
+
+    init() {
+        // Number inputs
+        ['vc', 'ore', 'vr'].forEach(key => {
+            const el = document.getElementById(this.inputs[key]);
+            if (el) el.addEventListener('input', () => this.updateState());
+        });
+        // Select input
+        const hepEl = document.getElementById(this.inputs.flujoHep);
+        if (hepEl) hepEl.addEventListener('change', () => this.updateState());
+
+        // Preset buttons
+        ['leve', 'moderada', 'severa', 'masiva', 'torrencial'].forEach(grade => {
+            const btn = document.getElementById(`btn_it_${grade}`);
+            if (btn) btn.addEventListener('click', e => { e.preventDefault(); this.fillPreset(grade); });
+        });
+
+        this.updateState();
+    }
+
+    fillPreset(grade) {
+        const p = this.presets[grade];
+        if (!p) return;
+        const set = (id, val) => { const el = document.getElementById(id); if (el) el.value = val; };
+        set(this.inputs.vc,  p.vc);
+        set(this.inputs.ore, p.ore.toFixed(2));
+        set(this.inputs.vr,  p.vr);
+        set('it_pisa_radio', p.radio);
+
+        // Sync grade selector
+        const gradeEl = document.getElementById('it_grado');
+        if (gradeEl) {
+            gradeEl.value = grade;
+            gradeEl.dispatchEvent(new Event('change'));
+        }
+        this.updateState();
+    }
+
+    getValues() {
+        const num = id => parseFloat(document.getElementById(id)?.value) || 0;
+        return {
+            vc:       num(this.inputs.vc),
+            ore:      num(this.inputs.ore),
+            vr:       num(this.inputs.vr),
+            flujoHep: document.getElementById(this.inputs.flujoHep)?.value || 'normal'
+        };
+    }
+
+    classifyCriterion(key, value) {
+        // Thresholds: ACC/AHA 2021
+        switch (key) {
+            case 'vc':   // mm
+                if (!value || value <= 0) return null;
+                if (value >= 21)   return { level: 'torrencial', weight: 1 };
+                if (value >= 14)   return { level: 'masiva',     weight: 1 };
+                if (value >= 7)    return { level: 'severa',     weight: 1 };
+                if (value >= 3)    return { level: 'moderada',   weight: 1 };
+                return { level: 'leve', weight: 1 };
+
+            case 'ore':  // cm²
+                if (!value || value <= 0) return null;
+                if (value >= 0.80) return { level: 'torrencial', weight: 1 };
+                if (value >= 0.60) return { level: 'masiva',     weight: 1 };
+                if (value >= 0.40) return { level: 'severa',     weight: 1 };
+                if (value >= 0.20) return { level: 'moderada',   weight: 1 };
+                return { level: 'leve', weight: 1 };
+
+            case 'vr':   // ml
+                if (!value || value <= 0) return null;
+                if (value >= 75)   return { level: 'torrencial', weight: 1 };
+                if (value >= 60)   return { level: 'masiva',     weight: 1 };
+                if (value >= 45)   return { level: 'severa',     weight: 1 };
+                if (value >= 30)   return { level: 'moderada',   weight: 1 };
+                return { level: 'leve', weight: 1 };
+
+            case 'flujoHep':
+                if (value === 'reverso') return { level: 'severa', weight: 0.5 };
+                return null;
+
+            default:
+                return null;
+        }
+    }
+
+    updateCriterionBadges(data) {
+        const mapping = {
+            vc:       'badge_it_vc',
+            ore:      'badge_it_ore',
+            vr:       'badge_it_vr',
+            flujoHep: 'badge_it_flujo_hep'
+        };
+        const classes = {
+            leve:       'cb-mild',
+            moderada:   'cb-moderate',
+            severa:     'cb-severe',
+            masiva:     'cb-massive',
+            torrencial: 'cb-torrential'
+        };
+        const labels = {
+            leve: 'Leve', moderada: 'Mod', severa: 'Sev', masiva: 'Masiva', torrencial: 'Torr'
+        };
+        const inputClasses = {
+            leve: 'input-mild', moderada: 'input-moderate', severa: 'input-severe',
+            masiva: 'input-severe', torrencial: 'input-severe'
+        };
+
+        Object.keys(mapping).forEach(key => {
+            const badgeEl = document.getElementById(mapping[key]);
+            if (!badgeEl) return;
+            const inputEl = badgeEl.parentElement?.querySelector('input, select');
+            const result  = this.classifyCriterion(key, data[key]);
+
+            badgeEl.className = 'criterion-badge';
+            if (inputEl) inputEl.classList.remove('input-mild', 'input-moderate', 'input-severe');
+
+            if (result) {
+                badgeEl.textContent = labels[result.level];
+                badgeEl.classList.add(classes[result.level]);
+                badgeEl.style.display = 'inline-flex';
+                if (inputEl) inputEl.classList.add(inputClasses[result.level]);
+            } else {
+                badgeEl.textContent = '—';
+                badgeEl.style.display = 'none';
+            }
+        });
+    }
+
+    resolveConflict(criteriaResults) {
+        const valid = criteriaResults.filter(r => r !== null);
+        if (valid.length === 0) return { level: 'No evaluada', color: 'gray', class: 'badge-none' };
+
+        const count = lvl => valid.filter(r => r.level === lvl).length;
+        const has   = lvl => count(lvl) > 0;
+
+        if (has('torrencial')) return { level: 'Torrencial', color: 'torrential', class: 'badge-torrential' };
+
+        if (has('masiva')) {
+            if (count('masiva') >= 2) return { level: 'Masiva', color: 'massive', class: 'badge-massive' };
+            return { level: 'Sev-Masiva', color: 'red-orange', class: 'badge-borderline-high' };
+        }
+
+        if (has('severa')) {
+            if (count('severa') >= 2 || valid.length === 1) return { level: 'Severa', color: 'red', class: 'badge-severe' };
+            if (has('moderada')) return { level: 'Mod-Severa', color: 'red-orange', class: 'badge-borderline-high' };
+            return { level: 'Severa', color: 'red', class: 'badge-severe' };
+        }
+
+        if (has('moderada')) {
+            if (has('leve')) return { level: 'Leve-Mod', color: 'orange', class: 'badge-borderline-low' };
+            return { level: 'Moderada', color: 'yellow', class: 'badge-moderate' };
+        }
+
+        return { level: 'Leve', color: 'green', class: 'badge-mild' };
+    }
+
+    determineSeverity(data) {
+        return this.resolveConflict([
+            this.classifyCriterion('vc',       data.vc),
+            this.classifyCriterion('ore',      data.ore),
+            this.classifyCriterion('vr',       data.vr),
+            this.classifyCriterion('flujoHep', data.flujoHep)
+        ]);
+    }
+
+    updateState() {
+        const data     = this.getValues();
+        this.updateCriterionBadges(data);
+        const severity = this.determineSeverity(data);
+
+        const colorMap = {
+            torrential:  { bg: '#4c0519', text: '#ffe4e6', border: '#9f1239' },
+            massive:     { bg: '#fca5a5', text: '#7f1d1d', border: '#f87171' },
+            red:         { bg: '#fecaca', text: '#991b1b', border: '#ef4444' },
+            'red-orange':{ bg: '#fca5a5', text: '#7f1d1d', border: '#f87171' },
+            orange:      { bg: '#fed7aa', text: '#9a3412', border: '#fb923c' },
+            yellow:      { bg: '#fef08a', text: '#854d0e', border: '#eab308' },
+            green:       { bg: '#bbf7d0', text: '#166534', border: '#22c55e' },
+            gray:        { bg: '#e5e7eb', text: '#374151', border: '#d1d5db' }
+        };
+        const c = colorMap[severity.color] || colorMap.gray;
+
+        [this.output.badge, this.output.conclusion].forEach(id => {
+            const el = document.getElementById(id);
+            if (!el) return;
+            el.textContent = severity.level;
+            el.className = `severity-badge ${severity.class}`;
+            el.style.backgroundColor = c.bg;
+            el.style.color           = c.text;
+            el.style.border          = `1px solid ${c.border}`;
+        });
+    }
+}

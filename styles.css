@@ -1493,6 +1493,18 @@ input.invalid {
     border-color: #14b8a6;
 }
 
+.criterion-badge.cb-massive {
+    background-color: #fca5a5;
+    color: #7f1d1d;
+    border-color: #f87171;
+}
+
+.criterion-badge.cb-torrential {
+    background-color: #4c0519;
+    color: #ffe4e6;
+    border-color: #9f1239;
+}
+
 /* Wrapper that puts input + criterion badge on the same row */
 .criterion-input-row {
     display: flex;
