@@ -1031,6 +1031,12 @@
                 <div id="box_tricuspide" class="advanced-box"
                     style="display: none; border-left: 4px solid #06b6d4; background: #ecfeff;">
 
+                    <!-- Severity Badge — prominent, full width, above fields -->
+                    <div id="it_qc_badge" class="severity-badge badge-none"
+                        style="display:none; width:100%; text-align:center; font-size:1.05em;
+                               font-weight:700; padding:0.5rem 1rem; margin-bottom:0.75rem;
+                               border-radius:8px; letter-spacing:0.5px;">-</div>
+
                     <!-- Quick Fill Buttons -->
                     <div style="margin-bottom: 1rem; display: flex; gap: 0.5rem; flex-wrap: wrap;">
                         <button type="button" class="btn-xs" onclick="setTricuspidValues('leve')"
@@ -1051,9 +1057,6 @@
                         <div class="form-group">
                             <label for="it_vc">VC (mm)</label>
                             <input type="number" id="it_vc" step="0.1" placeholder="Ej: 7.0">
-                            <!-- Badge Container -->
-                            <div id="it_qc_badge" class="severity-badge badge-none"
-                                style="display:none; margin-top:5px;">-</div>
                         </div>
 
                         <!-- Radio PISA -->
