@@ -181,13 +181,13 @@ class UIController {
 
         if (itGrado) {
             itGrado.addEventListener('change', () => {
-                const box = document.getElementById('box_tricuspide');
-                const val = itGrado.value;
-                if (box) {
-                    box.style.display = (val === 'moderada' || val === 'severa' || val === 'masiva' || val === 'torrencial') ? 'block' : 'none';
-                }
+                const box    = document.getElementById('box_tricuspide');
+                const nvDesc = document.getElementById('it_nv_desc');
+                const val    = itGrado.value;
+                if (box)    box.style.display    = (val === 'no_valorable') ? 'none' : 'block';
+                if (nvDesc) nvDesc.style.display = (val === 'no_valorable') ? 'flex'  : 'none';
                 this.updateITGradeColor();
-                this.validateTricuspidSeverity();
+                if (window.tricuspidRegurgitation) window.tricuspidRegurgitation.updateState();
             });
         }
 
@@ -1184,7 +1184,7 @@ class UIController {
             const velIt = document.getElementById('vel_it').value;
 
             if (itGrado === 'no_valorable') {
-                report += `Insuficiencia tricuspídea mínima`;
+                report += `Válvula tricuspídea no valorable por ventana acústica insuficiente`;
                 if (!velIt || parseFloat(velIt) < 1.5) {
                     report += `; PSAP no estimable`;
                 }
