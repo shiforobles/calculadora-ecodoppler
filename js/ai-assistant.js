@@ -7,7 +7,7 @@
 class AIAssistant {
     constructor() {
         this.apiKey    = localStorage.getItem('gemini_api_key') || '';
-        this.model     = 'gemini-1.5-flash-latest';
+        this.model     = null; // resolved dynamically on first send
         this.history   = [];   // {role, text}[]
         this.isOpen    = false;
         this.isLoading = false;
@@ -131,10 +131,29 @@ Nunca inventés valores que no estén en los datos del paciente. Si falta inform
 
     // ─── Gemini API ─────────────────────────────────────────────────────────
 
+    async _resolveModel() {
+        const candidates = [
+            'gemini-2.0-flash', 'gemini-1.5-flash-latest', 'gemini-1.5-flash',
+            'gemini-1.5-pro-latest', 'gemini-1.5-pro', 'gemini-pro'
+        ];
+        const listUrl = `https://generativelanguage.googleapis.com/v1beta/models?key=${this.apiKey}`;
+        try {
+            const res  = await fetch(listUrl);
+            const data = await res.json();
+            const available = (data.models || []).map(m => m.name.replace('models/', ''));
+            for (const c of candidates) {
+                if (available.includes(c)) { this.model = c; return; }
+            }
+        } catch (_) {}
+        // fallback
+        this.model = 'gemini-pro';
+    }
+
     async _sendToGemini(userMessage) {
         if (!this.apiKey) {
             return '⚠️ Configurá tu API key de Gemini primero (ícono ⚙️ arriba a la derecha del chat).';
         }
+        if (!this.model) await this._resolveModel();
 
         // Build contents array from history + new message
         const contents = [];
@@ -317,6 +336,7 @@ Nunca inventés valores que no estén en los datos del paciente. Si falta inform
     _saveKey() {
         const key = document.getElementById('ai-key-input').value.trim();
         this.apiKey = key;
+        this.model  = null; // re-resolve model on next send
         localStorage.setItem('gemini_api_key', key);
         this.settingsModal.style.display = 'none';
         this._addMessage('model', '✅ API key guardada. Ya podés hacer consultas.');
