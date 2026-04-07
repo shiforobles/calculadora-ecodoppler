@@ -184,6 +184,11 @@ class UIController {
                 const val    = itGrado.value;
                 if (box)    box.style.display    = (val === 'no_valorable') ? 'none' : 'block';
                 if (nvDesc) nvDesc.style.display = (val === 'no_valorable') ? 'flex'  : 'none';
+                // Anular vel_it cuando IT no es valorable (no se puede medir velocidad)
+                if (val === 'no_valorable') {
+                    const velItEl = document.getElementById('vel_it');
+                    if (velItEl) { velItEl.value = ''; velItEl.dispatchEvent(new Event('input', { bubbles: true })); }
+                }
                 this.updateITGradeColor();
                 if (window.tricuspidRegurgitation) window.tricuspidRegurgitation.updateState();
             });
@@ -1182,8 +1187,7 @@ class UIController {
             const velIt = document.getElementById('vel_it').value;
 
             if (itGrado === 'no_valorable') {
-                // No valorable = sin IT significativa (pediátrico u otro) — no se imprime Vmax ni PSAP
-                report += `Insuficiencia tricuspídea mínima/no valorable`;
+                report += `IT no valorable, no permite estimar PSAP`;
             } else {
                 report += `Insuficiencia tricuspídea ${itGrado}`;
 
