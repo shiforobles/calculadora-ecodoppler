@@ -7,7 +7,7 @@
 class AIAssistant {
     constructor() {
         this.apiKey    = localStorage.getItem('groq_api_key') || '';
-        this.model     = 'llama-3.1-70b-versatile';
+        this.model     = 'llama-3.3-70b-versatile';
         this.history   = [];   // {role, text}[]
         this.isOpen    = false;
         this.isLoading = false;
