@@ -7,7 +7,7 @@
 class AIAssistant {
     constructor() {
         this.apiKey    = localStorage.getItem('gemini_api_key') || '';
-        this.model     = 'gemini-2.0-flash';
+        this.model     = 'gemini-1.5-flash';
         this.history   = [];   // {role, text}[]
         this.isOpen    = false;
         this.isLoading = false;
