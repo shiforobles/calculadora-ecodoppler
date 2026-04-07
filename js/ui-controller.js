@@ -174,8 +174,6 @@ class UIController {
 
         // Tricuspid Module (v14.8 Advanced)
         const itGrado = document.getElementById('it_grado');
-        const itVc = document.getElementById('it_vc');
-        const itHep = document.getElementById('it_flujo_hep');
         const btnTogglePisaIt = document.getElementById('btn_toggle_pisa_it');
         const btnCalcPisaIt = document.getElementById('btn_calc_pisa_it');
 
@@ -1184,45 +1182,37 @@ class UIController {
             const velIt = document.getElementById('vel_it').value;
 
             if (itGrado === 'no_valorable') {
-                report += `Válvula tricuspídea no valorable por ventana acústica insuficiente`;
-                if (!velIt || parseFloat(velIt) < 1.5) {
-                    report += `; PSAP no estimable`;
-                }
+                // No valorable = sin IT significativa (pediátrico u otro) — no se imprime Vmax ni PSAP
+                report += `Insuficiencia tricuspídea mínima/no valorable`;
             } else {
-                // Sentence case for grades
                 report += `Insuficiencia tricuspídea ${itGrado}`;
 
-                // Advanced Metrics (Progressive Disclosure)
+                // Advanced Metrics
                 if (itGrado === 'moderada' || itGrado === 'severa' || itGrado === 'masiva' || itGrado === 'torrencial') {
                     const itVcVal = document.getElementById('it_vc').value;
-                    if (itVcVal) report += ` Vena Contracta: ${itVcVal} mm.`;
+                    if (itVcVal) report += `. Vena Contracta: ${itVcVal} mm`;
 
-                    // PISA
                     const itOre = document.getElementById('it_ore').value;
-                    const itVr = document.getElementById('it_vr').value;
+                    const itVr  = document.getElementById('it_vr').value;
                     if (itOre && itOre !== '' && itOre !== '-') {
-                        report += ` PISA: ORE ${itOre} cm²`;
+                        report += `. PISA: ORE ${itOre} cm²`;
                         if (itVr && itVr !== '' && itVr !== '-') report += `, Vol. Regurgitante ${itVr} ml`;
-                        report += `.`;
                     }
 
-                    // Hepatic Reversal
                     if (document.getElementById('it_flujo_hep').value === 'reverso') {
-                        report += ` Flujo en venas suprahepáticas con reverso sistólico.`;
+                        report += `. Flujo en venas suprahepáticas con reverso sistólico`;
                     }
                 }
-            }
-            
-            // Vmax and PSAP (Pulled out of else block so it always prints if measured)
-            if (velIt && parseFloat(velIt) >= 1.5) {
-                report += ` (Vmax IT ${velIt} m/s)`;
-                const rap = parseFloat(document.getElementById('pad').value) || 5;
-                const calcPsap = Math.round(4 * Math.pow(parseFloat(velIt), 2) + rap);
-                if (calcPsap > 0) {
-                    report += ` con PSAP estimada: ${calcPsap} mmHg`;
+
+                // Vmax y PSAP solo cuando hay grado medible
+                if (velIt && parseFloat(velIt) >= 1.5) {
+                    const rap = parseFloat(document.getElementById('pad').value) || 5;
+                    const calcPsap = Math.round(4 * Math.pow(parseFloat(velIt), 2) + rap);
+                    report += `. Vmax IT ${velIt} m/s`;
+                    if (calcPsap > 0) report += `, PSAP estimada: ${calcPsap} mmHg`;
                 }
             }
-            
+
             report += `.\n`;
 
             // ========== 7. VÁLVULA PULMONAR ==========
