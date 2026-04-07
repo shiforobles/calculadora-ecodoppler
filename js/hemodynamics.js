@@ -93,8 +93,10 @@ class HemodynamicsCalculator {
      */
     isLVDilated(ddvi, sex) {
         if (!ddvi) return false;
-        // ASE criteria for LV dilatation
-        const limit = sex === 'M' ? 59 : 53;
+        // ASE 2015 reference values:
+        // Male: normal ≤58 mm (borderline 59–63, dilated ≥64)
+        // Female: normal ≤52 mm (borderline 53–57, dilated ≥58)
+        const limit = sex === 'M' ? 58 : 52;
         return ddvi > limit;
     }
 

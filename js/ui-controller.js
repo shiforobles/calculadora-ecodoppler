@@ -599,6 +599,10 @@ class UIController {
         if (!ddvi || !pp || !siv || !this.state.bsa) {
             document.getElementById('masa_info').innerHTML =
                 '<span class="calc-label">Masa VI:</span><span class="calc-value">-</span>';
+            // Reset stale geometry state so conclusions don't show old data
+            this.state.geometry     = null;
+            this.state.lvMassIndex  = 0;
+            this.state.rwt          = 0;
             return;
         }
 
@@ -1277,15 +1281,28 @@ class UIController {
             let viConclusion = '';
 
             // Geometry description
-            if (this.state.geometry) {
-                const sexo = document.getElementById('sexo').value;
-                const dilated = this.calc.isLVDilated(ddvi, sexo);
+            const sexo = document.getElementById('sexo').value;
+            const ddviNum = parseFloat(ddvi) || 0;
+            const feviNum = parseFloat(fevi) || 0;
+            const dilated = this.calc.isLVDilated(ddviNum, sexo);
 
+            if (this.state.geometry) {
                 if (this.state.geometry === 'Geometría Normal') {
-                    viConclusion += `Ventrículo izquierdo de diámetros y espesores conservados, con geometría ventricular normal`;
+                    if (dilated) {
+                        viConclusion += `Ventrículo izquierdo dilatado con geometría ventricular normal`;
+                    } else {
+                        viConclusion += `Ventrículo izquierdo de diámetros y espesores conservados, con geometría ventricular normal`;
+                    }
                 } else {
                     viConclusion += `Ventrículo izquierdo con ${this.state.geometry.toLowerCase()}`;
-                    if (dilated) viConclusion += ` con dilatación ventricular`;
+                    if (dilated) viConclusion += ` y dilatación ventricular`;
+                }
+            } else {
+                // No geometry data — use diameter alone
+                if (dilated) {
+                    viConclusion += `Ventrículo izquierdo dilatado`;
+                } else {
+                    viConclusion += `Ventrículo izquierdo`;
                 }
             }
 
@@ -1317,26 +1334,25 @@ class UIController {
                 }
             }
 
-            viConclusion += `.`;
+            viConclusion += `. `;
 
-            // Systolic function (ASE/EACVI Guidelines v14.9.2)
-            const sexoPaciente = document.getElementById('sexo').value;
-            if (sexoPaciente === 'M') {
-                if (fevi >= 52) {
+            // Systolic function (ASE/EACVI Guidelines v14.9.2) — use parsed number
+            if (sexo === 'M') {
+                if (feviNum >= 52) {
                     viConclusion += `Función sistólica del VI conservada.`;
-                } else if (fevi >= 41) {
+                } else if (feviNum >= 41) {
                     viConclusion += `Función sistólica del VI levemente deprimida (${fevi}%).`;
-                } else if (fevi >= 30) {
+                } else if (feviNum >= 30) {
                     viConclusion += `Función sistólica del VI moderadamente deprimida (${fevi}%).`;
                 } else {
                     viConclusion += `Función sistólica del VI severamente deprimida (${fevi}%).`;
                 }
-            } else { // Femenino o indeterminado asume femenino por seguridad en el corte
-                if (fevi >= 54) {
+            } else {
+                if (feviNum >= 54) {
                     viConclusion += `Función sistólica del VI conservada.`;
-                } else if (fevi >= 41) {
+                } else if (feviNum >= 41) {
                     viConclusion += `Función sistólica del VI levemente deprimida (${fevi}%).`;
-                } else if (fevi >= 30) {
+                } else if (feviNum >= 30) {
                     viConclusion += `Función sistólica del VI moderadamente deprimida (${fevi}%).`;
                 } else {
                     viConclusion += `Función sistólica del VI severamente deprimida (${fevi}%).`;
