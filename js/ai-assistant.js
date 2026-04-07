@@ -1,13 +1,13 @@
 /**
- * AI Clinical Assistant — Gemini Integration
- * Floating chat widget connected to Google Gemini API
+ * AI Clinical Assistant — Groq Integration
+ * Floating chat widget connected to Groq API (Llama 3.1 70B)
  * Patient dataset is injected automatically as context on each session
  */
 
 class AIAssistant {
     constructor() {
-        this.apiKey    = localStorage.getItem('gemini_api_key') || '';
-        this.model     = null; // resolved dynamically on first send
+        this.apiKey    = localStorage.getItem('groq_api_key') || '';
+        this.model     = 'llama-3.1-70b-versatile';
         this.history   = [];   // {role, text}[]
         this.isOpen    = false;
         this.isLoading = false;
@@ -131,59 +131,43 @@ Nunca inventés valores que no estén en los datos del paciente. Si falta inform
 
     // ─── Gemini API ─────────────────────────────────────────────────────────
 
-    async _resolveModel() {
-        const candidates = [
-            'gemini-2.0-flash', 'gemini-1.5-flash-latest', 'gemini-1.5-flash',
-            'gemini-1.5-pro-latest', 'gemini-1.5-pro', 'gemini-pro'
-        ];
-        const listUrl = `https://generativelanguage.googleapis.com/v1beta/models?key=${this.apiKey}`;
-        try {
-            const res  = await fetch(listUrl);
-            const data = await res.json();
-            const available = (data.models || []).map(m => m.name.replace('models/', ''));
-            for (const c of candidates) {
-                if (available.includes(c)) { this.model = c; return; }
-            }
-        } catch (_) {}
-        // fallback
-        this.model = 'gemini-pro';
-    }
-
-    async _sendToGemini(userMessage) {
+    async _sendToGroq(userMessage) {
         if (!this.apiKey) {
-            return '⚠️ Configurá tu API key de Gemini primero (ícono ⚙️ arriba a la derecha del chat).';
+            return '⚠️ Configurá tu API key de Groq primero (ícono ⚙️ arriba a la derecha del chat).';
         }
-        if (!this.model) await this._resolveModel();
 
-        // Build contents array from history + new message
-        const contents = [];
+        // Build messages array: system + history + new user message
+        const messages = [{ role: 'system', content: this._buildSystemPrompt() }];
         for (const h of this.history) {
-            contents.push({ role: h.role, parts: [{ text: h.text }] });
+            messages.push({ role: h.role, content: h.text });
         }
-        contents.push({ role: 'user', parts: [{ text: userMessage }] });
+        messages.push({ role: 'user', content: userMessage });
 
         const body = {
-            system_instruction: { parts: [{ text: this._buildSystemPrompt() }] },
-            contents,
-            generationConfig: { temperature: 0.3, maxOutputTokens: 1024 }
+            model: this.model,
+            messages,
+            temperature: 0.3,
+            max_tokens: 1024
         };
 
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/${this.model}:generateContent?key=${this.apiKey}`;
-
-        const res = await fetch(url, {
+        const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${this.apiKey}`
+            },
             body: JSON.stringify(body)
         });
 
         if (!res.ok) {
             const err = await res.json().catch(() => ({}));
-            if (res.status === 400) return '❌ API key inválida. Verificá la key en ⚙️.';
+            if (res.status === 401) return '❌ API key inválida. Verificá la key en ⚙️.';
+            if (res.status === 429) return '⏳ Límite de requests alcanzado. Esperá unos segundos e intentá de nuevo.';
             return `❌ Error ${res.status}: ${err?.error?.message || 'Error desconocido'}`;
         }
 
         const data = await res.json();
-        return data?.candidates?.[0]?.content?.parts?.[0]?.text || '⚠️ Respuesta vacía.';
+        return data?.choices?.[0]?.message?.content || '⚠️ Respuesta vacía.';
     }
 
     // ─── UI ─────────────────────────────────────────────────────────────────
@@ -222,14 +206,14 @@ Nunca inventés valores que no estén en los datos del paciente. Si falta inform
         this.settingsModal.innerHTML = `
             <div id="ai-settings-box">
                 <h3>⚙️ Configuración</h3>
-                <label>Google Gemini API Key</label>
-                <input type="password" id="ai-key-input" placeholder="AIzaSy..." autocomplete="off">
+                <label>Groq API Key</label>
+                <input type="password" id="ai-key-input" placeholder="gsk_..." autocomplete="off">
                 <div style="display:flex;gap:0.5rem;margin-top:0.75rem;">
                     <button id="ai-key-save">Guardar</button>
                     <button id="ai-key-cancel">Cancelar</button>
                 </div>
                 <p style="font-size:0.75em;color:#6b7280;margin-top:0.5rem;">
-                    Obtenés tu key gratis en aistudio.google.com.<br>Se guarda solo en tu navegador.
+                    Obtenés tu key gratis en console.groq.com.<br>Se guarda solo en tu navegador.
                 </p>
             </div>
         `;
@@ -304,7 +288,7 @@ Nunca inventés valores que no estén en los datos del paciente. Si falta inform
         const typingEl = this._showTyping();
 
         try {
-            const reply = await this._sendToGemini(text);
+            const reply = await this._sendToGroq(text);
             typingEl.remove();
             this._addMessage('model', reply);
 
@@ -336,8 +320,7 @@ Nunca inventés valores que no estén en los datos del paciente. Si falta inform
     _saveKey() {
         const key = document.getElementById('ai-key-input').value.trim();
         this.apiKey = key;
-        this.model  = null; // re-resolve model on next send
-        localStorage.setItem('gemini_api_key', key);
+        localStorage.setItem('groq_api_key', key);
         this.settingsModal.style.display = 'none';
         this._addMessage('model', '✅ API key guardada. Ya podés hacer consultas.');
     }
