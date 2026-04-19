@@ -2012,7 +2012,13 @@ class UIController {
                        border-radius:6px;padding:0.75rem;background:#f9fafb;resize:none;box-sizing:border-box;color:#111827;"
             >${window.GoogleSync ? GoogleSync.scriptCode() : ''}</textarea>
 
-            <div style="display:flex;justify-content:flex-end;gap:0.5rem;margin-top:1rem;">
+            <div id="sync-test-result" style="display:none;padding:0.5rem 0.75rem;border-radius:6px;font-size:0.85rem;margin-top:0.75rem;"></div>
+
+            <div style="display:flex;justify-content:flex-end;gap:0.5rem;margin-top:1rem;flex-wrap:wrap;">
+                <button id="sync-test-btn"
+                    style="background:#f59e0b;color:#fff;border:none;border-radius:6px;padding:0.5rem 1rem;cursor:pointer;font-size:0.875rem;">
+                    🔗 Probar Conexión
+                </button>
                 <button id="sync-copy-code"
                     style="background:#6366f1;color:#fff;border:none;border-radius:6px;padding:0.5rem 1rem;cursor:pointer;font-size:0.875rem;">
                     📋 Copiar Código
@@ -2038,6 +2044,33 @@ class UIController {
             GoogleSync.setUrl(url);
             this.showToast('✅ URL guardada. El próximo estudio se enviará a Google Sheets.');
             modal.remove();
+        });
+
+        document.getElementById('sync-test-btn').addEventListener('click', async () => {
+            const resultDiv = document.getElementById('sync-test-result');
+            const btn = document.getElementById('sync-test-btn');
+            // Save URL first
+            const urlInput = document.getElementById('sync-url-input').value.trim();
+            if (!urlInput) { resultDiv.style.display = 'block'; resultDiv.style.background = '#fef3c7'; resultDiv.style.color = '#92400e'; resultDiv.textContent = '⚠️ Ingresá la URL primero'; return; }
+            GoogleSync.setUrl(urlInput);
+            btn.disabled = true;
+            btn.textContent = '⏳ Probando...';
+            resultDiv.style.display = 'none';
+            try {
+                const r = await GoogleSync.test();
+                resultDiv.style.display = 'block';
+                resultDiv.style.background = '#d1fae5';
+                resultDiv.style.color = '#065f46';
+                resultDiv.textContent = `✅ ${r.message || 'Conexión exitosa'}`;
+            } catch (err) {
+                resultDiv.style.display = 'block';
+                resultDiv.style.background = '#fee2e2';
+                resultDiv.style.color = '#991b1b';
+                resultDiv.textContent = `❌ Error: ${err.message}`;
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '🔗 Probar Conexión';
+            }
         });
 
         document.getElementById('sync-copy-code').addEventListener('click', async () => {

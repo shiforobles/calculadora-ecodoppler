@@ -1,9 +1,8 @@
 /**
  * GoogleSync — Send study rows to a Google Apps Script Web App
  *
- * Uses GET + URL params (not POST) because POST bodies can be lost
- * when Apps Script does authentication redirects. GET requests via
- * no-cors reach doGet() reliably without CORS or auth issues.
+ * Apps Script GET responses include Access-Control-Allow-Origin: *,
+ * so we use regular fetch (no no-cors) and can read the response.
  */
 class GoogleSync {
     static URL_KEY = 'ecodoppler_script_url';
@@ -12,31 +11,41 @@ class GoogleSync {
     static setUrl(url)    { localStorage.setItem(this.URL_KEY, url.trim()); }
     static isConfigured() { return !!this.getUrl(); }
 
-    /**
-     * Send one study row to Apps Script via GET request.
-     * @param {string[]} row - Data values array
-     */
-    static async send(row) {
+    static async _get(params) {
         const base = this.getUrl();
         if (!base) throw new Error('URL del script no configurada');
 
-        // Encode row as JSON in a URL param
-        const params = new URLSearchParams({ row: JSON.stringify(row) });
-        const url = `${base}?${params.toString()}`;
+        // Add cache-bust so browser doesn't cache identical requests
+        params._t = Date.now();
+        const url = `${base}?${new URLSearchParams(params).toString()}`;
 
-        // GET + no-cors = always reaches Apps Script, no preflight, no auth redirect
-        await fetch(url, { method: 'GET', mode: 'no-cors' });
+        const res = await fetch(url, { redirect: 'follow' });
+        if (!res.ok) throw new Error(`HTTP ${res.status} — verificá que la URL sea correcta`);
+
+        const data = await res.json();
+        if (!data.ok) throw new Error(data.error || 'Error en el script');
+        return data;
+    }
+
+    /** Test the connection without saving data */
+    static async test() {
+        return this._get({ action: 'test' });
+    }
+
+    /** Send one study row to Google Sheets */
+    static async send(row) {
+        return this._get({ action: 'save', row: JSON.stringify(row) });
     }
 
     /** Apps Script source code shown in the setup modal */
     static scriptCode() {
-        // Embed the column headers directly so the script is self-contained
         const headers = window.StudyStorage ? StudyStorage.HEADERS : [];
         const headersJson = JSON.stringify(headers, null, 2);
 
         return `// ─── Pegá este código en Google Apps Script ─────────────────────
 // Después: Implementar → Nueva implementación → Aplicación web
-//   Ejecutar como: Yo | Quién tiene acceso: Cualquier usuario
+//   Ejecutar como: Yo
+//   Quién tiene acceso: Cualquier usuario
 // ─────────────────────────────────────────────────────────────
 
 const SHEET_NAME = 'Estudios';
@@ -44,39 +53,44 @@ const SHEET_NAME = 'Estudios';
 const HEADERS = ${headersJson};
 
 function doGet(e) {
+  const action = e.parameter.action || 'save';
+
+  // CORS headers para que el browser pueda leer la respuesta
+  const output = (obj) => ContentService
+    .createTextOutput(JSON.stringify(obj))
+    .setMimeType(ContentService.MimeType.JSON);
+
   try {
-    const rowJson = e.parameter.row;
-    if (!rowJson) {
-      return ContentService
-        .createTextOutput(JSON.stringify({ ok: false, error: 'Sin datos' }))
-        .setMimeType(ContentService.MimeType.JSON);
+    if (action === 'test') {
+      return output({ ok: true, message: 'Conexión exitosa ✓' });
     }
 
-    const row  = JSON.parse(rowJson);
-    const ss   = SpreadsheetApp.getActiveSpreadsheet();
-    let sheet  = ss.getSheetByName(SHEET_NAME);
-    if (!sheet) sheet = ss.insertSheet(SHEET_NAME);
+    if (action === 'save') {
+      const rowJson = e.parameter.row;
+      if (!rowJson) return output({ ok: false, error: 'Parámetro "row" faltante' });
 
-    // Encabezados en fila 1 (solo la primera vez)
-    if (sheet.getLastRow() === 0) {
-      sheet.appendRow(HEADERS);
-      const h = sheet.getRange(1, 1, 1, HEADERS.length);
-      h.setFontWeight('bold')
-       .setBackground('#1e3a8a')
-       .setFontColor('#ffffff');
-      sheet.setFrozenRows(1);
+      const row  = JSON.parse(rowJson);
+      const ss   = SpreadsheetApp.getActiveSpreadsheet();
+      let sheet  = ss.getSheetByName(SHEET_NAME);
+      if (!sheet) sheet = ss.insertSheet(SHEET_NAME);
+
+      if (sheet.getLastRow() === 0) {
+        sheet.appendRow(HEADERS);
+        const h = sheet.getRange(1, 1, 1, HEADERS.length);
+        h.setFontWeight('bold')
+         .setBackground('#1e3a8a')
+         .setFontColor('#ffffff');
+        sheet.setFrozenRows(1);
+      }
+
+      sheet.appendRow(row);
+      return output({ ok: true, fila: sheet.getLastRow() });
     }
 
-    sheet.appendRow(row);
-
-    return ContentService
-      .createTextOutput(JSON.stringify({ ok: true, fila: sheet.getLastRow() }))
-      .setMimeType(ContentService.MimeType.JSON);
+    return output({ ok: false, error: 'Acción desconocida: ' + action });
 
   } catch(err) {
-    return ContentService
-      .createTextOutput(JSON.stringify({ ok: false, error: err.message }))
-      .setMimeType(ContentService.MimeType.JSON);
+    return output({ ok: false, error: err.message });
   }
 }`;
     }
