@@ -48,6 +48,9 @@ class UIController {
         const btnHistory = document.getElementById('btn_history');
         if (btnHistory) btnHistory.addEventListener('click', () => this.showStudiesModal());
 
+        const btnSyncSetup = document.getElementById('btn_sync_setup');
+        if (btnSyncSetup) btnSyncSetup.addEventListener('click', () => this.showSyncSetupModal());
+
         const btnReset = document.getElementById('btn_reset');
         if (btnReset) {
             btnReset.addEventListener('click', () => this.resetAll());
@@ -1922,13 +1925,127 @@ class UIController {
         }
     }
 
-    saveStudy() {
-        if (!window.StudyStorage) return;
+    async saveStudy() {
         this.calculateAll();
-        const row = this._buildDatasetRow();
-        const total = StudyStorage.save(row);
-        const hc = document.getElementById('paciente_id').value || '(sin ID)';
-        this.showToast(`💾 Estudio guardado — ${hc} — Total: ${total} registro${total !== 1 ? 's' : ''}`);
+        const row     = this._buildDatasetRow();
+        const headers = window.StudyStorage ? StudyStorage.HEADERS : [];
+        const hc      = document.getElementById('paciente_id').value || '(sin ID)';
+
+        // 1. Save locally always
+        let localMsg = '';
+        if (window.StudyStorage) {
+            const total = StudyStorage.save(row);
+            localMsg = ` | Local: ${total} registro${total !== 1 ? 's' : ''}`;
+        }
+
+        // 2. Send to Google Sheets if configured
+        if (window.GoogleSync && GoogleSync.isConfigured()) {
+            const btn = document.getElementById('btn_save_study');
+            if (btn) btn.disabled = true;
+            try {
+                await GoogleSync.send(headers, row);
+                this.showToast(`✅ Guardado en Google Sheets — ${hc}${localMsg}`);
+            } catch (err) {
+                this.showToast(`⚠️ Error al enviar a Sheets: ${err.message}. Guardado local OK.`);
+            } finally {
+                if (btn) btn.disabled = false;
+            }
+        } else {
+            this.showToast(`💾 Guardado localmente — ${hc}${localMsg}. Configurá Google Sheets con ⚙️`);
+        }
+    }
+
+    showSyncSetupModal() {
+        document.getElementById('sync-setup-modal')?.remove();
+
+        const modal = document.createElement('div');
+        modal.id = 'sync-setup-modal';
+        modal.style.cssText = `
+            position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:9998;
+            display:flex;align-items:center;justify-content:center;padding:1rem;
+        `;
+
+        const currentUrl = window.GoogleSync ? GoogleSync.getUrl() : '';
+
+        modal.innerHTML = `
+        <div style="background:#fff;border-radius:12px;padding:1.75rem;width:min(680px,95vw);
+                    max-height:85vh;overflow-y:auto;box-shadow:0 8px 40px rgba(0,0,0,0.25);">
+            <h3 style="margin:0 0 0.25rem;font-size:1.1rem;color:#111827;">⚙️ Sincronización con Google Sheets</h3>
+            <p style="margin:0 0 1.25rem;font-size:0.85rem;color:#6b7280;">
+                Cada vez que guardés un estudio se enviará automáticamente a tu planilla.
+            </p>
+
+            <label style="font-size:0.875rem;font-weight:600;color:#374151;display:block;margin-bottom:0.4rem;">
+                URL del Web App (Apps Script)
+            </label>
+            <div style="display:flex;gap:0.5rem;margin-bottom:1.25rem;">
+                <input id="sync-url-input" type="text" value="${currentUrl}"
+                    placeholder="https://script.google.com/macros/s/.../exec"
+                    style="flex:1;border:1px solid #d1d5db;border-radius:6px;padding:0.5rem 0.75rem;font-size:0.875rem;">
+                <button id="sync-save-btn"
+                    style="background:#10b981;color:#fff;border:none;border-radius:6px;padding:0.5rem 1rem;cursor:pointer;font-size:0.875rem;white-space:nowrap;">
+                    Guardar URL
+                </button>
+            </div>
+
+            <details style="margin-bottom:1rem;">
+                <summary style="cursor:pointer;font-size:0.875rem;font-weight:600;color:#1e40af;margin-bottom:0.75rem;">
+                    📋 Instrucciones de configuración (clic para expandir)
+                </summary>
+                <ol style="font-size:0.82rem;color:#374151;line-height:1.7;padding-left:1.2rem;margin:0.5rem 0;">
+                    <li>Abrí tu <strong>Google Sheet</strong> (creá uno nuevo si no tenés).</li>
+                    <li>Andá a <strong>Extensiones → Apps Script</strong>.</li>
+                    <li>Borrá el código de ejemplo y pegá el código de abajo.</li>
+                    <li>Guardá el proyecto (Ctrl+S).</li>
+                    <li>Hacé clic en <strong>Implementar → Nueva implementación</strong>.</li>
+                    <li>Tipo: <strong>Aplicación web</strong>.</li>
+                    <li>Ejecutar como: <strong>Yo</strong>. Quién tiene acceso: <strong>Cualquier usuario</strong>.</li>
+                    <li>Copiá la <strong>URL de la aplicación web</strong> y pegala arriba.</li>
+                </ol>
+            </details>
+
+            <label style="font-size:0.8rem;font-weight:600;color:#374151;display:block;margin-bottom:0.4rem;">
+                Código para Apps Script:
+            </label>
+            <textarea readonly rows="18"
+                style="width:100%;font-family:monospace;font-size:0.75rem;border:1px solid #d1d5db;
+                       border-radius:6px;padding:0.75rem;background:#f9fafb;resize:none;box-sizing:border-box;color:#111827;"
+            >${window.GoogleSync ? GoogleSync.scriptCode() : ''}</textarea>
+
+            <div style="display:flex;justify-content:flex-end;gap:0.5rem;margin-top:1rem;">
+                <button id="sync-copy-code"
+                    style="background:#6366f1;color:#fff;border:none;border-radius:6px;padding:0.5rem 1rem;cursor:pointer;font-size:0.875rem;">
+                    📋 Copiar Código
+                </button>
+                <button id="sync-close"
+                    style="background:#f3f4f6;color:#374151;border:1px solid #d1d5db;border-radius:6px;padding:0.5rem 1rem;cursor:pointer;font-size:0.875rem;">
+                    Cerrar
+                </button>
+            </div>
+        </div>`;
+
+        document.body.appendChild(modal);
+
+        document.getElementById('sync-close').addEventListener('click', () => modal.remove());
+        modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+
+        document.getElementById('sync-save-btn').addEventListener('click', () => {
+            const url = document.getElementById('sync-url-input').value.trim();
+            if (!url.startsWith('https://script.google.com')) {
+                alert('⚠️ La URL debe ser de Google Apps Script (https://script.google.com/...)');
+                return;
+            }
+            GoogleSync.setUrl(url);
+            this.showToast('✅ URL guardada. El próximo estudio se enviará a Google Sheets.');
+            modal.remove();
+        });
+
+        document.getElementById('sync-copy-code').addEventListener('click', async () => {
+            try {
+                await navigator.clipboard.writeText(GoogleSync.scriptCode());
+                this.showToast('✅ Código copiado al portapapeles');
+            } catch { alert('Seleccioná y copiá el código manualmente.'); }
+        });
     }
 
     showStudiesModal() {
