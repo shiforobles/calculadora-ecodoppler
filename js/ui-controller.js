@@ -42,6 +42,12 @@ class UIController {
         const btnDataset = document.getElementById('btn_dataset');
         if (btnDataset) btnDataset.addEventListener('click', () => this.copyDataset());
 
+        const btnSave = document.getElementById('btn_save_study');
+        if (btnSave) btnSave.addEventListener('click', () => this.saveStudy());
+
+        const btnHistory = document.getElementById('btn_history');
+        if (btnHistory) btnHistory.addEventListener('click', () => this.showStudiesModal());
+
         const btnReset = document.getElementById('btn_reset');
         if (btnReset) {
             btnReset.addEventListener('click', () => this.resetAll());
@@ -1711,7 +1717,10 @@ class UIController {
     /**
      * Copy dataset in TSV format for Excel
      */
-    async copyDataset() {
+    /**
+     * Build the dataset row array (shared by copyDataset and saveStudy)
+     */
+    _buildDatasetRow() {
         // --- 1. Basic Data ---
         const fecha = new Date().toLocaleDateString('es-ES');
         const hc = document.getElementById('paciente_id').value || '-';
@@ -1899,14 +1908,118 @@ class UIController {
                     (document.getElementById('pe_variacion_flujo').checked ? 1 : 0) +
                     (document.getElementById('pe_vci_dilatada').checked ? 1 : 0)
                 ) >= 2) ? 'Si' : 'No'
-        ].join('\t');
+        ];
+    }
 
+    async copyDataset() {
+        const row = this._buildDatasetRow();
+        const tsv = row.join('\t');
         try {
-            await navigator.clipboard.writeText(row);
-            this.showToast(`✅ Dataset copiado (${row.split('\t').length} columnas). Pegue en Excel.`);
+            await navigator.clipboard.writeText(tsv);
+            this.showToast(`✅ Dataset copiado (${row.length} columnas). Pegue en Excel.`);
         } catch (err) {
             alert('✅ Dataset copiado al portapapeles');
         }
+    }
+
+    saveStudy() {
+        if (!window.StudyStorage) return;
+        this.calculateAll();
+        const row = this._buildDatasetRow();
+        const total = StudyStorage.save(row);
+        const hc = document.getElementById('paciente_id').value || '(sin ID)';
+        this.showToast(`💾 Estudio guardado — ${hc} — Total: ${total} registro${total !== 1 ? 's' : ''}`);
+    }
+
+    showStudiesModal() {
+        if (!window.StudyStorage) return;
+        const studies = StudyStorage.getAll();
+
+        // Remove existing modal
+        document.getElementById('studies-modal')?.remove();
+
+        const modal = document.createElement('div');
+        modal.id = 'studies-modal';
+        modal.style.cssText = `
+            position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9995;
+            display:flex;align-items:center;justify-content:center;padding:1rem;
+        `;
+
+        const box = document.createElement('div');
+        box.style.cssText = `
+            background:#fff;border-radius:12px;padding:1.5rem;
+            width:min(900px,95vw);max-height:80vh;display:flex;flex-direction:column;
+            box-shadow:0 8px 40px rgba(0,0,0,0.25);
+        `;
+
+        // Header
+        const header = document.createElement('div');
+        header.style.cssText = 'display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;';
+        header.innerHTML = `
+            <h3 style="margin:0;font-size:1.1rem;color:#111827;">
+                📊 Historial de Estudios <span style="font-weight:normal;color:#6b7280;">(${studies.length} registro${studies.length !== 1 ? 's' : ''})</span>
+            </h3>
+            <div style="display:flex;gap:0.5rem;">
+                <button id="sm-export" style="background:#10b981;color:#fff;border:none;border-radius:6px;padding:0.4rem 0.9rem;cursor:pointer;font-size:0.875rem;">⬇️ Exportar CSV</button>
+                <button id="sm-clear" style="background:#ef4444;color:#fff;border:none;border-radius:6px;padding:0.4rem 0.9rem;cursor:pointer;font-size:0.875rem;">🗑️ Borrar Todo</button>
+                <button id="sm-close" style="background:#f3f4f6;color:#374151;border:1px solid #d1d5db;border-radius:6px;padding:0.4rem 0.9rem;cursor:pointer;font-size:0.875rem;">✕ Cerrar</button>
+            </div>
+        `;
+
+        // Table
+        const tableWrap = document.createElement('div');
+        tableWrap.style.cssText = 'overflow:auto;flex:1;';
+
+        if (!studies.length) {
+            tableWrap.innerHTML = '<p style="text-align:center;color:#6b7280;padding:2rem;">No hay estudios guardados.</p>';
+        } else {
+            const H = StudyStorage.HEADERS;
+            // Show key columns: Fecha(0), HC(1), Edad(2), Sexo(3), FEy(23), Geometría(26), Diástole(27), PSAP(40)
+            const COLS = [0, 1, 2, 3, 23, 26, 27, 40];
+
+            let html = `<table style="width:100%;border-collapse:collapse;font-size:0.82rem;">
+                <thead><tr style="background:#f9fafb;position:sticky;top:0;">
+                    ${COLS.map(i => `<th style="padding:0.5rem 0.75rem;text-align:left;border-bottom:2px solid #e5e7eb;white-space:nowrap;color:#374151;">${H[i]}</th>`).join('')}
+                    <th style="padding:0.5rem;border-bottom:2px solid #e5e7eb;"></th>
+                </tr></thead><tbody>`;
+
+            studies.forEach((s, idx) => {
+                const bg = idx % 2 === 0 ? '#fff' : '#f9fafb';
+                html += `<tr style="background:${bg};">
+                    ${COLS.map(i => `<td style="padding:0.45rem 0.75rem;border-bottom:1px solid #e5e7eb;">${s.row[i] ?? '-'}</td>`).join('')}
+                    <td style="padding:0.45rem 0.5rem;border-bottom:1px solid #e5e7eb;">
+                        <button onclick="StudyStorage.delete(${s.id});window.UIController.showStudiesModal();"
+                            style="background:none;border:none;cursor:pointer;color:#ef4444;font-size:1rem;" title="Eliminar">🗑️</button>
+                    </td>
+                </tr>`;
+            });
+
+            html += '</tbody></table>';
+            tableWrap.innerHTML = html;
+        }
+
+        box.appendChild(header);
+        box.appendChild(tableWrap);
+        modal.appendChild(box);
+        document.body.appendChild(modal);
+
+        // Events
+        document.getElementById('sm-close').addEventListener('click', () => modal.remove());
+        modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+
+        document.getElementById('sm-export').addEventListener('click', () => {
+            if (!StudyStorage.exportCSV()) {
+                this.showToast('⚠️ No hay estudios para exportar.');
+            }
+        });
+
+        document.getElementById('sm-clear').addEventListener('click', () => {
+            if (confirm(`¿Borrar los ${studies.length} estudios guardados? Esta acción no se puede deshacer.`)) {
+                StudyStorage.clear();
+                modal.remove();
+                this.showToast('🗑️ Historial borrado.');
+            }
+        });
     }
 
     /**
