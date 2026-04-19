@@ -1,63 +1,78 @@
 /**
  * GoogleSync — Send study rows to a Google Apps Script Web App
- * The script appends each row to a Google Sheet automatically.
  *
- * Setup instructions are shown in the settings modal inside the app.
+ * Uses GET + URL params (not POST) because POST bodies can be lost
+ * when Apps Script does authentication redirects. GET requests via
+ * no-cors reach doGet() reliably without CORS or auth issues.
  */
 class GoogleSync {
     static URL_KEY = 'ecodoppler_script_url';
 
-    static getUrl()        { return localStorage.getItem(this.URL_KEY) || ''; }
-    static setUrl(url)     { localStorage.setItem(this.URL_KEY, url.trim()); }
-    static isConfigured()  { return !!this.getUrl(); }
+    static getUrl()       { return localStorage.getItem(this.URL_KEY) || ''; }
+    static setUrl(url)    { localStorage.setItem(this.URL_KEY, url.trim()); }
+    static isConfigured() { return !!this.getUrl(); }
 
     /**
-     * Send a study row to the Apps Script Web App.
-     * Uses no-cors so data goes through even without CORS headers on the script response.
-     * @param {string[]} headers - Column headers
-     * @param {string[]} row     - Data row
+     * Send one study row to Apps Script via GET request.
+     * @param {string[]} row - Data values array
      */
-    static async send(headers, row) {
-        const url = this.getUrl();
-        if (!url) throw new Error('URL del script no configurada');
+    static async send(row) {
+        const base = this.getUrl();
+        if (!base) throw new Error('URL del script no configurada');
 
-        // no-cors: opaque response but data IS received by Apps Script
-        await fetch(url, {
-            method: 'POST',
-            mode: 'no-cors',
-            headers: { 'Content-Type': 'text/plain' },
-            body: JSON.stringify({ headers, row })
-        });
+        // Encode row as JSON in a URL param
+        const params = new URLSearchParams({ row: JSON.stringify(row) });
+        const url = `${base}?${params.toString()}`;
+
+        // GET + no-cors = always reaches Apps Script, no preflight, no auth redirect
+        await fetch(url, { method: 'GET', mode: 'no-cors' });
     }
 
-    /**
-     * Apps Script source code to show in the setup modal.
-     */
+    /** Apps Script source code shown in the setup modal */
     static scriptCode() {
-        return `// ─── Pegá este código en Google Apps Script ─────────────────────────
+        // Embed the column headers directly so the script is self-contained
+        const headers = window.StudyStorage ? StudyStorage.HEADERS : [];
+        const headersJson = JSON.stringify(headers, null, 2);
+
+        return `// ─── Pegá este código en Google Apps Script ─────────────────────
+// Después: Implementar → Nueva implementación → Aplicación web
+//   Ejecutar como: Yo | Quién tiene acceso: Cualquier usuario
+// ─────────────────────────────────────────────────────────────
+
 const SHEET_NAME = 'Estudios';
 
-function doPost(e) {
+const HEADERS = ${headersJson};
+
+function doGet(e) {
   try {
-    const data   = JSON.parse(e.postData.contents);
-    const ss     = SpreadsheetApp.getActiveSpreadsheet();
-    let   sheet  = ss.getSheetByName(SHEET_NAME);
+    const rowJson = e.parameter.row;
+    if (!rowJson) {
+      return ContentService
+        .createTextOutput(JSON.stringify({ ok: false, error: 'Sin datos' }))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+
+    const row  = JSON.parse(rowJson);
+    const ss   = SpreadsheetApp.getActiveSpreadsheet();
+    let sheet  = ss.getSheetByName(SHEET_NAME);
     if (!sheet) sheet = ss.insertSheet(SHEET_NAME);
 
     // Encabezados en fila 1 (solo la primera vez)
     if (sheet.getLastRow() === 0) {
-      sheet.appendRow(data.headers);
-      const h = sheet.getRange(1, 1, 1, data.headers.length);
+      sheet.appendRow(HEADERS);
+      const h = sheet.getRange(1, 1, 1, HEADERS.length);
       h.setFontWeight('bold')
        .setBackground('#1e3a8a')
        .setFontColor('#ffffff');
       sheet.setFrozenRows(1);
     }
 
-    sheet.appendRow(data.row);
+    sheet.appendRow(row);
+
     return ContentService
-      .createTextOutput(JSON.stringify({ ok: true }))
+      .createTextOutput(JSON.stringify({ ok: true, fila: sheet.getLastRow() }))
       .setMimeType(ContentService.MimeType.JSON);
+
   } catch(err) {
     return ContentService
       .createTextOutput(JSON.stringify({ ok: false, error: err.message }))

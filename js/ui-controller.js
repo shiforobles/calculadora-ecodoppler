@@ -1943,7 +1943,7 @@ class UIController {
             const btn = document.getElementById('btn_save_study');
             if (btn) btn.disabled = true;
             try {
-                await GoogleSync.send(headers, row);
+                await GoogleSync.send(row);
                 this.showToast(`✅ Guardado en Google Sheets — ${hc}${localMsg}`);
             } catch (err) {
                 this.showToast(`⚠️ Error al enviar a Sheets: ${err.message}. Guardado local OK.`);
