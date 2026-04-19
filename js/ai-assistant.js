@@ -252,14 +252,53 @@ Nunca inventés valores que no estén en los datos del paciente. Si falta inform
         }
     }
 
+    _inline(text) {
+        return text
+            .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+            .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+            .replace(/\*(.*?)\*/g, '<em>$1</em>')
+            .replace(/`([^`]+)`/g, '<code class="ai-inline-code">$1</code>');
+    }
+
+    _renderMarkdown(text) {
+        const lines = text.split('\n');
+        let html = '';
+        let inUl = false;
+        let inOl = false;
+
+        const closeUl = () => { if (inUl) { html += '</ul>'; inUl = false; } };
+        const closeOl = () => { if (inOl) { html += '</ol>'; inOl = false; } };
+
+        for (const line of lines) {
+            if (/^#{1,3} /.test(line)) {
+                closeUl(); closeOl();
+                const content = line.replace(/^#{1,3} /, '');
+                html += `<p class="ai-heading">${this._inline(content)}</p>`;
+            } else if (/^[-*] /.test(line)) {
+                closeOl();
+                if (!inUl) { html += '<ul class="ai-list">'; inUl = true; }
+                html += `<li>${this._inline(line.slice(2))}</li>`;
+            } else if (/^\d+\. /.test(line)) {
+                closeUl();
+                if (!inOl) { html += '<ol class="ai-list">'; inOl = true; }
+                html += `<li>${this._inline(line.replace(/^\d+\. /, ''))}</li>`;
+            } else if (line.trim() === '') {
+                closeUl(); closeOl();
+                if (html && !html.endsWith('<br>') && !html.endsWith('>')) html += '<br>';
+            } else {
+                closeUl(); closeOl();
+                html += this._inline(line) + '<br>';
+            }
+        }
+        closeUl(); closeOl();
+        return html.replace(/(<br>)+$/, '');
+    }
+
     _addMessage(role, text) {
         const msgs = document.getElementById('ai-messages');
         const div  = document.createElement('div');
         div.className = `ai-msg ai-msg-${role}`;
-        // Simple markdown: bold
-        div.innerHTML = text
-            .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-            .replace(/\n/g, '<br>');
+        div.innerHTML = role === 'model' ? this._renderMarkdown(text) : this._inline(text);
         msgs.appendChild(div);
         msgs.scrollTop = msgs.scrollHeight;
     }
@@ -500,6 +539,26 @@ Nunca inventés valores que no estén en los datos del paciente. Si falta inform
         #ai-key-cancel {
             background: #f3f4f6; color: #374151; border: 1px solid #d1d5db;
             border-radius: 6px; padding: 0.4rem 1rem; cursor: pointer; font-size: 0.875rem;
+        }
+
+        .ai-list {
+            margin: 0.3rem 0 0.3rem 1.1rem;
+            padding: 0;
+            font-size: 0.875rem;
+        }
+        .ai-list li { margin-bottom: 0.15rem; }
+        .ai-heading {
+            margin: 0.4rem 0 0.2rem;
+            font-weight: 700;
+            font-size: 0.875rem;
+            color: #111827;
+        }
+        .ai-inline-code {
+            background: #f3f4f6;
+            padding: 0.1em 0.3em;
+            border-radius: 3px;
+            font-size: 0.82em;
+            font-family: monospace;
         }
 
         @media (max-width: 480px) {
