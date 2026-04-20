@@ -1975,6 +1975,10 @@ class UIController {
                 Cada vez que guardés un estudio se enviará automáticamente a tu planilla.
             </p>
 
+            <div style="background:#fef3c7;border:1px solid #fde68a;border-radius:8px;padding:0.75rem 1rem;margin-bottom:1rem;font-size:0.83rem;color:#92400e;">
+                ⚠️ <strong>Paso previo:</strong> En el código del script reemplazá <code style="background:#fde68a;padding:0 3px;border-radius:3px;">PEGAR_URL_DE_TU_GOOGLE_SHEET_ACÁ</code> con la URL completa de tu Google Sheet antes de implementarlo.
+            </div>
+
             <label style="font-size:0.875rem;font-weight:600;color:#374151;display:block;margin-bottom:0.4rem;">
                 URL del Web App (Apps Script)
             </label>

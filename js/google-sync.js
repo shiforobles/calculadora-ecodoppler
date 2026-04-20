@@ -37,24 +37,31 @@ class GoogleSync {
         return `${base}?action=test&_t=${Date.now()}`;
     }
 
-    /** Apps Script source code — same structure as the working vascular app */
+    /** Apps Script source code — standalone script using Sheet URL */
     static scriptCode() {
         const headers = window.StudyStorage ? StudyStorage.HEADERS : [];
         const headersJson = JSON.stringify(headers, null, 2);
 
         return `// ─── Pegá este código en Google Apps Script ──────────────────────
 // 1. Borrá todo el código existente y pegá este
-// 2. Implementar → Nueva implementación → Aplicación web
+// 2. IMPORTANTE: reemplazá la URL de abajo con la de TU Google Sheet
+//    (la URL larga de tu planilla, ej: https://docs.google.com/spreadsheets/d/ABC.../edit)
+// 3. Implementar → Nueva implementación → Aplicación web
 //    Ejecutar como: Yo | Quién tiene acceso: Cualquier usuario
-// 3. Copiá la URL /exec y pegala en la app (⚙️)
+// 4. Copiá la URL /exec y pegala en la app (⚙️)
 // ─────────────────────────────────────────────────────────────────
+
+const SHEET_URL = 'PEGAR_URL_DE_TU_GOOGLE_SHEET_ACÁ';
+const SHEET_NAME = 'Estudios';
 
 const HEADERS = ${headersJson};
 
 function doPost(e) {
   try {
     const data  = JSON.parse(e.postData.contents);
-    const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+    const ss    = SpreadsheetApp.openByUrl(SHEET_URL);
+    let   sheet = ss.getSheetByName(SHEET_NAME);
+    if (!sheet) sheet = ss.insertSheet(SHEET_NAME);
 
     if (sheet.getLastRow() === 0) {
       sheet.appendRow(HEADERS);
@@ -78,7 +85,6 @@ function doPost(e) {
   }
 }
 
-// Prueba rápida: abrí esta URL en el navegador para verificar que el script responde
 function doGet(e) {
   return ContentService
     .createTextOutput(JSON.stringify({ status: 'ok', message: 'Script activo ✓' }))
