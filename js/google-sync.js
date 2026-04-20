@@ -89,6 +89,19 @@ function doGet(e) {
   return ContentService
     .createTextOutput(JSON.stringify({ status: 'ok', message: 'Script activo ✓' }))
     .setMimeType(ContentService.MimeType.JSON);
+}
+
+// ─── EJECUTÁ ESTA FUNCIÓN UNA VEZ DESDE EL EDITOR ────────────────
+// Seleccioná "setup" en el menú desplegable → ▶ Ejecutar
+// Esto autoriza el acceso al Sheet y verifica que la URL sea correcta
+function setup() {
+  try {
+    const ss    = SpreadsheetApp.openByUrl(SHEET_URL);
+    const sheet = ss.getSheetByName('Estudios') || ss.getActiveSheet();
+    Browser.msgBox('✅ Conexión OK con: ' + ss.getName() + '\\nHoja: ' + sheet.getName());
+  } catch(err) {
+    Browser.msgBox('❌ Error: ' + err.message + '\\n\\nVerificá que SHEET_URL sea correcta.');
+  }
 }`;
     }
 }
