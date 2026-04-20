@@ -37,66 +37,51 @@ class GoogleSync {
         return `${base}?action=test&_t=${Date.now()}`;
     }
 
-    /** Apps Script source code — uses doPost for saves, doGet for test */
+    /** Apps Script source code — same structure as the working vascular app */
     static scriptCode() {
         const headers = window.StudyStorage ? StudyStorage.HEADERS : [];
         const headersJson = JSON.stringify(headers, null, 2);
 
         return `// ─── Pegá este código en Google Apps Script ──────────────────────
-// IMPORTANTE: crear implementación NUEVA (no editar la existente)
-//   Implementar → Nueva implementación → Aplicación web
-//   Ejecutar como: Yo
-//   Quién tiene acceso: Cualquier usuario
-//   → Copiar la URL que termina en /exec
+// 1. Borrá todo el código existente y pegá este
+// 2. Implementar → Nueva implementación → Aplicación web
+//    Ejecutar como: Yo | Quién tiene acceso: Cualquier usuario
+// 3. Copiá la URL /exec y pegala en la app (⚙️)
 // ─────────────────────────────────────────────────────────────────
-
-const SHEET_NAME = 'Estudios';
 
 const HEADERS = ${headersJson};
 
-// Guardar fila — llamado desde la app vía POST
 function doPost(e) {
-  return _handle(e.postData ? e.postData.contents : null);
-}
-
-// Probar conexión — abrir en el navegador con ?action=test
-function doGet(e) {
-  if (e && e.parameter && e.parameter.action === 'test') {
-    return _ok({ ok: true, message: 'Conexión exitosa ✓' });
-  }
-  return _ok({ ok: false, error: 'Usá doPost para guardar datos' });
-}
-
-function _handle(bodyStr) {
   try {
-    if (!bodyStr) return _ok({ ok: false, error: 'Body vacío' });
-
-    const data  = JSON.parse(bodyStr);
-    const row   = data.row;
-    if (!row)   return _ok({ ok: false, error: 'Falta campo row' });
-
-    const ss    = SpreadsheetApp.getActiveSpreadsheet();
-    let   sheet = ss.getSheetByName(SHEET_NAME);
-    if (!sheet) sheet = ss.insertSheet(SHEET_NAME);
+    const data  = JSON.parse(e.postData.contents);
+    const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
 
     if (sheet.getLastRow() === 0) {
       sheet.appendRow(HEADERS);
-      const rng = sheet.getRange(1, 1, 1, HEADERS.length);
-      rng.setFontWeight('bold').setBackground('#1e3a8a').setFontColor('#ffffff');
+      sheet.getRange(1, 1, 1, HEADERS.length)
+        .setFontWeight('bold')
+        .setBackground('#1a73e8')
+        .setFontColor('#ffffff');
       sheet.setFrozenRows(1);
     }
 
-    sheet.appendRow(row);
-    return _ok({ ok: true, fila: sheet.getLastRow() });
+    sheet.appendRow(data.row);
+
+    return ContentService
+      .createTextOutput(JSON.stringify({ status: 'ok' }))
+      .setMimeType(ContentService.MimeType.JSON);
 
   } catch(err) {
-    return _ok({ ok: false, error: err.message });
+    return ContentService
+      .createTextOutput(JSON.stringify({ status: 'error', msg: err.toString() }))
+      .setMimeType(ContentService.MimeType.JSON);
   }
 }
 
-function _ok(obj) {
+// Prueba rápida: abrí esta URL en el navegador para verificar que el script responde
+function doGet(e) {
   return ContentService
-    .createTextOutput(JSON.stringify(obj))
+    .createTextOutput(JSON.stringify({ status: 'ok', message: 'Script activo ✓' }))
     .setMimeType(ContentService.MimeType.JSON);
 }`;
     }
