@@ -1,11 +1,13 @@
 /**
  * GoogleSync — Send study rows to a Google Apps Script Web App
  *
- * Uses GET + no-cors: the request always reaches Apps Script regardless
- * of CORS headers on the response. Data is written to the Sheet even
- * though we receive an opaque response.
+ * Uses POST + no-cors: the body is always delivered to doPost()
+ * regardless of CORS headers. POST avoids the URL-length limit that
+ * broke the previous GET approach with 64 columns of data.
  *
- * For testing, the user opens the test URL in a browser tab directly.
+ * Key: do NOT set Content-Type header manually in no-cors mode.
+ * The browser sets text/plain automatically for string bodies, which
+ * is a CORS-safe header and goes through without a preflight.
  */
 class GoogleSync {
     static URL_KEY = 'ecodoppler_script_url';
@@ -14,61 +16,65 @@ class GoogleSync {
     static setUrl(url)    { localStorage.setItem(this.URL_KEY, url.trim()); }
     static isConfigured() { return !!this.getUrl(); }
 
-    /** Send one study row — fire-and-forget via no-cors GET */
+    /** Send one study row via POST no-cors — body always reaches doPost() */
     static async send(row) {
         const base = this.getUrl();
         if (!base) throw new Error('URL del script no configurada');
 
-        const params = new URLSearchParams({
-            action: 'save',
-            row: JSON.stringify(row),
-            _t: Date.now()
+        // No headers object → browser sets Content-Type: text/plain automatically
+        // text/plain is a CORS-safe header = no preflight needed
+        await fetch(base, {
+            method: 'POST',
+            mode: 'no-cors',
+            body: JSON.stringify({ action: 'save', row })
         });
-
-        // no-cors GET: opaque response, but Apps Script always receives the request
-        await fetch(`${base}?${params.toString()}`, { method: 'GET', mode: 'no-cors' });
     }
 
-    /** Returns the test URL (to open in a browser tab for direct verification) */
+    /** Returns a GET test URL to open directly in the browser */
     static testUrl() {
         const base = this.getUrl();
         if (!base) return null;
         return `${base}?action=test&_t=${Date.now()}`;
     }
 
-    /** Apps Script source code shown in the setup modal */
+    /** Apps Script source code — uses doPost for saves, doGet for test */
     static scriptCode() {
         const headers = window.StudyStorage ? StudyStorage.HEADERS : [];
         const headersJson = JSON.stringify(headers, null, 2);
 
         return `// ─── Pegá este código en Google Apps Script ──────────────────────
-// IMPORTANTE: Crear implementación NUEVA (no editar la existente)
+// IMPORTANTE: crear implementación NUEVA (no editar la existente)
 //   Implementar → Nueva implementación → Aplicación web
 //   Ejecutar como: Yo
 //   Quién tiene acceso: Cualquier usuario
-//   → Copiar la URL generada
+//   → Copiar la URL que termina en /exec
 // ─────────────────────────────────────────────────────────────────
 
 const SHEET_NAME = 'Estudios';
 
 const HEADERS = ${headersJson};
 
+// Guardar fila — llamado desde la app vía POST
+function doPost(e) {
+  return _handle(e.postData ? e.postData.contents : null);
+}
+
+// Probar conexión — abrir en el navegador con ?action=test
 function doGet(e) {
-  const action = (e && e.parameter && e.parameter.action) ? e.parameter.action : 'save';
+  if (e && e.parameter && e.parameter.action === 'test') {
+    return _ok({ ok: true, message: 'Conexión exitosa ✓' });
+  }
+  return _ok({ ok: false, error: 'Usá doPost para guardar datos' });
+}
 
-  const ok  = (obj) => ContentService
-    .createTextOutput(JSON.stringify(obj))
-    .setMimeType(ContentService.MimeType.JSON);
-
+function _handle(bodyStr) {
   try {
-    if (action === 'test') {
-      return ok({ ok: true, message: 'Conexión exitosa ✓' });
-    }
+    if (!bodyStr) return _ok({ ok: false, error: 'Body vacío' });
 
-    const rowJson = e.parameter.row;
-    if (!rowJson) return ok({ ok: false, error: 'Falta parámetro row' });
+    const data  = JSON.parse(bodyStr);
+    const row   = data.row;
+    if (!row)   return _ok({ ok: false, error: 'Falta campo row' });
 
-    const row   = JSON.parse(rowJson);
     const ss    = SpreadsheetApp.getActiveSpreadsheet();
     let   sheet = ss.getSheetByName(SHEET_NAME);
     if (!sheet) sheet = ss.insertSheet(SHEET_NAME);
@@ -81,11 +87,17 @@ function doGet(e) {
     }
 
     sheet.appendRow(row);
-    return ok({ ok: true, fila: sheet.getLastRow() });
+    return _ok({ ok: true, fila: sheet.getLastRow() });
 
   } catch(err) {
-    return ok({ ok: false, error: err.message });
+    return _ok({ ok: false, error: err.message });
   }
+}
+
+function _ok(obj) {
+  return ContentService
+    .createTextOutput(JSON.stringify(obj))
+    .setMimeType(ContentService.MimeType.JSON);
 }`;
     }
 }
