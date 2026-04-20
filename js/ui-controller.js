@@ -2046,31 +2046,22 @@ class UIController {
             modal.remove();
         });
 
-        document.getElementById('sync-test-btn').addEventListener('click', async () => {
+        document.getElementById('sync-test-btn').addEventListener('click', () => {
             const resultDiv = document.getElementById('sync-test-result');
-            const btn = document.getElementById('sync-test-btn');
-            // Save URL first
-            const urlInput = document.getElementById('sync-url-input').value.trim();
-            if (!urlInput) { resultDiv.style.display = 'block'; resultDiv.style.background = '#fef3c7'; resultDiv.style.color = '#92400e'; resultDiv.textContent = '⚠️ Ingresá la URL primero'; return; }
-            GoogleSync.setUrl(urlInput);
-            btn.disabled = true;
-            btn.textContent = '⏳ Probando...';
-            resultDiv.style.display = 'none';
-            try {
-                const r = await GoogleSync.test();
-                resultDiv.style.display = 'block';
-                resultDiv.style.background = '#d1fae5';
-                resultDiv.style.color = '#065f46';
-                resultDiv.textContent = `✅ ${r.message || 'Conexión exitosa'}`;
-            } catch (err) {
-                resultDiv.style.display = 'block';
-                resultDiv.style.background = '#fee2e2';
-                resultDiv.style.color = '#991b1b';
-                resultDiv.textContent = `❌ Error: ${err.message}`;
-            } finally {
-                btn.disabled = false;
-                btn.textContent = '🔗 Probar Conexión';
+            const urlInput  = document.getElementById('sync-url-input').value.trim();
+
+            if (!urlInput) {
+                resultDiv.style.cssText = 'display:block;padding:0.5rem 0.75rem;border-radius:6px;background:#fef3c7;color:#92400e;font-size:0.85rem;margin-top:0.75rem;';
+                resultDiv.textContent = '⚠️ Ingresá la URL primero y guardala.';
+                return;
             }
+
+            GoogleSync.setUrl(urlInput);
+            const testUrl = GoogleSync.testUrl();
+            window.open(testUrl, '_blank');
+
+            resultDiv.style.cssText = 'display:block;padding:0.5rem 0.75rem;border-radius:6px;background:#dbeafe;color:#1e40af;font-size:0.83rem;margin-top:0.75rem;line-height:1.5;';
+            resultDiv.innerHTML = '🔗 Se abrió una pestaña con la URL de prueba.<br>Si ves <code style="background:#e0e7ff;padding:0 3px;border-radius:3px;">{"ok":true}</code> → el script funciona correctamente.<br>Si ves un error → copiá el texto y compartilo.';
         });
 
         document.getElementById('sync-copy-code').addEventListener('click', async () => {
