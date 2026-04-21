@@ -1912,6 +1912,7 @@ class UIController {
                     (document.getElementById('pe_vci_dilatada').checked ? 1 : 0)
                 ) >= 2) ? 'Si' : 'No'
         ];
+        return row;
     }
 
     async copyDataset() {
