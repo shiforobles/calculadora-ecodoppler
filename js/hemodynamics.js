@@ -177,7 +177,8 @@ class HemodynamicsCalculator {
         // --- SINUS RHYTHM ALGORITHM (Standard) ---
 
         // Special case: Supernormal pattern (Athletic heart)
-        if (EARatio > 2 && ePrime >= 10) {
+        // Using septal e' cutoff per ASE 2016: septal e' normal ≥ 8 cm/s
+        if (EARatio > 2 && ePrime >= 8) {
             return {
                 grade: "Normal",
                 description: "Función Diastólica Normal (Patrón de llenado vigoroso/Atleta). Presiones de llenado VI normales.",
@@ -186,7 +187,7 @@ class HemodynamicsCalculator {
         }
 
         // Special case: Restrictive pattern (Grade III)
-        if (EARatio > 2 && ePrime < 10) {
+        if (EARatio > 2 && ePrime < 8) {
             return {
                 grade: "III",
                 description: "Disfunción Diastólica Grado III (Patrón Restrictivo). Presiones de llenado VI elevadas.",
@@ -201,7 +202,7 @@ class HemodynamicsCalculator {
         if (!diseased) {
             let criteria = 0;
 
-            if (ePrime < 9) criteria++;
+            if (ePrime < 8) criteria++;
             if (EeRatio > 14) criteria++;
             if (LAVolIndex > 34) criteria++;
             if (TRVel > 2.8) criteria++;
