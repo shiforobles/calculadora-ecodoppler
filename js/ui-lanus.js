@@ -85,10 +85,13 @@ UIController.prototype.injectLanus = function () {
     }
 };
 
-/**
- * Show toast notification (simple console log for now)
- */
-UIController.prototype.showToast = function (message) {
-    console.log(message);
-    // TODO: Implement visual toast
+UIController.prototype.showToast = function (message, duration = 3500) {
+    document.getElementById('app-toast')?.remove();
+    const toast = document.createElement('div');
+    toast.id = 'app-toast';
+    toast.textContent = message;
+    toast.style.cssText = 'position:fixed;bottom:90px;left:50%;transform:translateX(-50%);background:#1f2937;color:#fff;padding:0.7rem 1.4rem;border-radius:10px;font-size:0.9rem;font-weight:500;z-index:99999;box-shadow:0 4px 16px rgba(0,0,0,0.35);opacity:0;transition:opacity 0.2s ease;pointer-events:none;max-width:90vw;text-align:center';
+    document.body.appendChild(toast);
+    requestAnimationFrame(() => { toast.style.opacity = '1'; });
+    setTimeout(() => { toast.style.opacity = '0'; setTimeout(() => toast.remove(), 250); }, duration);
 };
