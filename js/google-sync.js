@@ -10,11 +10,33 @@
  * is a CORS-safe header and goes through without a preflight.
  */
 class GoogleSync {
-    static URL_KEY = 'ecodoppler_script_url';
+    static URL_KEY        = 'ecodoppler_script_url';
+    static SHEET_URL_KEY  = 'ecodoppler_sheet_url';
+    static DOCTOR_KEY     = 'ecodoppler_doctor';
+    static MATRICULA_KEY  = 'ecodoppler_matricula';
+    static FIRMA_KEY      = 'ecodoppler_firma_enabled';
 
-    static getUrl()       { return localStorage.getItem(this.URL_KEY) || ''; }
-    static setUrl(url)    { localStorage.setItem(this.URL_KEY, url.trim()); }
-    static isConfigured() { return !!this.getUrl(); }
+    static getUrl()          { return localStorage.getItem(this.URL_KEY) || ''; }
+    static setUrl(url)       { localStorage.setItem(this.URL_KEY, url.trim()); }
+    static isConfigured()    { return !!this.getUrl(); }
+
+    static getSheetUrl()     { return localStorage.getItem(this.SHEET_URL_KEY) || ''; }
+    static setSheetUrl(url)  { localStorage.setItem(this.SHEET_URL_KEY, url.trim()); }
+
+    static getDoctor()       { return localStorage.getItem(this.DOCTOR_KEY) || ''; }
+    static setDoctor(v)      { localStorage.setItem(this.DOCTOR_KEY, v.trim()); }
+    static getMatricula()    { return localStorage.getItem(this.MATRICULA_KEY) || ''; }
+    static setMatricula(v)   { localStorage.setItem(this.MATRICULA_KEY, v.trim()); }
+    static isFirmaEnabled()  { return localStorage.getItem(this.FIRMA_KEY) === '1'; }
+    static setFirmaEnabled(v){ localStorage.setItem(this.FIRMA_KEY, v ? '1' : '0'); }
+
+    static getFirma() {
+        if (!this.isFirmaEnabled()) return '';
+        const name = this.getDoctor();
+        const mat  = this.getMatricula();
+        if (!name && !mat) return '';
+        return (name ? name + '\n' : '') + (mat ? 'MN: ' + mat : '');
+    }
 
     /** Send one study row via POST no-cors — body always reaches doPost() */
     static async send(row) {

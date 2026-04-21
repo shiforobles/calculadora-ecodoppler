@@ -42,6 +42,13 @@ class UIController {
         const btnSave = document.getElementById('btn_save_study');
         if (btnSave) btnSave.addEventListener('click', () => this.saveStudy());
 
+        const btnViewSheet = document.getElementById('btn_view_sheet');
+        if (btnViewSheet) btnViewSheet.addEventListener('click', () => {
+            const url = window.GoogleSync ? GoogleSync.getSheetUrl() : '';
+            if (url) window.open(url, '_blank');
+            else this.showToast('⚙️ Configurá la URL del Sheet en ⚙️ primero');
+        });
+
         const btnSyncSetup = document.getElementById('btn_sync_setup');
         if (btnSyncSetup) btnSyncSetup.addEventListener('click', () => this.showSyncSetupModal());
 
@@ -1678,6 +1685,12 @@ class UIController {
             // 9. Antecedentes Clínicos (REMOVED from report text, kept in Dataset)
             //Logic removed as per user request to only keep in dataset
 
+            // Append doctor signature if configured
+            if (window.GoogleSync) {
+                const firma = GoogleSync.getFirma();
+                if (firma) report += '\n\n' + firma;
+            }
+
             // Display report
             document.getElementById('resultado').value = report;
 
@@ -1957,31 +1970,60 @@ class UIController {
             display:flex;align-items:center;justify-content:center;padding:1rem;
         `;
 
-        const currentUrl = window.GoogleSync ? GoogleSync.getUrl() : '';
+        const currentUrl      = window.GoogleSync ? GoogleSync.getUrl() : '';
+        const currentSheetUrl = window.GoogleSync ? GoogleSync.getSheetUrl() : '';
+        const currentDoctor   = window.GoogleSync ? GoogleSync.getDoctor() : '';
+        const currentMat      = window.GoogleSync ? GoogleSync.getMatricula() : '';
+        const firmaEnabled    = window.GoogleSync ? GoogleSync.isFirmaEnabled() : false;
 
         modal.innerHTML = `
         <div style="background:#fff;border-radius:12px;padding:1.75rem;width:min(680px,95vw);
                     max-height:85vh;overflow-y:auto;box-shadow:0 8px 40px rgba(0,0,0,0.25);">
-            <h3 style="margin:0 0 0.25rem;font-size:1.1rem;color:#111827;">⚙️ Sincronización con Google Sheets</h3>
-            <p style="margin:0 0 1.25rem;font-size:0.85rem;color:#6b7280;">
-                Cada vez que guardés un estudio se enviará automáticamente a tu planilla.
-            </p>
+            <h3 style="margin:0 0 0.25rem;font-size:1.1rem;color:#111827;">⚙️ Configuración</h3>
 
-            <div style="background:#fef3c7;border:1px solid #fde68a;border-radius:8px;padding:0.75rem 1rem;margin-bottom:1rem;font-size:0.83rem;color:#92400e;">
-                ⚠️ <strong>Paso previo:</strong> En el código del script reemplazá <code style="background:#fde68a;padding:0 3px;border-radius:3px;">PEGAR_URL_DE_TU_GOOGLE_SHEET_ACÁ</code> con la URL completa de tu Google Sheet antes de implementarlo.
-            </div>
+            <p style="margin:0 0 1rem;font-size:0.875rem;font-weight:600;color:#374151;">Google Sheets</p>
 
             <label style="font-size:0.875rem;font-weight:600;color:#374151;display:block;margin-bottom:0.4rem;">
                 URL del Web App (Apps Script)
             </label>
-            <div style="display:flex;gap:0.5rem;margin-bottom:1.25rem;">
+            <div style="display:flex;gap:0.5rem;margin-bottom:1rem;">
                 <input id="sync-url-input" type="text" value="${currentUrl}"
                     placeholder="https://script.google.com/macros/s/.../exec"
                     style="flex:1;border:1px solid #d1d5db;border-radius:6px;padding:0.5rem 0.75rem;font-size:0.875rem;">
-                <button id="sync-save-btn"
-                    style="background:#10b981;color:#fff;border:none;border-radius:6px;padding:0.5rem 1rem;cursor:pointer;font-size:0.875rem;white-space:nowrap;">
-                    Guardar URL
-                </button>
+            </div>
+
+            <label style="font-size:0.875rem;font-weight:600;color:#374151;display:block;margin-bottom:0.4rem;">
+                URL de tu Google Sheet (para abrir directo)
+            </label>
+            <div style="display:flex;gap:0.5rem;margin-bottom:1.25rem;">
+                <input id="sync-sheet-url-input" type="text" value="${currentSheetUrl}"
+                    placeholder="https://docs.google.com/spreadsheets/d/.../edit"
+                    style="flex:1;border:1px solid #d1d5db;border-radius:6px;padding:0.5rem 0.75rem;font-size:0.875rem;">
+            </div>
+
+            <hr style="border:none;border-top:1px solid #e5e7eb;margin:1rem 0;">
+            <p style="margin:0 0 0.75rem;font-size:0.875rem;font-weight:600;color:#374151;">Firma en informe</p>
+
+            <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.75rem;">
+                <input type="checkbox" id="firma-enabled" ${firmaEnabled ? 'checked' : ''}
+                    style="width:16px;height:16px;cursor:pointer;">
+                <label for="firma-enabled" style="font-size:0.875rem;color:#374151;cursor:pointer;">
+                    Incluir firma al final del informe
+                </label>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;margin-bottom:1.25rem;">
+                <div>
+                    <label style="font-size:0.8rem;color:#6b7280;display:block;margin-bottom:0.3rem;">Nombre y apellido</label>
+                    <input id="firma-nombre" type="text" value="${currentDoctor}"
+                        placeholder="Ej: Lucas Robles"
+                        style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:0.5rem 0.75rem;font-size:0.875rem;box-sizing:border-box;">
+                </div>
+                <div>
+                    <label style="font-size:0.8rem;color:#6b7280;display:block;margin-bottom:0.3rem;">Matrícula</label>
+                    <input id="firma-matricula" type="text" value="${currentMat}"
+                        placeholder="Ej: 366.452"
+                        style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:0.5rem 0.75rem;font-size:0.875rem;box-sizing:border-box;">
+                </div>
             </div>
 
             <details style="margin-bottom:1rem;">
@@ -2011,6 +2053,10 @@ class UIController {
             <div id="sync-test-result" style="display:none;padding:0.5rem 0.75rem;border-radius:6px;font-size:0.85rem;margin-top:0.75rem;"></div>
 
             <div style="display:flex;justify-content:flex-end;gap:0.5rem;margin-top:1rem;flex-wrap:wrap;">
+                <button id="sync-save-btn"
+                    style="background:#10b981;color:#fff;border:none;border-radius:6px;padding:0.5rem 1rem;cursor:pointer;font-size:0.875rem;white-space:nowrap;">
+                    💾 Guardar
+                </button>
                 <button id="sync-test-btn"
                     style="background:#f59e0b;color:#fff;border:none;border-radius:6px;padding:0.5rem 1rem;cursor:pointer;font-size:0.875rem;">
                     🔗 Probar Conexión
@@ -2033,12 +2079,17 @@ class UIController {
 
         document.getElementById('sync-save-btn').addEventListener('click', () => {
             const url = document.getElementById('sync-url-input').value.trim();
-            if (!url.startsWith('https://script.google.com')) {
-                alert('⚠️ La URL debe ser de Google Apps Script (https://script.google.com/...)');
+            if (url && !url.startsWith('https://script.google.com')) {
+                alert('⚠️ La URL del script debe ser de Google Apps Script (https://script.google.com/...)');
                 return;
             }
-            GoogleSync.setUrl(url);
-            this.showToast('✅ URL guardada. El próximo estudio se enviará a Google Sheets.');
+            if (url) GoogleSync.setUrl(url);
+            const sheetUrl = document.getElementById('sync-sheet-url-input').value.trim();
+            if (sheetUrl) GoogleSync.setSheetUrl(sheetUrl);
+            GoogleSync.setDoctor(document.getElementById('firma-nombre').value);
+            GoogleSync.setMatricula(document.getElementById('firma-matricula').value);
+            GoogleSync.setFirmaEnabled(document.getElementById('firma-enabled').checked);
+            this.showToast('✅ Configuración guardada.');
             modal.remove();
         });
 
