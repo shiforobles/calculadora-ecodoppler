@@ -39,14 +39,8 @@ class UIController {
         const btnCopy = document.getElementById('btn_copy');
         if (btnCopy) btnCopy.addEventListener('click', () => this.copyReport());
 
-        const btnDataset = document.getElementById('btn_dataset');
-        if (btnDataset) btnDataset.addEventListener('click', () => this.copyDataset());
-
         const btnSave = document.getElementById('btn_save_study');
         if (btnSave) btnSave.addEventListener('click', () => this.saveStudy());
-
-        const btnHistory = document.getElementById('btn_history');
-        if (btnHistory) btnHistory.addEventListener('click', () => this.showStudiesModal());
 
         const btnSyncSetup = document.getElementById('btn_sync_setup');
         if (btnSyncSetup) btnSyncSetup.addEventListener('click', () => this.showSyncSetupModal());
@@ -1932,30 +1926,23 @@ class UIController {
             const row = this._buildDatasetRow();
             const hc  = document.getElementById('paciente_id').value || '(sin ID)';
 
-            // 1. Save locally always
-            let localMsg = '';
-            if (window.StudyStorage) {
-                const total = StudyStorage.save(row);
-                localMsg = ` | Local: ${total} registro${total !== 1 ? 's' : ''}`;
+            if (!window.GoogleSync || !GoogleSync.isConfigured()) {
+                this.showToast('⚙️ Configurá Google Sheets primero con el botón ⚙️');
+                return;
             }
 
-            // 2. Send to Google Sheets if configured
-            if (window.GoogleSync && GoogleSync.isConfigured()) {
-                const btn = document.getElementById('btn_save_study');
-                if (btn) btn.disabled = true;
-                try {
-                    await GoogleSync.send(row);
-                    this.showToast(`✅ Guardado en Google Sheets — ${hc}${localMsg}`);
-                } catch (err) {
-                    this.showToast(`⚠️ Error Sheets: ${err.message}. Guardado local OK.`);
-                } finally {
-                    if (btn) btn.disabled = false;
-                }
-            } else {
-                this.showToast(`💾 Guardado localmente — ${hc}${localMsg}. Configurá Google Sheets con ⚙️`);
+            const btn = document.getElementById('btn_save_study');
+            if (btn) btn.disabled = true;
+            try {
+                await GoogleSync.send(row);
+                this.showToast(`✅ Guardado en Google Sheets — ${hc}`);
+            } catch (err) {
+                this.showToast(`⚠️ Error al guardar: ${err.message}`);
+            } finally {
+                if (btn) btn.disabled = false;
             }
         } catch (err) {
-            this.showToast(`❌ Error al guardar: ${err.message}`);
+            this.showToast(`❌ Error: ${err.message}`);
             console.error('saveStudy error:', err);
         }
     }
