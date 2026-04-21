@@ -2135,7 +2135,7 @@ class UIController {
             studies.forEach((s, idx) => {
                 const bg = idx % 2 === 0 ? '#fff' : '#f9fafb';
                 html += `<tr style="background:${bg};">
-                    ${COLS.map(i => `<td style="padding:0.45rem 0.75rem;border-bottom:1px solid #e5e7eb;">${s.row[i] ?? '-'}</td>`).join('')}
+                    ${COLS.map(i => `<td style="padding:0.45rem 0.75rem;border-bottom:1px solid #e5e7eb;">${s.row?.[i] ?? '-'}</td>`).join('')}
                     <td style="padding:0.45rem 0.5rem;border-bottom:1px solid #e5e7eb;">
                         <button onclick="StudyStorage.delete(${s.id});window.UIController.showStudiesModal();"
                             style="background:none;border:none;cursor:pointer;color:#ef4444;font-size:1rem;" title="Eliminar">🗑️</button>
