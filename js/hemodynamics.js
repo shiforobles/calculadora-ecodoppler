@@ -114,7 +114,7 @@ class HemodynamicsCalculator {
      * @returns {Object} { grade, description, severity }
      */
     classifyDiastolicFunction(params) {
-        const { E, A, ePrime, LAVolIndex = 28, TRVel = 0, LVEF = 60, wallMotion = 'normal', ritmo = 'sinusal' } = params;
+        const { E, A, ePrime, LAVolIndex = 28, TRVel = 0, LVEF = 60, wallMotion = 'conservada', ritmo = 'sinusal', eaValsalva } = params;
 
         // Check if we have minimum required data
         // For FA, we don't need 'A' wave
@@ -196,7 +196,7 @@ class HemodynamicsCalculator {
         }
 
         // Determine if heart has structural/functional disease
-        const diseased = (LVEF < 50 || wallMotion !== 'normal' || LAVolIndex > 34 || TRVel > 2.8);
+        const diseased = (LVEF < 50 || wallMotion !== 'conservada' || LAVolIndex > 34 || TRVel > 2.8);
 
         // Algorithm for normal hearts (LVEF ≥50% and no wall motion abnormalities)
         if (!diseased) {
@@ -266,6 +266,14 @@ class HemodynamicsCalculator {
 
         // ≥50% of criteria met → Grade II (elevated pressures)
         if (criteriaP >= 2) {
+            // Valsalva maneuver: if E/A drops to ≤0.8 → reclassify as Grade I (pseudonormal unmasked)
+            if (!isNaN(eaValsalva) && eaValsalva <= 0.8) {
+                return {
+                    grade: "I",
+                    description: "Disfunción Diastólica Grado I (Pseudonormal → Relajación Prolongada con Valsalva). Presiones de llenado VI normales.",
+                    severity: "green"
+                };
+            }
             return {
                 grade: "II",
                 description: "Disfunción Diastólica Grado II (Pseudonormal). Presiones de llenado VI elevadas.",

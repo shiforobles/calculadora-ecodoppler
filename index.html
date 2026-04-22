@@ -152,7 +152,7 @@
                 </div>
                 <div class="form-group">
                     <label for="fevi">FEy (%) Simpson</label>
-                    <input type="number" id="fevi" value="65" min="10" max="100" step="1">
+                    <input type="number" id="fevi" value="60" min="10" max="100" step="1">
                 </div>
             </div>
 
@@ -230,9 +230,16 @@
                         <input type="number" id="onda_a" placeholder="Doppler Mitral" min="10" max="150" step="1">
                     </div>
                     <div class="form-group">
-                        <label for="onda_e_prime">e' Promedio (cm/s)</label>
-                        <input type="number" id="onda_e_prime" placeholder="TDI Septal+Lateral" min="3" max="25"
-                            step="0.1">
+                        <label for="onda_e_prime_septal">e' Septal (cm/s)</label>
+                        <input type="number" id="onda_e_prime_septal" placeholder="TDI Septal" min="3" max="25" step="0.1">
+                    </div>
+                    <div class="form-group">
+                        <label for="onda_e_prime_lateral">e' Lateral (cm/s) <span style="font-weight:400;color:#9ca3af;font-size:0.8em;">opcional</span></label>
+                        <input type="number" id="onda_e_prime_lateral" placeholder="TDI Lateral" min="3" max="25" step="0.1">
+                    </div>
+                    <div class="form-group">
+                        <label for="onda_e_prime">e' Promedio (calculado)</label>
+                        <input type="text" id="onda_e_prime" class="calculated-value" disabled>
                     </div>
                     <div class="form-group">
                         <label for="ea_ratio_display">Relación E/A</label>
@@ -241,6 +248,10 @@
                     <div class="form-group">
                         <label for="ee_ratio_display">Relación E/e'</label>
                         <input type="text" id="ee_ratio_display" class="calculated-value" disabled>
+                    </div>
+                    <div class="form-group">
+                        <label for="ea_valsalva">E/A Valsalva <span style="font-weight:400;color:#9ca3af;font-size:0.8em;">opcional</span></label>
+                        <input type="number" id="ea_valsalva" placeholder="Si realizó maniobra" min="0.1" max="5" step="0.01">
                     </div>
                 </div>
 
@@ -909,7 +920,7 @@
                 </div>
                 <div class="form-group">
                     <label for="tapse">TAPSE (mm)</label>
-                    <input type="number" id="tapse" value="22" min="5" max="40" step="1">
+                    <input type="number" id="tapse" value="25" min="5" max="40" step="1">
                 </div>
                 <div class="form-group">
                     <label for="s_prima_vd">S' VD (cm/s)</label>
@@ -1320,14 +1331,14 @@
     <script src="js/motility-model.js?v=15.2"></script>
     <script src="js/motility-controller.js?v=15.2"></script>
     <script src="js/motility-svg.js?v=15.2"></script>
-    <script src="js/ui-controller.js?v=15.6"></script>
-    <script src="js/ui-extensions.js?v=15.6"></script>
-    <script src="js/ui-lanus.js?v=15.6"></script>
-    <script src="js/ui-aorta-display.js?v=15.6"></script>
-    <script src="js/aortic-regurgitation.js?v=15.6"></script>
-    <script src="js/valvulopathy-modules.js?v=15.6"></script>
-    <script src="js/voice-recognition.js?v=15.6"></script>
-    <script src="app.js?v=15.6"></script>
+    <script src="js/ui-controller.js?v=15.7"></script>
+    <script src="js/ui-extensions.js?v=15.7"></script>
+    <script src="js/ui-lanus.js?v=15.7"></script>
+    <script src="js/ui-aorta-display.js?v=15.7"></script>
+    <script src="js/aortic-regurgitation.js?v=15.7"></script>
+    <script src="js/valvulopathy-modules.js?v=15.7"></script>
+    <script src="js/voice-recognition.js?v=15.7"></script>
+    <script src="app.js?v=15.7"></script>
     <script src="js/study-storage.js?v=1.1"></script>
     <script src="js/google-sync.js?v=1.1"></script>
     <script src="js/ai-assistant.js?v=1.5"></script>

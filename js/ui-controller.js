@@ -309,7 +309,7 @@ class UIController {
         const calcFields = [
             'peso', 'altura', 'sexo',
             'siv', 'pp', 'ddvi', 'fevi',
-            'onda_e', 'onda_a', 'onda_e_prime',
+            'onda_e', 'onda_a', 'onda_e_prime_septal', 'onda_e_prime_lateral', 'ea_valsalva',
             'vol_ai', 'vel_it', 'pad', 'paat',
             'motilidad_global',
             'ao_raiz', 'ao_asc', 'ad_area'
@@ -652,13 +652,28 @@ class UIController {
     calculateDiastolicFunction() {
         const E = parseFloat(document.getElementById('onda_e').value);
         const A = parseFloat(document.getElementById('onda_a').value);
-        const ePrime = parseFloat(document.getElementById('onda_e_prime').value);
+
+        // Calculate e' average from septal + lateral (or just septal if lateral not entered)
+        const eSeptal  = parseFloat(document.getElementById('onda_e_prime_septal')?.value);
+        const eLateral = parseFloat(document.getElementById('onda_e_prime_lateral')?.value);
+        let ePrime;
+        if (!isNaN(eSeptal) && !isNaN(eLateral)) {
+            ePrime = (eSeptal + eLateral) / 2;
+            document.getElementById('onda_e_prime').value = ePrime.toFixed(1);
+        } else if (!isNaN(eSeptal)) {
+            ePrime = eSeptal;
+            document.getElementById('onda_e_prime').value = ePrime.toFixed(1);
+        } else {
+            ePrime = NaN;
+            document.getElementById('onda_e_prime').value = '';
+        }
+
         const LAVolIndex = parseFloat(document.getElementById('vol_ai').value);
         const TRVel = parseFloat(document.getElementById('vel_it').value);
         const LVEF = parseFloat(document.getElementById('fevi').value);
         const wallMotion = document.getElementById('motilidad_global').value;
         const ritmo = document.getElementById('ritmo').value;
-
+        const eaValsalva = parseFloat(document.getElementById('ea_valsalva')?.value);
 
         // Update E/A and E/e' ratios
         if (E && A) {
@@ -668,7 +683,7 @@ class UIController {
             document.getElementById('ea_ratio_display').value = '';
         }
 
-        if (E && ePrime) {
+        if (E && !isNaN(ePrime)) {
             const eeRatio = E / ePrime;
             document.getElementById('ee_ratio_display').value = eeRatio.toFixed(1);
         } else {
@@ -677,7 +692,7 @@ class UIController {
 
         // Classify diastolic function
         this.state.diastolicResult = this.calc.classifyDiastolicFunction({
-            E, A, ePrime, LAVolIndex, TRVel, LVEF, wallMotion, ritmo
+            E, A, ePrime, LAVolIndex, TRVel, LVEF, wallMotion, ritmo, eaValsalva
         });
 
         // Update semaphore display
@@ -795,7 +810,7 @@ class UIController {
         const fieldsToValidate = [
             'edad', 'peso', 'altura',
             'siv', 'pp', 'ddvi', 'dsvi', 'fevi',
-            'onda_e', 'onda_a', 'onda_e_prime',
+            'onda_e', 'onda_a', 'onda_e_prime_septal', 'onda_e_prime_lateral',
             'vol_ai', 'ao_raiz', 'ao_asc',
             'tapse', 'vel_it', 'pad'
         ];
@@ -938,11 +953,18 @@ class UIController {
 
                 if (ePrime) {
                     const eeRatio = document.getElementById('ee_ratio_display').value;
-                    if (diastolicText.endsWith('Tisular:')) diastolicText += ` e' promedio ${ePrime} cm/s`;
-                    else diastolicText += `, e' promedio ${ePrime} cm/s`;
-
+                    const eSeptal  = document.getElementById('onda_e_prime_septal')?.value;
+                    const eLateral = document.getElementById('onda_e_prime_lateral')?.value;
+                    let ePrimeText = eSeptal && eLateral
+                        ? `e' septal ${eSeptal} / lateral ${eLateral} cm/s (promedio ${ePrime} cm/s)`
+                        : `e' septal ${ePrime} cm/s`;
+                    if (diastolicText.endsWith('Tisular:')) diastolicText += ` ${ePrimeText}`;
+                    else diastolicText += `, ${ePrimeText}`;
                     if (eeRatio && eeRatio !== '-') diastolicText += ` (Relación E/e' ${eeRatio})`;
                 }
+
+                const eaValsalva = document.getElementById('ea_valsalva')?.value;
+                if (eaValsalva) diastolicText += `. Maniobra de Valsalva: E/A ${eaValsalva}`;
 
                 report += `${diastolicText}.\n`;
             }
