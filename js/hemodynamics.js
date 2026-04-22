@@ -114,7 +114,9 @@ class HemodynamicsCalculator {
      * @returns {Object} { grade, description, severity }
      */
     classifyDiastolicFunction(params) {
-        const { E, A, ePrime, LAVolIndex = 28, TRVel = 0, LVEF = 60, wallMotion = 'conservada', ritmo = 'sinusal', eaValsalva } = params;
+        const { E, A, ePrime, eSeptal, eLateral, LAVolIndex = 28, TRVel = 0, LVEF = 60, wallMotion = 'conservada', ritmo = 'sinusal', eaValsalva } = params;
+        // e' criterion per ASE 2016: septal < 7 OR lateral < 10
+        const ePrimeAbnormal = (!isNaN(eSeptal) && eSeptal < 7) || (!isNaN(eLateral) && eLateral < 10) || (isNaN(eSeptal) && isNaN(eLateral) && !isNaN(ePrime) && ePrime < 8);
 
         // Check if we have minimum required data
         // For FA, we don't need 'A' wave
@@ -202,7 +204,7 @@ class HemodynamicsCalculator {
         if (!diseased) {
             let criteria = 0;
 
-            if (ePrime < 8) criteria++;
+            if (ePrimeAbnormal) criteria++;
             if (EeRatio > 14) criteria++;
             if (LAVolIndex > 34) criteria++;
             if (TRVel > 2.8) criteria++;
@@ -236,7 +238,8 @@ class HemodynamicsCalculator {
         }
 
         // Grade II vs Grade I (when E/A > 0.8 or E > 50)
-        // Use additional criteria to determine filling pressures
+        // 3 criteria per ASE 2016: E/e' > 14, TR > 2.8, LAVI > 34
+        // Valsalva: E/A dropping to ≤0.8 confirms pseudonormal = adds one positive criterion
         let criteriaP = 0;
         let dataPoints = 0;
 
@@ -255,6 +258,13 @@ class HemodynamicsCalculator {
             if (LAVolIndex > 34) criteriaP++;
         }
 
+        // Valsalva: E/A ≤ 0.8 during Valsalva unmasks pseudonormal → confirms Grade II
+        const valsalvaPositive = !isNaN(eaValsalva) && eaValsalva <= 0.8;
+        if (valsalvaPositive) {
+            dataPoints++;
+            criteriaP++;
+        }
+
         // Need at least 2 data points to classify
         if (dataPoints < 2) {
             return {
@@ -264,22 +274,14 @@ class HemodynamicsCalculator {
             };
         }
 
-        // ≥50% of criteria met → Grade II (elevated pressures)
-        if (criteriaP >= 2) {
-            // Valsalva maneuver: if E/A drops to ≤0.8 → reclassify as Grade I (pseudonormal unmasked)
-            if (!isNaN(eaValsalva) && eaValsalva <= 0.8) {
-                return {
-                    grade: "I",
-                    description: "Disfunción Diastólica Grado I (Pseudonormal → Relajación Prolongada con Valsalva). Presiones de llenado VI normales.",
-                    severity: "green"
-                };
-            }
+        // Majority of criteria positive → Grade II (elevated pressures)
+        if (criteriaP > dataPoints / 2) {
             return {
                 grade: "II",
                 description: "Disfunción Diastólica Grado II (Pseudonormal). Presiones de llenado VI elevadas.",
                 severity: "red"
             };
-        } else if (criteriaP === 0 || (criteriaP === 1 && dataPoints === 3)) {
+        } else if (criteriaP === 0 || (criteriaP === 1 && dataPoints >= 3)) {
             return {
                 grade: "I",
                 description: "Disfunción Diastólica Grado I (Relajación Prolongada). Presiones de llenado VI normales.",

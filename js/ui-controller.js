@@ -692,7 +692,7 @@ class UIController {
 
         // Classify diastolic function
         this.state.diastolicResult = this.calc.classifyDiastolicFunction({
-            E, A, ePrime, LAVolIndex, TRVel, LVEF, wallMotion, ritmo, eaValsalva
+            E, A, ePrime, eSeptal, eLateral, LAVolIndex, TRVel, LVEF, wallMotion, ritmo, eaValsalva
         });
 
         // Update semaphore display
