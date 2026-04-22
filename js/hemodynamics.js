@@ -114,9 +114,33 @@ class HemodynamicsCalculator {
      * @returns {Object} { grade, description, severity }
      */
     classifyDiastolicFunction(params) {
-        const { E, A, ePrime, eSeptal, eLateral, LAVolIndex = 28, TRVel = 0, LVEF = 60, wallMotion = 'conservada', ritmo = 'sinusal', eaValsalva } = params;
+        const { E, A, ePrime, eSeptal, eLateral, LAVolIndex = 28, TRVel = 0, LVEF = 60, wallMotion = 'conservada', ritmo = 'sinusal', context = {} } = params;
+        const { bcri = false, mac = false, imSevera = false, mcp = false, valsalva = false } = context;
+
         // e' criterion per ASE 2016: septal < 7 OR lateral < 10
-        const ePrimeAbnormal = (!isNaN(eSeptal) && eSeptal < 7) || (!isNaN(eLateral) && eLateral < 10) || (isNaN(eSeptal) && isNaN(eLateral) && !isNaN(ePrime) && ePrime < 8);
+        // BCRI: septal e' unreliable → use lateral only
+        // MAC: both e' unreliable → skip e' criterion entirely
+        let ePrimeAbnormal = false;
+        if (!mac) {
+            if (bcri) {
+                ePrimeAbnormal = !isNaN(eLateral) && eLateral < 10;
+            } else {
+                ePrimeAbnormal = (!isNaN(eSeptal) && eSeptal < 7) ||
+                                 (!isNaN(eLateral) && eLateral < 10) ||
+                                 (isNaN(eSeptal) && isNaN(eLateral) && !isNaN(ePrime) && ePrime < 8);
+            }
+        }
+
+        // e' for E/e' ratio: BCRI → use lateral only; MAC → E/e' unreliable
+        let ePrimeForRatio = ePrime;
+        if (bcri && !isNaN(eLateral)) ePrimeForRatio = eLateral;
+
+        // Warnings to append to description
+        const warnings = [];
+        if (bcri)     warnings.push('BCRI: e\' septal excluido');
+        if (mac)      warnings.push('MAC: E/e\' no válido');
+        if (imSevera) warnings.push('IM Severa: E/e\' sobreestima presiones');
+        if (mcp)      warnings.push('MCP: umbrales E/e\' modificados');
 
         // Check if we have minimum required data
         // For FA, we don't need 'A' wave
@@ -130,7 +154,7 @@ class HemodynamicsCalculator {
             };
         }
 
-        const EeRatio = E / ePrime;
+        const EeRatio = E / ePrimeForRatio;
         // Only calculate E/A if not FA/Flutter and A is present
         const EARatio = (!isFA && A) ? E / A : null;
 
@@ -183,7 +207,7 @@ class HemodynamicsCalculator {
         if (EARatio > 2 && ePrime >= 8) {
             return {
                 grade: "Normal",
-                description: "Función Diastólica Normal (Patrón de llenado vigoroso/Atleta). Presiones de llenado VI normales.",
+                description: `Función Diastólica Normal (Patrón de llenado vigoroso/Atleta). Presiones de llenado VI normales.${warnings.length ? ' ⚠️ ' + warnings.join('; ') + '.' : ''}`,
                 severity: "green"
             };
         }
@@ -192,7 +216,7 @@ class HemodynamicsCalculator {
         if (EARatio > 2 && ePrime < 8) {
             return {
                 grade: "III",
-                description: "Disfunción Diastólica Grado III (Patrón Restrictivo). Presiones de llenado VI elevadas.",
+                description: `Disfunción Diastólica Grado III (Patrón Restrictivo). Presiones de llenado VI elevadas.${warnings.length ? ' ⚠️ ' + warnings.join('; ') + '.' : ''}`,
                 severity: "red"
             };
         }
@@ -205,20 +229,20 @@ class HemodynamicsCalculator {
             let criteria = 0;
 
             if (ePrimeAbnormal) criteria++;
-            if (EeRatio > 14) criteria++;
+            if (!mac && !imSevera && EeRatio > 14) criteria++;
             if (LAVolIndex > 34) criteria++;
             if (TRVel > 2.8) criteria++;
 
             if (criteria < 2) {
                 return {
                     grade: "Normal",
-                    description: "Función Diastólica Normal. Presiones de llenado VI normales.",
+                    description: `Función Diastólica Normal. Presiones de llenado VI normales.${warnings.length ? ' ⚠️ ' + warnings.join('; ') + '.' : ''}`,
                     severity: "green"
                 };
             } else if (criteria === 2) {
                 return {
                     grade: "Indeterminado",
-                    description: "Función Diastólica Indeterminada (2/4 criterios alterados). Se requiere evaluación adicional.",
+                    description: `Función Diastólica Indeterminada (2/4 criterios alterados). Se requiere evaluación adicional.${warnings.length ? ' ⚠️ ' + warnings.join('; ') + '.' : ''}`,
                     severity: "yellow"
                 };
             } else {
@@ -232,20 +256,22 @@ class HemodynamicsCalculator {
         if (EARatio <= 0.8 && E <= 50) {
             return {
                 grade: "I",
-                description: "Disfunción Diastólica Grado I (Relajación Prolongada). Presiones de llenado VI normales.",
+                description: `Disfunción Diastólica Grado I (Relajación Prolongada). Presiones de llenado VI normales.${warnings.length ? ' ⚠️ ' + warnings.join('; ') + '.' : ''}`,
                 severity: "green"
             };
         }
 
         // Grade II vs Grade I (when E/A > 0.8 or E > 50)
         // 3 criteria per ASE 2016: E/e' > 14, TR > 2.8, LAVI > 34
-        // Valsalva: E/A dropping to ≤0.8 confirms pseudonormal = adds one positive criterion
+        // MAC / IM Severa: E/e' excluded (unreliable)
+        // Valsalva (+): E/A drops ≤0.8 → confirms pseudonormal → adds positive criterion
         let criteriaP = 0;
         let dataPoints = 0;
 
-        if (EeRatio !== null && !isNaN(EeRatio)) {
+        const eeThreshold = mcp ? 15 : 14; // MCP uses slightly higher cutoff
+        if (!mac && !imSevera && EeRatio !== null && !isNaN(EeRatio)) {
             dataPoints++;
-            if (EeRatio > 14) criteriaP++;
+            if (EeRatio > eeThreshold) criteriaP++;
         }
 
         if (TRVel !== null && TRVel > 0) {
@@ -258,18 +284,19 @@ class HemodynamicsCalculator {
             if (LAVolIndex > 34) criteriaP++;
         }
 
-        // Valsalva: E/A ≤ 0.8 during Valsalva unmasks pseudonormal → confirms Grade II
-        const valsalvaPositive = !isNaN(eaValsalva) && eaValsalva <= 0.8;
-        if (valsalvaPositive) {
+        // Valsalva (+): E/A ≤ 0.8 during Valsalva unmasks pseudonormal → confirms Grade II
+        if (valsalva) {
             dataPoints++;
             criteriaP++;
         }
+
+        const warnSuffix = warnings.length ? ` ⚠️ ${warnings.join('; ')}.` : '';
 
         // Need at least 2 data points to classify
         if (dataPoints < 2) {
             return {
                 grade: "Indeterminado",
-                description: "Función Diastólica Indeterminada. Datos insuficientes para clasificar.",
+                description: `Función Diastólica Indeterminada. Datos insuficientes para clasificar.${warnSuffix}`,
                 severity: "yellow"
             };
         }
@@ -278,19 +305,19 @@ class HemodynamicsCalculator {
         if (criteriaP > dataPoints / 2) {
             return {
                 grade: "II",
-                description: "Disfunción Diastólica Grado II (Pseudonormal). Presiones de llenado VI elevadas.",
+                description: `Disfunción Diastólica Grado II (Pseudonormal). Presiones de llenado VI elevadas.${warnSuffix}`,
                 severity: "red"
             };
         } else if (criteriaP === 0 || (criteriaP === 1 && dataPoints >= 3)) {
             return {
                 grade: "I",
-                description: "Disfunción Diastólica Grado I (Relajación Prolongada). Presiones de llenado VI normales.",
+                description: `Disfunción Diastólica Grado I (Relajación Prolongada). Presiones de llenado VI normales.${warnSuffix}`,
                 severity: "green"
             };
         } else {
             return {
                 grade: "Indeterminado",
-                description: "Función Diastólica Indeterminada. Evaluación adicional requerida.",
+                description: `Función Diastólica Indeterminada. Evaluación adicional requerida.${warnSuffix}`,
                 severity: "yellow"
             };
         }

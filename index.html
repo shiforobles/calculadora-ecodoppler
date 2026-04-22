@@ -16,7 +16,7 @@
         rel="stylesheet">
 
     <!-- Styles -->
-    <link rel="stylesheet" href="styles.css?v=15.2">
+    <link rel="stylesheet" href="styles.css?v=15.9">
 </head>
 
 <body>
@@ -249,9 +249,27 @@
                         <label for="ee_ratio_display">Relación E/e'</label>
                         <input type="text" id="ee_ratio_display" class="calculated-value" disabled>
                     </div>
-                    <div class="form-group">
-                        <label for="ea_valsalva">E/A Valsalva <span style="font-weight:400;color:#9ca3af;font-size:0.8em;">opcional</span></label>
-                        <input type="number" id="ea_valsalva" placeholder="Si realizó maniobra" min="0.1" max="5" step="0.01">
+                </div>
+
+                <!-- Condiciones especiales y Valsalva -->
+                <div style="margin-top:1rem;padding:0.75rem 1rem;background:#f8fafc;border-radius:8px;border:1px solid #e5e7eb;">
+                    <p style="font-size:0.78rem;font-weight:600;color:#6b7280;margin:0 0 0.6rem;">Condiciones especiales / Maniobra</p>
+                    <div style="display:flex;flex-wrap:wrap;gap:0.5rem;">
+                        <label class="diast-ctx-btn" title="Bloqueo completo rama izquierda — e' septal no confiable">
+                            <input type="checkbox" id="ctx_bcri"> BCRI
+                        </label>
+                        <label class="diast-ctx-btn" title="Calcificación del anillo mitral — E/e' no válido">
+                            <input type="checkbox" id="ctx_mac"> MAC
+                        </label>
+                        <label class="diast-ctx-btn" title="Insuficiencia mitral severa — E/e' sobreestima presiones">
+                            <input type="checkbox" id="ctx_im"> IM Severa
+                        </label>
+                        <label class="diast-ctx-btn" title="Miocardiopatía hipertrófica — umbrales modificados">
+                            <input type="checkbox" id="ctx_mcp"> MCP
+                        </label>
+                        <label class="diast-ctx-btn" title="Valsalva positivo: E/A cae ≤ 0.8 → confirma pseudonormal">
+                            <input type="checkbox" id="ctx_valsalva"> Valsalva (+)
+                        </label>
                     </div>
                 </div>
 
@@ -1323,22 +1341,22 @@
     </div>
 
     <!-- JavaScript Modules -->
-    <script src="js/hemodynamics.js?v=15.2"></script>
-    <script src="js/validator.js?v=15.2"></script>
-    <script src="js/mini-calculators.js?v=15.2"></script>
-    <script src="js/quality-control.js?v=15.2"></script>
+    <script src="js/hemodynamics.js?v=15.9"></script>
+    <script src="js/validator.js?v=15.9"></script>
+    <script src="js/mini-calculators.js?v=15.9"></script>
+    <script src="js/quality-control.js?v=15.9"></script>
     <!-- Motility System -->
-    <script src="js/motility-model.js?v=15.2"></script>
-    <script src="js/motility-controller.js?v=15.2"></script>
-    <script src="js/motility-svg.js?v=15.2"></script>
-    <script src="js/ui-controller.js?v=15.8"></script>
-    <script src="js/ui-extensions.js?v=15.8"></script>
-    <script src="js/ui-lanus.js?v=15.8"></script>
-    <script src="js/ui-aorta-display.js?v=15.8"></script>
-    <script src="js/aortic-regurgitation.js?v=15.8"></script>
-    <script src="js/valvulopathy-modules.js?v=15.8"></script>
-    <script src="js/voice-recognition.js?v=15.8"></script>
-    <script src="app.js?v=15.8"></script>
+    <script src="js/motility-model.js?v=15.9"></script>
+    <script src="js/motility-controller.js?v=15.9"></script>
+    <script src="js/motility-svg.js?v=15.9"></script>
+    <script src="js/ui-controller.js?v=15.9"></script>
+    <script src="js/ui-extensions.js?v=15.9"></script>
+    <script src="js/ui-lanus.js?v=15.9"></script>
+    <script src="js/ui-aorta-display.js?v=15.9"></script>
+    <script src="js/aortic-regurgitation.js?v=15.9"></script>
+    <script src="js/valvulopathy-modules.js?v=15.9"></script>
+    <script src="js/voice-recognition.js?v=15.9"></script>
+    <script src="app.js?v=15.9"></script>
     <script src="js/study-storage.js?v=1.1"></script>
     <script src="js/google-sync.js?v=1.1"></script>
     <script src="js/ai-assistant.js?v=1.5"></script>

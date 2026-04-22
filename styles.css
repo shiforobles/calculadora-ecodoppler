@@ -552,6 +552,28 @@ input.invalid {
    Diastolic Function Badge (Semáforo)
    ======================================== */
 
+.diast-ctx-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.3rem 0.7rem;
+    border-radius: 6px;
+    border: 1.5px solid #d1d5db;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: #374151;
+    cursor: pointer;
+    background: #fff;
+    transition: all 0.15s;
+    user-select: none;
+}
+.diast-ctx-btn:has(input:checked) {
+    background: #1e40af;
+    border-color: #1e40af;
+    color: #fff;
+}
+.diast-ctx-btn input { display: none; }
+
 .diastole-badge {
     grid-column: 1 / -1;
     padding: var(--spacing-md);

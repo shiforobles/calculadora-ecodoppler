@@ -309,7 +309,8 @@ class UIController {
         const calcFields = [
             'peso', 'altura', 'sexo',
             'siv', 'pp', 'ddvi', 'fevi',
-            'onda_e', 'onda_a', 'onda_e_prime_septal', 'onda_e_prime_lateral', 'ea_valsalva',
+            'onda_e', 'onda_a', 'onda_e_prime_septal', 'onda_e_prime_lateral',
+            'ctx_bcri', 'ctx_mac', 'ctx_im', 'ctx_mcp', 'ctx_valsalva',
             'vol_ai', 'vel_it', 'pad', 'paat',
             'motilidad_global',
             'ao_raiz', 'ao_asc', 'ad_area'
@@ -673,7 +674,13 @@ class UIController {
         const LVEF = parseFloat(document.getElementById('fevi').value);
         const wallMotion = document.getElementById('motilidad_global').value;
         const ritmo = document.getElementById('ritmo').value;
-        const eaValsalva = parseFloat(document.getElementById('ea_valsalva')?.value);
+        const context = {
+            bcri:      document.getElementById('ctx_bcri')?.checked || false,
+            mac:       document.getElementById('ctx_mac')?.checked || false,
+            imSevera:  document.getElementById('ctx_im')?.checked || false,
+            mcp:       document.getElementById('ctx_mcp')?.checked || false,
+            valsalva:  document.getElementById('ctx_valsalva')?.checked || false,
+        };
 
         // Update E/A and E/e' ratios
         if (E && A) {
@@ -692,7 +699,7 @@ class UIController {
 
         // Classify diastolic function
         this.state.diastolicResult = this.calc.classifyDiastolicFunction({
-            E, A, ePrime, eSeptal, eLateral, LAVolIndex, TRVel, LVEF, wallMotion, ritmo, eaValsalva
+            E, A, ePrime, eSeptal, eLateral, LAVolIndex, TRVel, LVEF, wallMotion, ritmo, context
         });
 
         // Update semaphore display
@@ -963,8 +970,7 @@ class UIController {
                     if (eeRatio && eeRatio !== '-') diastolicText += ` (Relación E/e' ${eeRatio})`;
                 }
 
-                const eaValsalva = document.getElementById('ea_valsalva')?.value;
-                if (eaValsalva) diastolicText += `. Maniobra de Valsalva: E/A ${eaValsalva}`;
+                if (document.getElementById('ctx_valsalva')?.checked) diastolicText += `. Valsalva: E/A ≤ 0.8 (positivo)`;
 
                 report += `${diastolicText}.\n`;
             }
