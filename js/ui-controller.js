@@ -1408,13 +1408,13 @@ class UIController {
                 if (diastolicDesc.includes('FA:') || diastolicDesc.includes('FA +')) {
                     report += `${conclusionNum}. ${diastolicDesc}\n`;
                 } else if (diastolicDesc.includes('Normal')) {
-                    report += `${conclusionNum}. Función Diastólica Normal. PFDVI Normales.\n`;
+                    report += `${conclusionNum}. Función Diastólica Normal. Presiones de llenado VI normales.\n`;
                 } else if (diastolicDesc.includes('Grado III')) {
-                    report += `${conclusionNum}. Disfunción Diastólica Grado III (Restrictivo). PFDVI Elevadas.\n`;
+                    report += `${conclusionNum}. Disfunción Diastólica Grado III (Restrictivo). Presiones de llenado VI elevadas.\n`;
                 } else if (diastolicDesc.includes('Grado II')) {
-                    report += `${conclusionNum}. Disfunción Diastólica Grado II (Pseudonormal). PFDVI Elevadas.\n`;
+                    report += `${conclusionNum}. Disfunción Diastólica Grado II (Pseudonormal). Presiones de llenado VI elevadas.\n`;
                 } else if (diastolicDesc.includes('Grado I')) {
-                    report += `${conclusionNum}. Disfunción Diastólica Grado I. PFDVI normales.\n`;
+                    report += `${conclusionNum}. Disfunción Diastólica Grado I. Presiones de llenado VI normales.\n`;
                 } else {
                     report += `${conclusionNum}. Función Diastólica Indeterminada (datos insuficientes).\n`;
                 }
