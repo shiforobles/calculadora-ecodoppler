@@ -391,7 +391,8 @@ class HemodynamicsCalculator {
      */
     calculateCardiacOutput(lvotDiam, lvotVti, hr, bsa) {
         if (!lvotDiam || !lvotVti || lvotDiam <= 0 || lvotVti <= 0) return null;
-        const area = 0.785 * Math.pow(lvotDiam, 2); // cm²
+        const dCm  = lvotDiam / 10;                  // mm → cm
+        const area = 0.785 * Math.pow(dCm, 2);       // cm²
         const sv   = Math.round(area * lvotVti);     // ml
         const co   = hr ? parseFloat((sv * hr / 1000).toFixed(2)) : null;
         const ci   = (co && bsa) ? parseFloat((co / bsa).toFixed(2)) : null;
