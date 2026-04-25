@@ -549,6 +549,29 @@ input.invalid {
 }
 
 /* ========================================
+   Toggle Advanced Section Button
+   ======================================== */
+.toggle-advanced-btn {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.5rem 0.85rem;
+    background: #f1f5f9;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: #475569;
+    cursor: pointer;
+    transition: background 0.15s;
+    text-align: left;
+}
+.toggle-advanced-btn:hover { background: #e2e8f0; }
+.toggle-advanced-btn .toggle-arrow { font-size: 0.7rem; transition: transform 0.2s; }
+.toggle-advanced-btn.open .toggle-arrow { transform: rotate(180deg); }
+
+/* ========================================
    Diastolic Function Badge (Semáforo)
    ======================================== */
 
