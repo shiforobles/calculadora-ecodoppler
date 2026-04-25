@@ -1528,7 +1528,35 @@ class UIController {
             }
             conclusionNum++;
 
-            // 4. LA dimensions with severity
+            // 4. Cardiac Output conclusion (only if data available)
+            if (this.state.cardiacOutput) {
+                const { sv, co, ci } = this.state.cardiacOutput;
+
+                // Classify using Cardiac Index as primary (indexed to BSA = more meaningful)
+                // Fallback to CO if no BSA
+                let gcLabel = '';
+                let gcDetail = `VS ${sv} ml`;
+                if (co) gcDetail += `, GC ${co} L/min`;
+                if (ci) gcDetail += `, IC ${ci} L/min/m²`;
+
+                if (ci) {
+                    if (ci < 2.2)       gcLabel = 'Bajo gasto cardíaco severo';
+                    else if (ci < 2.5)  gcLabel = 'Bajo gasto cardíaco';
+                    else if (ci <= 4.0) gcLabel = 'Gasto cardíaco conservado';
+                    else                gcLabel = 'Estado hiperdinámico';
+                } else if (co) {
+                    if (co < 4.0)       gcLabel = 'Bajo gasto cardíaco';
+                    else if (co <= 8.0) gcLabel = 'Gasto cardíaco conservado';
+                    else                gcLabel = 'Estado hiperdinámico';
+                } else {
+                    gcLabel = `Volumen sistólico ${sv < 60 ? 'reducido' : sv <= 100 ? 'conservado' : 'elevado'}`;
+                }
+
+                report += `${conclusionNum}. ${gcLabel} (${gcDetail}).\n`;
+                conclusionNum++;
+            }
+
+            // 5. LA dimensions with severity
             if (volAi > 48) {
                 report += `${conclusionNum}. Aurícula izquierda severamente dilatada.\n`;
             } else if (volAi >= 42) {
