@@ -1072,13 +1072,13 @@ class UIController {
                 report += `${diastolicText}.\n`;
             }
 
-            // Cardiac Output
+            // Cardiac Output — abbreviated in VI description
             if (this.state.cardiacOutput) {
                 const gc = this.state.cardiacOutput;
-                const gcParts = [`Volumen sistólico: ${gc.sv} ml`];
-                if (gc.co) gcParts.push(`Gasto cardíaco: ${gc.co} L/min`);
-                if (gc.ci) gcParts.push(`Índice cardíaco: ${gc.ci} L/min/m²`);
-                report += `Hemodinámica TSVI: ${gcParts.join(' | ')}.\n`;
+                const gcParts = [`VS ${gc.sv} ml`];
+                if (gc.co) gcParts.push(`GC ${gc.co} L/min`);
+                if (gc.ci) gcParts.push(`IC ${gc.ci} L/min/m²`);
+                report += `Hemodinámica (TSVI): ${gcParts.join(' | ')}.\n`;
             }
 
             // ========== 2. AURÍCULA IZQUIERDA ==========
