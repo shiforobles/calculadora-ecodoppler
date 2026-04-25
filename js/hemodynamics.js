@@ -189,7 +189,7 @@ class HemodynamicsCalculator {
                 if (LAVolIndex > 34) faCriteria++;
             }
 
-            const warnFA = warnings.length ? ` ⚠️ ${warnings.join('; ')}.` : '';
+            const warnFA = warnings.length ? ` [${warnings.join('; ')}].` : '';
 
             if (faData < 2) {
                 return {
@@ -244,7 +244,7 @@ class HemodynamicsCalculator {
         if (EARatio > 2 && ePrime >= 9) {
             return {
                 grade: "Normal",
-                description: `Función Diastólica Normal (Patrón de llenado vigoroso/Atleta). Presiones de llenado VI normales.${warnings.length ? ' ⚠️ ' + warnings.join('; ') + '.' : ''}`,
+                description: `Función Diastólica Normal (Patrón de llenado vigoroso/Atleta). Presiones de llenado VI normales.${warnings.length ? ' [' + warnings.join('; ') + '].' : ''}`,
                 severity: "green"
             };
         }
@@ -255,7 +255,7 @@ class HemodynamicsCalculator {
             let gradeIIIDesc = `Disfunción Diastólica Grado III (Patrón Restrictivo). Presiones de llenado VI elevadas.`;
             if (tdShort) gradeIIIDesc += ` TD acortado (${TD} ms) corrobora patrón restrictivo.`;
             if (valsalva) gradeIIIDesc += ` Patrón Restrictivo Reversible (E/A normaliza con Valsalva).`;
-            if (warnings.length) gradeIIIDesc += ` ⚠️ ${warnings.join('; ')}.`;
+            if (warnings.length) gradeIIIDesc += ` [${warnings.join('; ')}].`;
             return { grade: "III", description: gradeIIIDesc, severity: "red" };
         }
 
@@ -274,7 +274,7 @@ class HemodynamicsCalculator {
             if (criteria < 2) {
                 return {
                     grade: "Normal",
-                    description: `Función Diastólica Normal. Presiones de llenado VI normales.${warnings.length ? ' ⚠️ ' + warnings.join('; ') + '.' : ''}`,
+                    description: `Función Diastólica Normal. Presiones de llenado VI normales.${warnings.length ? ' [' + warnings.join('; ') + '].' : ''}`,
                     severity: "green"
                 };
             } else if (criteria === 2) {
@@ -286,7 +286,7 @@ class HemodynamicsCalculator {
                 else if (tdProlonged) tieNote += ` TD prolongado sugiere alteración de la relajación.`;
                 return {
                     grade: "Indeterminado",
-                    description: `Función Diastólica Indeterminada (2/4 criterios alterados). Evaluación adicional requerida.${tieNote}${warnings.length ? ' ⚠️ ' + warnings.join('; ') + '.' : ''}`,
+                    description: `Función Diastólica Indeterminada (2/4 criterios alterados). Evaluación adicional requerida.${tieNote}${warnings.length ? ' [' + warnings.join('; ') + '].' : ''}`,
                     severity: "yellow"
                 };
             } else {
@@ -300,7 +300,7 @@ class HemodynamicsCalculator {
         if (EARatio <= 0.8 && E <= 50) {
             return {
                 grade: "I",
-                description: `Disfunción Diastólica Grado I (Relajación Prolongada). Presiones de llenado VI normales.${warnings.length ? ' ⚠️ ' + warnings.join('; ') + '.' : ''}`,
+                description: `Disfunción Diastólica Grado I (Relajación Prolongada). Presiones de llenado VI normales.${warnings.length ? ' [' + warnings.join('; ') + '].' : ''}`,
                 severity: "green"
             };
         }
@@ -350,7 +350,7 @@ class HemodynamicsCalculator {
             // tdProlonged: dataPoints++ already done, criteriaP stays
         }
 
-        const warnSuffix = warnings.length ? ` ⚠️ ${warnings.join('; ')}.` : '';
+        const warnSuffix = warnings.length ? ` [${warnings.join('; ')}].` : '';
 
         // Need at least 2 data points to classify
         if (dataPoints < 2) {

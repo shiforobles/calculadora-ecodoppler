@@ -972,7 +972,7 @@ class UIController {
 
             // Acoustic window warning
             if (document.getElementById('ventana').value === 'si') {
-                report += `⚠️ MALA VENTANA ACÚSTICA que limita la evaluación ecocardiográfica.\n`;
+                report += `MALA VENTANA ACÚSTICA que limita la evaluación ecocardiográfica.\n`;
             }
 
             // ========== 1. VENTRÍCULO IZQUIERDO ==========
