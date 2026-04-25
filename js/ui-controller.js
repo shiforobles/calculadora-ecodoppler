@@ -311,7 +311,8 @@ class UIController {
             'siv', 'pp', 'ddvi', 'fevi',
             'onda_e', 'onda_a', 'onda_e_prime_septal', 'onda_e_prime_lateral',
             'ctx_bcri', 'ctx_mac', 'ctx_im', 'ctx_mcp', 'ctx_valsalva',
-            'vol_ai', 'vel_it', 'pad', 'paat',
+            'vol_ai', 'vel_it', 'pad', 'paat', 'triv', 'td',
+            'lvot_diam', 'lvot_vti', 'fc',
             'motilidad_global',
             'ao_raiz', 'ao_asc', 'ad_area'
         ];
@@ -380,6 +381,7 @@ class UIController {
             this.calculateLVMassAndGeometry();
             this.calculateDiastolicFunction();
             this.calculatePSAP();
+            this.calculateCardiacOutput();
             this.calculateRightChambers();
             this.evaluarProtesis();
             if (this.updatePAATBadge) this.updatePAATBadge();
@@ -648,9 +650,41 @@ class UIController {
     }
 
     /**
+     * Update field states based on active special conditions (BCRI, MAC, IM Severa)
+     */
+    updateSpecialConditionsUI() {
+        const bcri     = document.getElementById('ctx_bcri')?.checked;
+        const mac      = document.getElementById('ctx_mac')?.checked;
+        const imSevera = document.getElementById('ctx_im')?.checked;
+
+        // BCRI → e' septal unreliable: disable field, clear value
+        const eSeptalEl = document.getElementById('onda_e_prime_septal');
+        if (eSeptalEl) {
+            if (bcri) {
+                eSeptalEl.value = '';
+                eSeptalEl.disabled = true;
+                eSeptalEl.placeholder = 'Excluido (BCRI)';
+                eSeptalEl.style.opacity = '0.45';
+            } else {
+                eSeptalEl.disabled = false;
+                eSeptalEl.placeholder = 'TDI Septal';
+                eSeptalEl.style.opacity = '';
+            }
+        }
+
+        // MAC → E/e' no válido; IM Severa → sobreestima
+        // Store flags for use in E/e' display below
+        this._mac = mac;
+        this._imSevera = imSevera;
+    }
+
+    /**
      * Calculate and display diastolic function
      */
     calculateDiastolicFunction() {
+        // Apply UI state for special conditions first
+        this.updateSpecialConditionsUI();
+
         const E = parseFloat(document.getElementById('onda_e').value);
         const A = parseFloat(document.getElementById('onda_a').value);
 
@@ -663,6 +697,10 @@ class UIController {
             document.getElementById('onda_e_prime').value = ePrime.toFixed(1);
         } else if (!isNaN(eSeptal)) {
             ePrime = eSeptal;
+            document.getElementById('onda_e_prime').value = ePrime.toFixed(1);
+        } else if (!isNaN(eLateral)) {
+            // BCRI: only lateral available
+            ePrime = eLateral;
             document.getElementById('onda_e_prime').value = ePrime.toFixed(1);
         } else {
             ePrime = NaN;
@@ -682,24 +720,34 @@ class UIController {
             valsalva:  document.getElementById('ctx_valsalva')?.checked || false,
         };
 
-        // Update E/A and E/e' ratios
+        // Update E/A ratio
         if (E && A) {
-            const eaRatio = E / A;
-            document.getElementById('ea_ratio_display').value = eaRatio.toFixed(2);
+            document.getElementById('ea_ratio_display').value = (E / A).toFixed(2);
         } else {
             document.getElementById('ea_ratio_display').value = '';
         }
 
-        if (E && !isNaN(ePrime)) {
-            const eeRatio = E / ePrime;
-            document.getElementById('ee_ratio_display').value = eeRatio.toFixed(1);
+        // Update E/e' ratio — annotate if MAC or IM Severa
+        const eeEl = document.getElementById('ee_ratio_display');
+        if (E && !isNaN(ePrime) && ePrime > 0) {
+            const eeRatio = (E / ePrime).toFixed(1);
+            if (context.mac) {
+                eeEl.value = `${eeRatio} (no válido — MAC)`;
+            } else if (context.imSevera) {
+                eeEl.value = `${eeRatio} (sobreestimado — IM)`;
+            } else {
+                eeEl.value = eeRatio;
+            }
         } else {
-            document.getElementById('ee_ratio_display').value = '';
+            eeEl.value = '';
         }
+
+        const TRIV = parseFloat(document.getElementById('triv')?.value);
+        const TD   = parseFloat(document.getElementById('td')?.value);
 
         // Classify diastolic function
         this.state.diastolicResult = this.calc.classifyDiastolicFunction({
-            E, A, ePrime, eSeptal, eLateral, LAVolIndex, TRVel, LVEF, wallMotion, ritmo, context
+            E, A, ePrime, eSeptal, eLateral, LAVolIndex, TRVel, LVEF, wallMotion, ritmo, context, TRIV, TD
         });
 
         // Update semaphore display
@@ -721,6 +769,36 @@ class UIController {
 
         // Add appropriate status class
         badge.classList.add(`status-${result.severity}`);
+    }
+
+    /**
+     * Calculate and display Stroke Volume, Cardiac Output, Cardiac Index
+     */
+    calculateCardiacOutput() {
+        const lvotDiam = parseFloat(document.getElementById('lvot_diam')?.value);
+        const lvotVti  = parseFloat(document.getElementById('lvot_vti')?.value);
+        const hr       = parseFloat(document.getElementById('fc')?.value);
+        const bsa      = this.state.bsa;
+
+        const svEl = document.getElementById('gc_sv_display');
+        const coEl = document.getElementById('gc_co_display');
+        const ciEl = document.getElementById('gc_ci_display');
+        if (!svEl) return;
+
+        if (!lvotDiam || !lvotVti || lvotDiam <= 0 || lvotVti <= 0) {
+            svEl.value = ''; coEl.value = ''; ciEl.value = '';
+            return;
+        }
+
+        const result = this.calc.calculateCardiacOutput(lvotDiam, lvotVti, hr, bsa);
+        if (!result) { svEl.value = ''; coEl.value = ''; ciEl.value = ''; return; }
+
+        svEl.value = `${result.sv} ml`;
+        coEl.value = result.co ? `${result.co} L/min` : '— (falta FC)';
+        ciEl.value = result.ci ? `${result.ci} L/min/m²` : '— (falta FC o SC)';
+
+        // Store for report
+        this.state.cardiacOutput = result;
     }
 
     /**
@@ -940,42 +1018,46 @@ class UIController {
                 report += `\n`;
             }
 
-            // Diastolic function
-            // Diastolic function
+            // Diastolic function — Doppler measurements
             const ondaE = document.getElementById('onda_e').value;
             const ondaA = document.getElementById('onda_a').value;
             const ePrime = document.getElementById('onda_e_prime').value;
 
-            // Allow partial reporting (e.g. FA has no A wave)
             if (ondaE || ePrime) {
                 let diastolicText = `Evaluación Doppler Mitral y Tisular:`;
-
                 if (ondaE) diastolicText += ` Onda E ${ondaE} cm/s`;
-
                 if (ondaA) {
                     const eaRatio = document.getElementById('ea_ratio_display').value;
-                    if (diastolicText.endsWith('Tisular:')) diastolicText += ` Onda A ${ondaA} cm/s (Relación E/A ${eaRatio})`;
-                    else diastolicText += `, Onda A ${ondaA} cm/s (Relación E/A ${eaRatio})`;
+                    diastolicText += `, Onda A ${ondaA} cm/s (E/A ${eaRatio})`;
                 }
+                const tdVal = document.getElementById('td')?.value;
+                if (tdVal) diastolicText += `, TD ${tdVal} ms`;
 
                 if (ePrime) {
                     const eeRatio = document.getElementById('ee_ratio_display').value;
                     const eSeptal  = document.getElementById('onda_e_prime_septal')?.value;
                     const eLateral = document.getElementById('onda_e_prime_lateral')?.value;
-                    let ePrimeText = eSeptal && eLateral
+                    let ePrimeText = (eSeptal && eLateral)
                         ? `e' septal ${eSeptal} / lateral ${eLateral} cm/s (promedio ${ePrime} cm/s)`
-                        : `e' septal ${ePrime} cm/s`;
-                    if (diastolicText.endsWith('Tisular:')) diastolicText += ` ${ePrimeText}`;
-                    else diastolicText += `, ${ePrimeText}`;
-                    if (eeRatio && eeRatio !== '-') diastolicText += ` (Relación E/e' ${eeRatio})`;
+                        : (eSeptal ? `e' septal ${eSeptal} cm/s` : `e' lateral ${eLateral} cm/s`);
+                    diastolicText += `, ${ePrimeText}`;
+                    if (eeRatio) diastolicText += ` (E/e' ${eeRatio})`;
                 }
 
-                if (document.getElementById('ctx_valsalva')?.checked) diastolicText += `. Valsalva: E/A ≤ 0.8 (positivo)`;
-
+                const trivVal = document.getElementById('triv')?.value;
+                if (trivVal) diastolicText += `. TRIV ${trivVal} ms`;
+                if (document.getElementById('ctx_valsalva')?.checked) diastolicText += `. Valsalva (+)`;
                 report += `${diastolicText}.\n`;
             }
 
-
+            // Cardiac Output
+            if (this.state.cardiacOutput) {
+                const gc = this.state.cardiacOutput;
+                const gcParts = [`Volumen sistólico: ${gc.sv} ml`];
+                if (gc.co) gcParts.push(`Gasto cardíaco: ${gc.co} L/min`);
+                if (gc.ci) gcParts.push(`Índice cardíaco: ${gc.ci} L/min/m²`);
+                report += `Hemodinámica TSVI: ${gcParts.join(' | ')}.\n`;
+            }
 
             // ========== 2. AURÍCULA IZQUIERDA ==========
             report += `2. AURÍCULA IZQUIERDA\n`;
@@ -1416,7 +1498,8 @@ class UIController {
                 } else if (diastolicDesc.includes('Grado I')) {
                     report += `${conclusionNum}. Disfunción Diastólica Grado I. Presiones de llenado VI normales.\n`;
                 } else {
-                    report += `${conclusionNum}. Función Diastólica Indeterminada (datos insuficientes).\n`;
+                    // Pass description through to capture TRIV note and warnings
+                    report += `${conclusionNum}. ${diastolicDesc}\n`;
                 }
             } else {
                 report += `${conclusionNum}. Función Diastólica Indeterminada (datos insuficientes).\n`;

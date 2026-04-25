@@ -114,8 +114,18 @@ class HemodynamicsCalculator {
      * @returns {Object} { grade, description, severity }
      */
     classifyDiastolicFunction(params) {
-        const { E, A, ePrime, eSeptal, eLateral, LAVolIndex = 28, TRVel = 0, LVEF = 60, wallMotion = 'conservada', ritmo = 'sinusal', context = {} } = params;
+        const { E, A, ePrime, eSeptal, eLateral, LAVolIndex = 28, TRVel = 0, LVEF = 60, wallMotion = 'conservada', ritmo = 'sinusal', context = {}, TRIV, TD } = params;
         const { bcri = false, mac = false, imSevera = false, mcp = false, valsalva = false } = context;
+
+        // TRIV thresholds: ≤70 ms → positive (elevated pressures); ≥100 ms → negative (Grade I direction)
+        const trivPositive = !isNaN(TRIV) && TRIV > 0 && TRIV <= 70;
+        const trivNegative = !isNaN(TRIV) && TRIV >= 100;
+        const trivAvailable = !isNaN(TRIV) && TRIV > 0;
+
+        // TD (Deceleration Time) thresholds: <160 ms → restrictive/elevated; >240 ms → impaired relaxation
+        const tdShort    = !isNaN(TD) && TD > 0 && TD < 160;
+        const tdProlonged = !isNaN(TD) && TD > 0 && TD > 240;
+        const tdAvailable = !isNaN(TD) && TD > 0;
 
         // e' criterion per ASE 2016: septal < 7 OR lateral < 10
         // BCRI: septal e' unreliable → use lateral only
@@ -127,7 +137,7 @@ class HemodynamicsCalculator {
             } else {
                 ePrimeAbnormal = (!isNaN(eSeptal) && eSeptal < 7) ||
                                  (!isNaN(eLateral) && eLateral < 10) ||
-                                 (isNaN(eSeptal) && isNaN(eLateral) && !isNaN(ePrime) && ePrime < 8);
+                                 (isNaN(eSeptal) && isNaN(eLateral) && !isNaN(ePrime) && ePrime < 9);
             }
         }
 
@@ -158,42 +168,69 @@ class HemodynamicsCalculator {
         // Only calculate E/A if not FA/Flutter and A is present
         const EARatio = (!isFA && A) ? E / A : null;
 
-        // --- ATRIAL FIBRILLATION ALGORITHM (EACVI 2016) ---
+        // --- ATRIAL FIBRILLATION ALGORITHM ---
+        // Per Gantesti / ASE-EACVI: use alternative parameters (no E/A)
+        // 3 criteria: E/e' > 14, TR > 2.8 m/s, LAVI > 34 ml/m²
+        // ≥ 2/3 positive → elevated pressures; 0/3 → normal; 1/3 → indeterminate
         if (isFA) {
+            let faCriteria = 0;
+            let faData = 0;
+
+            if (!mac && !imSevera && !isNaN(EeRatio)) {
+                faData++;
+                if (EeRatio > 14) faCriteria++;
+            }
+            if (TRVel > 0) {
+                faData++;
+                if (TRVel > 2.8) faCriteria++;
+            }
+            if (!isNaN(LAVolIndex)) {
+                faData++;
+                if (LAVolIndex > 34) faCriteria++;
+            }
+
+            const warnFA = warnings.length ? ` ⚠️ ${warnings.join('; ')}.` : '';
+
+            if (faData < 2) {
+                return {
+                    grade: "Indeterminado",
+                    description: `FA: Datos insuficientes para clasificar presiones de llenado.${warnFA}`,
+                    severity: "yellow"
+                };
+            }
+
             if (LVEF >= 50) {
-                // For preserved EF in FA
-                // Simplified approach for this calculator based on E/e' and TR velocity
-                if (EeRatio > 14 || TRVel > 2.8) {
+                if (faCriteria >= 2) {
                     return {
-                        grade: "II", // Usually raised pressures in FA context with these markers
-                        description: "FA: Presiones de llenado VI elevadas (E/e' > 14 o IT > 2.8).",
+                        grade: "II",
+                        description: `FA: Presiones de llenado VI elevadas (${faCriteria}/${faData} criterios positivos).${warnFA}`,
                         severity: "red"
                     };
-                } else if (EeRatio < 11 && TRVel < 2.8) {
+                } else if (faCriteria === 0) {
                     return {
-                        grade: "Normal/I", // Normal pressures
-                        description: "FA: Presiones de llenado VI normales.",
+                        grade: "Normal",
+                        description: `FA: Presiones de llenado VI normales (0/${faData} criterios positivos).${warnFA}`,
                         severity: "green"
                     };
                 } else {
                     return {
                         grade: "Indeterminado",
-                        description: "FA: Función Diastólica Indeterminada.",
+                        description: `FA: Función Diastólica Indeterminada (1/${faData} criterios positivos). Evaluación adicional requerida.${warnFA}`,
                         severity: "yellow"
                     };
                 }
             } else {
-                // Reduced EF in FA usually implies dysfunction, check pressures
-                if (EeRatio > 14 || TRVel > 2.8) {
+                // FE deprimida + FA
+                if (faCriteria >= 2) {
                     return {
-                        grade: "III", // Restrictive physiology likely
-                        description: "FA + FEy Deprimida: Presiones de llenado elevadas.",
+                        grade: "III",
+                        description: `FA + FEy Deprimida: Presiones de llenado VI elevadas (${faCriteria}/${faData} criterios positivos).${warnFA}`,
                         severity: "red"
                     };
                 } else {
                     return {
-                        grade: "I/II",
-                        description: "FA + FEy Deprimida: Presiones de llenado no elevadas o indeterminadas.",
+                        grade: "Indeterminado",
+                        description: `FA + FEy Deprimida: Presiones de llenado no elevadas o indeterminadas.${warnFA}`,
                         severity: "yellow"
                     };
                 }
@@ -203,8 +240,8 @@ class HemodynamicsCalculator {
         // --- SINUS RHYTHM ALGORITHM (Standard) ---
 
         // Special case: Supernormal pattern (Athletic heart)
-        // Using septal e' cutoff per ASE 2016: septal e' normal ≥ 8 cm/s
-        if (EARatio > 2 && ePrime >= 8) {
+        // e' promedio normal > 9 cm/s (Gantesti / ASE-EACVI)
+        if (EARatio > 2 && ePrime >= 9) {
             return {
                 grade: "Normal",
                 description: `Función Diastólica Normal (Patrón de llenado vigoroso/Atleta). Presiones de llenado VI normales.${warnings.length ? ' ⚠️ ' + warnings.join('; ') + '.' : ''}`,
@@ -213,12 +250,13 @@ class HemodynamicsCalculator {
         }
 
         // Special case: Restrictive pattern (Grade III)
-        if (EARatio > 2 && ePrime < 8) {
-            return {
-                grade: "III",
-                description: `Disfunción Diastólica Grado III (Patrón Restrictivo). Presiones de llenado VI elevadas.${warnings.length ? ' ⚠️ ' + warnings.join('; ') + '.' : ''}`,
-                severity: "red"
-            };
+        if (EARatio > 2 && ePrime < 9) {
+            // TD < 160 ms corroborates restrictive; reversibility checked via Valsalva
+            let gradeIIIDesc = `Disfunción Diastólica Grado III (Patrón Restrictivo). Presiones de llenado VI elevadas.`;
+            if (tdShort) gradeIIIDesc += ` TD acortado (${TD} ms) corrobora patrón restrictivo.`;
+            if (valsalva) gradeIIIDesc += ` Patrón Restrictivo Reversible (E/A normaliza con Valsalva).`;
+            if (warnings.length) gradeIIIDesc += ` ⚠️ ${warnings.join('; ')}.`;
+            return { grade: "III", description: gradeIIIDesc, severity: "red" };
         }
 
         // Determine if heart has structural/functional disease
@@ -240,9 +278,15 @@ class HemodynamicsCalculator {
                     severity: "green"
                 };
             } else if (criteria === 2) {
+                // Try to break the tie with TRIV and/or TD
+                let tieNote = '';
+                if (trivPositive) tieNote += ` TRIV ≤ 70 ms sugiere presiones de llenado VI elevadas.`;
+                else if (trivNegative) tieNote += ` TRIV ≥ 100 ms sugiere presiones de llenado VI normales.`;
+                if (tdShort) tieNote += ` TD acortado sugiere presiones elevadas.`;
+                else if (tdProlonged) tieNote += ` TD prolongado sugiere alteración de la relajación.`;
                 return {
                     grade: "Indeterminado",
-                    description: `Función Diastólica Indeterminada (2/4 criterios alterados). Se requiere evaluación adicional.${warnings.length ? ' ⚠️ ' + warnings.join('; ') + '.' : ''}`,
+                    description: `Función Diastólica Indeterminada (2/4 criterios alterados). Evaluación adicional requerida.${tieNote}${warnings.length ? ' ⚠️ ' + warnings.join('; ') + '.' : ''}`,
                     severity: "yellow"
                 };
             } else {
@@ -290,6 +334,22 @@ class HemodynamicsCalculator {
             criteriaP++;
         }
 
+        // TRIV: real tiebreaker criterion
+        // ≤70 ms → positive (elevated pressures); ≥100 ms → negative (Grade I direction)
+        if (trivAvailable) {
+            dataPoints++;
+            if (trivPositive) criteriaP++;
+            // trivNegative: dataPoints++ already done, criteriaP stays (pushes toward Grade I)
+        }
+
+        // TD: real tiebreaker criterion (in the E/A 0.8-2 range)
+        // <160 ms → supports elevated pressures; >240 ms → supports Grade I
+        if (tdAvailable) {
+            dataPoints++;
+            if (tdShort) criteriaP++;
+            // tdProlonged: dataPoints++ already done, criteriaP stays
+        }
+
         const warnSuffix = warnings.length ? ` ⚠️ ${warnings.join('; ')}.` : '';
 
         // Need at least 2 data points to classify
@@ -321,6 +381,21 @@ class HemodynamicsCalculator {
                 severity: "yellow"
             };
         }
+    }
+
+    /**
+     * Calculate Stroke Volume, Cardiac Output and Cardiac Index
+     * SV = 0.785 × D_LVOT² × VTI_LVOT
+     * CO = SV × HR / 1000
+     * CI = CO / BSA
+     */
+    calculateCardiacOutput(lvotDiam, lvotVti, hr, bsa) {
+        if (!lvotDiam || !lvotVti || lvotDiam <= 0 || lvotVti <= 0) return null;
+        const area = 0.785 * Math.pow(lvotDiam, 2); // cm²
+        const sv   = Math.round(area * lvotVti);     // ml
+        const co   = hr ? parseFloat((sv * hr / 1000).toFixed(2)) : null;
+        const ci   = (co && bsa) ? parseFloat((co / bsa).toFixed(2)) : null;
+        return { sv, co, ci };
     }
 
     /**
