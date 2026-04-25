@@ -656,26 +656,48 @@ class UIController {
         const bcri     = document.getElementById('ctx_bcri')?.checked;
         const mac      = document.getElementById('ctx_mac')?.checked;
         const imSevera = document.getElementById('ctx_im')?.checked;
+        const mcp      = document.getElementById('ctx_mcp')?.checked;
 
-        // BCRI → e' septal unreliable: disable field, clear value
+        // BCRI → e' septal excluido: deshabilitar campo
         const eSeptalEl = document.getElementById('onda_e_prime_septal');
         if (eSeptalEl) {
             if (bcri) {
                 eSeptalEl.value = '';
                 eSeptalEl.disabled = true;
                 eSeptalEl.placeholder = 'Excluido (BCRI)';
-                eSeptalEl.style.opacity = '0.45';
+                eSeptalEl.style.opacity = '0.4';
+                eSeptalEl.style.background = '#f1f5f9';
             } else {
                 eSeptalEl.disabled = false;
                 eSeptalEl.placeholder = 'TDI Septal';
                 eSeptalEl.style.opacity = '';
+                eSeptalEl.style.background = '';
             }
         }
 
-        // MAC → E/e' no válido; IM Severa → sobreestima
-        // Store flags for use in E/e' display below
-        this._mac = mac;
-        this._imSevera = imSevera;
+        // MAC / IM Severa → E/e' no confiable: marcar visualmente el campo E/e'
+        const eeRow = document.getElementById('ee_ratio_display');
+        const eeLabel = eeRow?.closest('.form-group')?.querySelector('label');
+        if (eeRow) {
+            if (mac) {
+                eeRow.style.borderColor = '#f59e0b';
+                eeRow.style.background = '#fffbeb';
+                if (eeLabel) eeLabel.textContent = "E/e' ⚠️ (no válido — MAC)";
+            } else if (imSevera) {
+                eeRow.style.borderColor = '#f59e0b';
+                eeRow.style.background = '#fffbeb';
+                if (eeLabel) eeLabel.textContent = "E/e' ⚠️ (sobreestimado — IM)";
+            } else {
+                eeRow.style.borderColor = '';
+                eeRow.style.background = '';
+                if (eeLabel) eeLabel.textContent = "Relación E/e'";
+            }
+        }
+
+        // MCP → hint en E/e' label (umbral modificado a 15)
+        if (mcp && !mac && !imSevera && eeLabel) {
+            eeLabel.textContent = "E/e' (umbral >15 en MCP)";
+        }
     }
 
     /**
