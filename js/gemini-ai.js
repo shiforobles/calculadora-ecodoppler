@@ -37,7 +37,9 @@ FORMATO DE SALIDA:
      * Try one model — returns text or throws with the error message
      */
     static async _tryModel(model, key, clinicalJson) {
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`;
+        // gemini-2.0-* only available in v1beta; 1.5-* stable in v1
+        const apiVer = model.startsWith('gemini-2') ? 'v1beta' : 'v1';
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`.replace('v1beta', apiVer);
         const body = {
             system_instruction: { parts: [{ text: this.SYSTEM_PROMPT }] },
             contents: [{ parts: [{ text: `Datos clínicos del ecocardiograma:\n${clinicalJson}` }] }],
