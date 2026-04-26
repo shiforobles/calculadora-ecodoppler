@@ -2256,10 +2256,16 @@ class UIController {
                 ad_area_cm2: n('ad_area'), vd_basal_mm: n('vd_basal'),
                 tapse_mm: tapse, s_prima_cms: sPrima, funcion_vd: vdFuncion
             },
-            valvula_tricuspide: {
-                insuficiencia_grado: v('it_grado'),
-                vel_it_ms: n('vel_it'), psap_mmhg: psap
-            },
+            valvula_tricuspide: (() => {
+                const itGrado = v('it_grado');
+                const itNoVal = itGrado === 'no_valorable';
+                return {
+                    insuficiencia_grado: itGrado,
+                    vel_it_ms: itNoVal ? null : n('vel_it'),
+                    psap_mmhg: itNoVal ? null : (psap || null),
+                    psap_no_estimable: itNoVal || (!psap && !n('vel_it'))
+                };
+            })(),
             htp: psap ? {
                 psap_mmhg: psap,
                 probabilidad: this.calculateHTPProbability()?.probability || null

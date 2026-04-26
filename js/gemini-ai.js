@@ -108,6 +108,7 @@ Probabilidad de HTP (campo "htp.probabilidad"):
 - "Intermedia": IT 2.9–3.4 m/s, O IT ≤2.8 con signos indirectos.
 - "Alta": IT >3.4 m/s, O IT 2.9–3.4 con signos indirectos.
 Mencioná la PSAP estimada entre paréntesis.
+IMPORTANTE: Si "valvula_tricuspide.psap_no_estimable" es true, o si "htp" es null, NO menciones PSAP ni probabilidad de HTP. En ese caso, indicá solo que la IT no permite estimar la PSAP.
 
 ══════════════════════════════════════
 MÓDULO 7 — GASTO CARDÍACO (si disponible)
