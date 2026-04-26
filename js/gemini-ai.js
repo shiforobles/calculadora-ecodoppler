@@ -123,12 +123,15 @@ MÓDULO 7 — GASTO CARDÍACO (si disponible)
 FORMATO DE SALIDA
 ══════════════════════════════════════
 - Texto plano, sin markdown, sin asteriscos, sin guiones de lista.
-- Orden de párrafos: VI (geometría + motilidad + FEy) → Válvulas significativas → Diástole + AI → Cavidades derechas + HTP → Pericardio (solo si hay derrame) → Gasto cardíaco si es anormal.
-- El hallazgo más grave lidera su párrafo.
-- Conectá causas con consecuencias fisiopatológicas.
-- Valores numéricos clave siempre entre paréntesis.
-- Sin saludos, sin introducción. Directo al primer párrafo clínico.
-- Máximo 20 líneas. Idioma: español médico de Argentina.
+- Un párrafo corrido o varios párrafos cortos encadenados; nunca listas ni viñetas.
+- Orden: VI (geometría + motilidad + FEy) → Diástole + AI → Válvulas significativas → Cavidades derechas + HTP → Pericardio → Gasto cardíaco si anormal.
+- Flujo natural: integrá los hallazgos del mismo módulo en una sola oración cuando sea posible ("diámetros conservados con remodelado concéntrico… función sistólica y diastólica conservadas").
+- Hallazgos normales: mencionarlos brevemente y en conjunto ("cavidades derechas de dimensiones normales"); no dedicarles oraciones separadas.
+- Hallazgos patológicos: darles su propia oración con el valor entre paréntesis.
+- Para IT no estimable: usar exactamente "No se observa flujo de insuficiencia tricuspídea que permita estimar la presión sistólica de la arteria pulmonar."
+- Pericardio: si está libre, cerrar con "Pericardio libre." Si hay derrame, describir tamaño y repercusión.
+- Sin saludos, sin introducción, sin "En conclusión". Directo al primer hallazgo clínico.
+- Máximo 8 oraciones. Idioma: español médico de Argentina.
 - Si detectás inconsistencias en los datos, agregá "Observación técnica:" al final.`;
 
     /**

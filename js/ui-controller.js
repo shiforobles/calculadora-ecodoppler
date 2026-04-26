@@ -2331,7 +2331,7 @@ class UIController {
             const splitIdx = current.lastIndexOf(splitKey);
             const header   = usedFallback
                 ? '\nIMPRESIÓN DIAGNÓSTICA (modo offline — cuota Gemini agotada)\n'
-                : '\nIMPRESIÓN DIAGNÓSTICA (Gemini AI)\n';
+                : '\nIMPRESIÓN DIAGNÓSTICA:\n';
 
             if (splitIdx !== -1) {
                 let newReport = current.substring(0, splitIdx) + header + aiNarrative;
