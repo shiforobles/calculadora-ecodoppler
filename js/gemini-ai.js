@@ -77,6 +77,7 @@ IM Severa en contexto_especial: E/e' sobreestima presiones, no citarlo como úni
 MÓDULO 4 — VÁLVULAS
 ══════════════════════════════════════
 Solo mencioná las valvulopatías significativas (grado ≥ leve). Jerarquizá por severidad.
+Si "insuficiencia_grado" es "no" o null → NO menciones esa insuficiencia valvular.
 
 Estenosis aórtica:
 - Leve: AVA >1.5 cm², Grad medio <20 mmHg.
@@ -91,10 +92,11 @@ Insuficiencia mitral/aórtica/tricuspídea:
 ══════════════════════════════════════
 MÓDULO 5 — AORTA
 ══════════════════════════════════════
+Usá los campos "aorta.raiz_cm_m2" y "aorta.ascendente_cm_m2" (ya indexados) — siempre expresalos en cm/m², nunca en mm/m².
 Dilatación (indexada por SC):
 - Raíz aórtica: hombre >2.15 cm/m², mujer >2.11 cm/m² → dilatada.
 - Aorta ascendente: hombre >2.11 cm/m², mujer >2.03 cm/m² → dilatada.
-Si no supera el umbral, mencioná el valor sin calificarlo como dilatado.
+Si no supera el umbral, podés omitir o mencionar el valor brevemente sin calificarlo como dilatado.
 
 ══════════════════════════════════════
 MÓDULO 6 — CAVIDADES DERECHAS Y HTP
@@ -123,16 +125,17 @@ MÓDULO 7 — GASTO CARDÍACO (si disponible)
 FORMATO DE SALIDA
 ══════════════════════════════════════
 - Texto plano, sin markdown, sin asteriscos, sin guiones de lista.
-- Un párrafo corrido o varios párrafos cortos encadenados; nunca listas ni viñetas.
-- Orden: VI (geometría + motilidad + FEy) → Diástole + AI → Válvulas significativas → Cavidades derechas + HTP → Pericardio → Gasto cardíaco si anormal.
-- Flujo natural: integrá los hallazgos del mismo módulo en una sola oración cuando sea posible ("diámetros conservados con remodelado concéntrico… función sistólica y diastólica conservadas").
-- Hallazgos normales: mencionarlos brevemente y en conjunto ("cavidades derechas de dimensiones normales"); no dedicarles oraciones separadas.
-- Hallazgos patológicos: darles su propia oración con el valor entre paréntesis.
-- Para IT no estimable: usar exactamente "No se observa flujo de insuficiencia tricuspídea que permita estimar la presión sistólica de la arteria pulmonar."
-- Pericardio: si está libre, cerrar con "Pericardio libre." Si hay derrame, describir tamaño y repercusión.
+- Estilo: prosa médica argentina fluida, como escribiría un cardiólogo experimentado dictando un informe. Oraciones nominales, construcciones pasivas, conectores naturales.
+- Frases típicas del género: "de dimensiones conservadas", "dentro de límites fisiológicos", "sin evidencia de", "con función sistólica preservada", "que permite estimar", "se constata", "se evidencia".
+- Integrá hallazgos del mismo módulo en una sola oración cuando es natural ("Ventrículo izquierdo de diámetros conservados con remodelado concéntrico (RWT X), función sistólica global conservada (FEy X%)").
+- Hallazgos normales agrupados: "Aurícula izquierda y cavidades derechas de dimensiones normales" en vez de dos oraciones separadas.
+- Hallazgos patológicos: una oración propia con el valor clave entre paréntesis.
+- Orden: VI (geometría + motilidad + FEy) → Función diastólica + AI → Válvulas significativas → Aorta si dilatada → Cavidades derechas + HTP → Pericardio → Gasto cardíaco si anormal.
+- Para IT no estimable: "No se observa flujo de insuficiencia tricuspídea que permita estimar la presión sistólica de la arteria pulmonar."
+- Pericardio: si libre → cerrar con "Pericardio libre." Si derrame → describir tamaño y repercusión.
 - Sin saludos, sin introducción, sin "En conclusión". Directo al primer hallazgo clínico.
 - Máximo 8 oraciones. Idioma: español médico de Argentina.
-- Si detectás inconsistencias en los datos, agregá "Observación técnica:" al final.`;
+- Si detectás inconsistencias, agregá "Observación técnica:" al final.`;
 
     /**
      * Fetch available models for this API key and return names that support generateContent

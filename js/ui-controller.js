@@ -2246,9 +2246,17 @@ class UIController {
                 ava_cm2: n('ea_ava'), ava_indexada: n('ea_ava_index'), coef_adimensional: n('ea_coef'),
                 insuficiencia_grado: v('ia_grado')
             },
-            aorta: {
-                raiz_mm: n('ao_raiz'), ascendente_mm: n('ao_asc')
-            },
+            aorta: (() => {
+                const raiz = n('ao_raiz');
+                const asc  = n('ao_asc');
+                const bsa  = this.state.bsa || null;
+                return {
+                    raiz_mm: raiz,
+                    ascendente_mm: asc,
+                    raiz_cm_m2: (raiz && bsa) ? parseFloat((raiz / 10 / bsa).toFixed(2)) : null,
+                    ascendente_cm_m2: (asc && bsa)  ? parseFloat((asc  / 10 / bsa).toFixed(2)) : null
+                };
+            })(),
             hemodinamica_tsvi: co ? {
                 sv_ml: co.sv, gc_l_min: co.co, ic_l_min_m2: co.ci
             } : null,

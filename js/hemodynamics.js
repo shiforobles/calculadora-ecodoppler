@@ -369,6 +369,15 @@ class HemodynamicsCalculator {
                 severity: "red"
             };
         } else if (criteriaP === 0 || (criteriaP === 1 && dataPoints >= 3)) {
+            // E/A > 0.8 with minority of positive criteria → Normal (not Grade I)
+            // Grade I requires E/A ≤0.8; when E/A is normal, low criterion count = normal filling
+            if (EARatio !== null && EARatio > 0.8) {
+                return {
+                    grade: "Normal",
+                    description: `Función Diastólica Normal. Presiones de llenado VI conservadas.${warnSuffix}`,
+                    severity: "green"
+                };
+            }
             return {
                 grade: "I",
                 description: `Disfunción Diastólica Grado I (Relajación Prolongada). Presiones de llenado VI normales.${warnSuffix}`,
