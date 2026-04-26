@@ -41,7 +41,7 @@ FORMATO DE SALIDA:
         const apiVer = model.startsWith('gemini-2') ? 'v1beta' : 'v1';
         const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`.replace('v1beta', apiVer);
         const body = {
-            system_instruction: { parts: [{ text: this.SYSTEM_PROMPT }] },
+            systemInstruction: { parts: [{ text: this.SYSTEM_PROMPT }] },
             contents: [{ parts: [{ text: `Datos clínicos del ecocardiograma:\n${clinicalJson}` }] }],
             generationConfig: { temperature: 0.3, maxOutputTokens: 1024 }
         };
