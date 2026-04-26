@@ -2205,13 +2205,28 @@ class UIController {
         }
 
         const sexo = document.getElementById('sexo')?.value || 'M';
+        const antecedentes = [
+            document.getElementById('ant_hta')?.checked         && 'HTA',
+            document.getElementById('ant_isquemia')?.checked    && 'Cardiopatía Isquémica',
+            document.getElementById('ant_crm')?.checked         && 'Revascularización Miocárdica (CRM)',
+            document.getElementById('ant_epoc')?.checked        && 'EPOC/Enfermedad Pulmonar',
+            document.getElementById('ant_fa')?.checked          && 'Fibrilación Auricular Previa',
+            document.getElementById('ant_marcapasos')?.checked  && 'Marcapasos/CDI',
+            document.getElementById('ant_dm')?.checked          && 'Diabetes Mellitus',
+            document.getElementById('ant_irc')?.checked         && 'Insuficiencia Renal Crónica',
+            document.getElementById('ant_valvulopatia')?.checked && 'Valvulopatía Conocida',
+        ].filter(Boolean);
+        const antLibre = document.getElementById('ant_libre')?.value?.trim() || null;
         return {
             datos_fisicos: {
                 sexo: sexo === 'F' ? 'Femenino' : 'Masculino',
+                edad_anos: n('edad'),
                 peso_kg: n('peso'), altura_cm: n('altura'),
                 sc_m2: this.state.bsa ? parseFloat(this.state.bsa.toFixed(2)) : null,
                 imc: this.state.bmi ? parseFloat(this.state.bmi.toFixed(1)) : null
             },
+            antecedentes: antecedentes.length ? antecedentes : null,
+            motivo_consulta: antLibre,
             ritmo: sel('ritmo'),
             conduccion: document.getElementById('conduccion')?.value !== 'normal' ? sel('conduccion') : 'Normal',
             vi: {

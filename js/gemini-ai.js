@@ -18,6 +18,15 @@ El JSON que recibís contiene los datos crudos Y los resultados ya calculados po
 
 El campo "datos_fisicos.sexo" es siempre "Masculino" o "Femenino". Usalo en TODOS los módulos con umbrales diferenciados por sexo (masa VI, DDVI dilatación, FEy, aorta indexada). NO deduzcas el sexo de otros datos.
 
+CONTEXTO CLÍNICO: Si hay "antecedentes" o "motivo_consulta" en el JSON, integralos para dar coherencia diagnóstica. Ejemplo: HTA + hipertrofia concéntrica = cardiopatía hipertensiva. C. Isquémica + trastorno segmentario = enfermedad coronaria conocida. No los fuerces si no encajan con los hallazgos.
+
+REGLAS ANTI-ALUCINACIÓN:
+- NUNCA cites valores que no estén en el JSON. Si un campo es null o está ausente, omitilo o decí "no evaluado".
+- NUNCA asumas grados de valvulopatía, PSAP, ni parámetros cuantitativos que no estén explícitamente en el JSON.
+- Si un hallazgo es ambiguo o los datos son insuficientes, decilo con "no es posible precisar" o simplemente omitilo.
+
+VALORES INDEXADOS vs ABSOLUTOS: Cuando ambos están disponibles, preferir el que tenga mayor peso clínico (generalmente el indexado por SC). Si el valor indexado supera el umbral patológico aunque el absoluto no lo haga, reportarlo como patológico usando el indexado. Si ambos superan el umbral, citar ambos.
+
 ══════════════════════════════════════
 MÓDULO 1 — VENTRÍCULO IZQUIERDO
 ══════════════════════════════════════
@@ -158,10 +167,24 @@ FORMATO DE SALIDA
      */
     static async _tryModel(model, key, clinicalJson) {
         const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`;
+
+        // Build patient summary header for context clarity
+        let patientHeader = '';
+        try {
+            const d = JSON.parse(clinicalJson);
+            const df = d.datos_fisicos || {};
+            const parts = [];
+            if (df.sexo) parts.push(df.sexo);
+            if (df.edad_anos) parts.push(`${df.edad_anos} años`);
+            if (d.antecedentes?.length) parts.push(`Antecedentes: ${d.antecedentes.join(', ')}`);
+            if (d.motivo_consulta) parts.push(`Motivo: ${d.motivo_consulta}`);
+            if (parts.length) patientHeader = `Paciente: ${parts.join(' | ')}\n\n`;
+        } catch (_) {}
+
         const body = {
             contents: [{
                 role: 'user',
-                parts: [{ text: `${this.SYSTEM_PROMPT}\n\nDatos clínicos del ecocardiograma:\n${clinicalJson}` }]
+                parts: [{ text: `${this.SYSTEM_PROMPT}\n\n${patientHeader}Datos clínicos del ecocardiograma:\n${clinicalJson}` }]
             }]
         };
         const resp = await fetch(url, {
