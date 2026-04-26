@@ -5,8 +5,8 @@
  */
 class GeminiAI {
     static KEY_STORAGE = 'ecodoppler_gemini_key';
-    // Fallback model list if autodetect fails
-    static MODELS = ['gemini-1.5-flash', 'gemini-2.0-flash', 'gemini-1.5-pro', 'gemini-pro'];
+    // Confirmed available models (from listAvailableModels), in preferred order
+    static MODELS = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-2.5-pro', 'gemini-flash-latest'];
 
     static getKey()      { return localStorage.getItem(this.KEY_STORAGE) || ''; }
     static setKey(k)     { localStorage.setItem(this.KEY_STORAGE, k.trim()); }
@@ -83,15 +83,22 @@ FORMATO DE SALIDA:
         const key = this.getKey();
         if (!key) throw new Error('API key de Gemini no configurada. Ingresala en ⚙️ Configuración.');
 
-        // Prefer flash models (faster + cheaper), sorted by preference
-        const flashPriority = ['flash', 'pro'];
+        // Use preferred order: 2.5-flash first, then fallbacks
+        // autodetect verifies availability; preferred list drives order
         let available = await this.listAvailableModels(key);
         if (available.length > 0) {
+            const preferred = this.MODELS;
+            // Sort: preferred models first (in preferred order), then rest alphabetically
             available.sort((a, b) => {
-                const pa = flashPriority.findIndex(p => a.includes(p));
-                const pb = flashPriority.findIndex(p => b.includes(p));
-                return (pa === -1 ? 99 : pa) - (pb === -1 ? 99 : pb);
+                const pa = preferred.indexOf(a);
+                const pb = preferred.indexOf(b);
+                if (pa !== -1 && pb !== -1) return pa - pb;
+                if (pa !== -1) return -1;
+                if (pb !== -1) return 1;
+                return a.localeCompare(b);
             });
+            // Only keep gemini models (not gemma, lyria, robotics, deep-research, etc.)
+            available = available.filter(m => m.startsWith('gemini-') && !m.includes('tts') && !m.includes('image') && !m.includes('computer-use'));
         } else {
             available = this.MODELS;
         }
