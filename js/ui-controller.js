@@ -2204,7 +2204,6 @@ class UIController {
             }
         }
 
-        const sexo = document.getElementById('sexo')?.value || 'M';
         const antecedentes = [
             document.getElementById('ant_hta')?.checked         && 'HTA',
             document.getElementById('ant_isquemia')?.checked    && 'Cardiopatía Isquémica',
