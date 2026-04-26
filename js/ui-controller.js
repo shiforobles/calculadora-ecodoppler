@@ -33,6 +33,12 @@ class UIController {
         // Auto-calculate on input changes
         this.attachCalculationListeners();
 
+        // Report mode toggle buttons
+        const btnModeLista = document.getElementById('mode_lista');
+        const btnModeNarrativo = document.getElementById('mode_narrativo');
+        if (btnModeLista) btnModeLista.addEventListener('click', () => this.setReportMode('lista'));
+        if (btnModeNarrativo) btnModeNarrativo.addEventListener('click', () => this.setReportMode('narrativo'));
+
         // Button event listeners
         const btnGenerate = document.getElementById('btn_generate');
         if (btnGenerate) btnGenerate.addEventListener('click', () => this.generateReport());
