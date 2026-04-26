@@ -20,6 +20,7 @@ class UIController {
             psap: 0,
             diastolicResult: null
         };
+        this.reportMode = 'lista';
     }
 
     /**
@@ -1852,6 +1853,20 @@ class UIController {
                 if (firma) report += '\n\n' + firma;
             }
 
+            // Narrative mode: replace CONCLUSIONES with a narrative paragraph
+            if (this.reportMode === 'narrativo') {
+                const splitKey = '\nCONCLUSIONES\n';
+                const splitIdx = report.lastIndexOf(splitKey);
+                if (splitIdx !== -1) {
+                    report = report.substring(0, splitIdx) + this._buildNarrativeConclusion();
+                    // Re-append signature if present
+                    if (window.GoogleSync) {
+                        const firma = GoogleSync.getFirma();
+                        if (firma) report += '\n\n' + firma;
+                    }
+                }
+            }
+
             // Display report
             document.getElementById('resultado').value = report;
 
@@ -1883,6 +1898,238 @@ class UIController {
             document.execCommand('copy');
             this.showToast('✅ Informe copiado');
         }
+    }
+
+    /**
+     * Switch between 'lista' and 'narrativo' report modes
+     */
+    setReportMode(mode) {
+        this.reportMode = mode;
+        document.getElementById('mode_lista')?.classList.toggle('mode-btn-active', mode === 'lista');
+        document.getElementById('mode_narrativo')?.classList.toggle('mode-btn-active', mode === 'narrativo');
+        const current = document.getElementById('resultado').value;
+        if (current && current.trim()) this.generateReport();
+    }
+
+    /**
+     * Build the narrative "IMPRESIÓN DIAGNÓSTICA" block
+     * Called by generateReport() when reportMode === 'narrativo'
+     * State must already be populated by calculateAll()
+     */
+    _buildNarrativeConclusion() {
+        const fevi     = parseFloat(document.getElementById('fevi').value) || 0;
+        const ddvi     = parseFloat(document.getElementById('ddvi').value) || 0;
+        const sexo     = document.getElementById('sexo').value;
+        const ritmo    = document.getElementById('ritmo').value;
+        const condEl   = document.getElementById('conduccion');
+        const volAi    = parseFloat(document.getElementById('vol_ai').value) || 0;
+        const sc       = parseFloat(document.getElementById('sc_display').value) || 0;
+
+        const eaGrado  = document.getElementById('ea_grado').value;
+        const iaGrado  = document.getElementById('ia_grado').value;
+        const imGrado  = document.getElementById('im_grado').value;
+        const emGrado  = document.getElementById('em_grado').value;
+        const morfMitral = document.getElementById('morf_mitral').value;
+
+        const tapse    = parseFloat(document.getElementById('tapse').value) || 0;
+        const velIt    = parseFloat(document.getElementById('vel_it').value) || 0;
+        const adArea   = parseFloat(document.getElementById('ad_area').value) || 0;
+        const vdBasal  = parseFloat(document.getElementById('vd_basal').value) || 0;
+        const vdEstado = document.getElementById('vd_estado').value;
+        const adEstado = document.getElementById('ad_estado').value;
+
+        const mac      = document.getElementById('ctx_mac')?.checked;
+        const bcri     = document.getElementById('ctx_bcri')?.checked;
+        const pePresente = document.getElementById('pe_presente')?.checked;
+
+        const paragraphs = [];
+
+        // ── P1: Rhythm + LV ──
+        const ritmoText = document.getElementById('ritmo').options[document.getElementById('ritmo').selectedIndex].text;
+        let p1 = `En ritmo de ${ritmoText.toLowerCase()}`;
+        if (condEl.value !== 'normal') {
+            p1 += ` con ${condEl.options[condEl.selectedIndex].text.toLowerCase()}`;
+        }
+        p1 += `, se observa un ventrículo izquierdo`;
+
+        const hasDifferentGeometry = this.state.geometry && this.state.geometry !== 'Geometría Normal';
+        if (hasDifferentGeometry) p1 += ` con ${this.state.geometry.toLowerCase()}`;
+        if (this.calc.isLVDilated(ddvi, sexo)) {
+            p1 += hasDifferentGeometry ? ` y dilatación ventricular` : ` con dilatación ventricular`;
+        }
+
+        if (this.motility) {
+            const motGlobal = document.getElementById('motilidad_global').value;
+            if (motGlobal !== 'conservada') {
+                const motConclusion = this.motility.generateConclusion();
+                if (motConclusion && motConclusion.trim()) {
+                    p1 += `, con ${motConclusion.toLowerCase().replace(/\.$/, '')}`;
+                }
+            }
+        }
+
+        if (fevi) {
+            const normalLimit = sexo === 'M' ? 52 : 54;
+            p1 += '. La función sistólica ';
+            if      (fevi >= normalLimit) p1 += `se encuentra conservada (FEy ${fevi}%)`;
+            else if (fevi >= 41)          p1 += `se encuentra levemente deprimida (FEy ${fevi}%)`;
+            else if (fevi >= 30)          p1 += `se encuentra moderadamente deprimida (FEy ${fevi}%)`;
+            else                          p1 += `se encuentra severamente deprimida (FEy ${fevi}%)`;
+        }
+        paragraphs.push(p1 + '.');
+
+        // ── P2: Valvulopathies ──
+        const rankMap = { 'severa': 4, 'moderada': 3, 'leve': 2, 'minima': 1, 'esclerosis': 0.5, 'no': 0 };
+        const valvular = [];
+
+        if (eaGrado !== 'no' && eaGrado !== 'esclerosis') {
+            const eaAva = document.getElementById('ea_ava')?.value;
+            const eaGm  = document.getElementById('ea_grad_medio')?.value;
+            let txt = `estenosis aórtica ${eaGrado}`;
+            if (eaAva || eaGm) {
+                txt += ` (AVA ${eaAva || '?'} cm²${eaGm ? ', gradiente medio ' + eaGm + ' mmHg' : ''})`;
+            }
+            valvular.push({ rank: rankMap[eaGrado] || 2, txt });
+        }
+
+        if (imGrado !== 'no') {
+            valvular.push({ rank: rankMap[imGrado] || 1, txt: `insuficiencia mitral ${imGrado}` });
+        }
+        if (iaGrado !== 'no') {
+            valvular.push({ rank: rankMap[iaGrado] || 1, txt: `insuficiencia aórtica ${iaGrado}` });
+        }
+        if (emGrado !== 'no') {
+            valvular.push({ rank: rankMap[emGrado] || 2, txt: `estenosis mitral ${emGrado}` });
+        }
+        if (eaGrado === 'esclerosis') {
+            valvular.push({ rank: 0.5, txt: `esclerosis valvular aórtica sin obstrucción` });
+        }
+        if (mac || morfMitral.includes('Calcificación') || morfMitral.includes('MAC')) {
+            valvular.push({ rank: 0.3, txt: `calcificación del anillo mitral (MAC)` });
+        }
+
+        valvular.sort((a, b) => b.rank - a.rank);
+
+        if (valvular.length > 0) {
+            const major = valvular.filter(v => v.rank >= 2);
+            const minor = valvular.filter(v => v.rank < 2);
+            let p2 = '';
+
+            if (major.length > 0) {
+                p2 = 'A nivel valvular, destaca ';
+                if (major.length === 1) {
+                    p2 += `una ${major[0].txt}`;
+                } else if (major.length === 2) {
+                    p2 += `una ${major[0].txt} e ${major[1].txt}`;
+                } else {
+                    p2 += major.slice(0, -1).map((v, i) => (i === 0 ? `una ${v.txt}` : v.txt)).join(', ');
+                    p2 += ` e ${major[major.length - 1].txt}`;
+                }
+                if (minor.length > 0) {
+                    p2 += `. Adicionalmente, se observa ${minor.map(v => v.txt).join(' y ')}`;
+                }
+            } else {
+                p2 = `Los hallazgos valvulares son de carácter leve (${minor.map(v => v.txt).join(', ')}), sin repercusión hemodinámica significativa`;
+            }
+
+            // Aortic root dilation
+            const aoRaiz = parseFloat(document.getElementById('ao_raiz').value) || 0;
+            if (aoRaiz && sc) {
+                const aoRaizIdx = aoRaiz / sc / 10;
+                const rootLimit = sexo === 'M' ? 2.15 : 2.11;
+                if (aoRaizIdx > rootLimit) {
+                    p2 += `. La raíz aórtica se encuentra dilatada (${aoRaiz} mm)`;
+                }
+            }
+
+            paragraphs.push(p2 + '.');
+        }
+
+        // ── P3: Hemodynamics (Diastolic + AI + CO) ──
+        if (this.state.diastolicResult) {
+            const dr    = this.state.diastolicResult;
+            const isFA  = ritmo === 'fa' || ritmo === 'flutter';
+            const ctxNotes = [];
+            if (mac)  ctxNotes.push(`la presencia de MAC limita la validez del E/e'`);
+            if (bcri) ctxNotes.push(`el BCRI excluye el e' septal`);
+
+            let p3 = `Desde el punto de vista hemodinámico`;
+            if (ctxNotes.length) p3 += ` (considerando que ${ctxNotes.join(' y ')})`;
+            p3 += `, `;
+
+            if      (dr.grade === 'Normal')       p3 += `la función diastólica es normal con presiones de llenado del VI conservadas`;
+            else if (dr.grade === 'I')             p3 += `se identifica disfunción diastólica grado I (relajación prolongada) con presiones de llenado normales`;
+            else if (dr.grade === 'II')            p3 += `se identifica disfunción diastólica grado II (patrón pseudonormal) con presiones de llenado del VI elevadas`;
+            else if (dr.grade === 'III')           p3 += `se identifica disfunción diastólica grado III (patrón restrictivo) con presiones de llenado marcadamente elevadas`;
+            else if (dr.grade === 'Indeterminado') p3 += `la evaluación diastólica resulta indeterminada por criterios contrapuestos`;
+            else if (isFA && dr.grade === 'II')    p3 += `en contexto de FA los parámetros sugieren presiones de llenado del VI elevadas`;
+            else if (isFA && dr.grade === 'III')   p3 += `en contexto de FA y FEy deprimida los parámetros confirman presiones de llenado del VI elevadas`;
+            else                                   p3 += dr.description.toLowerCase().replace(/^fa.*?[:\.]\s*/i, '').trim();
+
+            // AI
+            if      (volAi > 48)  p3 += `, hallazgo que se traduce en una dilatación severa de la aurícula izquierda (${volAi} ml/m²)`;
+            else if (volAi >= 42) p3 += `, hallazgo que se traduce en una dilatación moderada de la aurícula izquierda (${volAi} ml/m²)`;
+            else if (volAi >= 34) p3 += `, asociado a dilatación leve de la aurícula izquierda (${volAi} ml/m²)`;
+            else if (volAi > 0)   p3 += `. La aurícula izquierda presenta dimensiones conservadas`;
+
+            // Cardiac output (only if low or hyperdynamic)
+            if (this.state.cardiacOutput) {
+                const { sv, co, ci } = this.state.cardiacOutput;
+                let gcLabel = '';
+                if (ci) {
+                    if      (ci < 2.2)  gcLabel = 'bajo gasto cardíaco severo';
+                    else if (ci < 2.5)  gcLabel = 'bajo gasto cardíaco';
+                    else if (ci > 4.0)  gcLabel = 'estado hiperdinámico';
+                } else if (co) {
+                    if      (co < 4.0)  gcLabel = 'bajo gasto cardíaco';
+                    else if (co > 8.0)  gcLabel = 'estado hiperdinámico';
+                }
+                if (gcLabel) {
+                    const nums = ci ? `VS ${sv} ml, IC ${ci} L/min/m²` : `VS ${sv} ml, GC ${co} L/min`;
+                    p3 += `. El estudio evidencia ${gcLabel} (${nums})`;
+                }
+            }
+
+            paragraphs.push(p3 + '.');
+        }
+
+        // ── P4: Right chambers + HTP ──
+        const htpResult  = this.state.psap > 0 ? this.calculateHTPProbability() : null;
+        const vdDepressed = tapse > 0 && tapse < 17;
+        const adDilated   = adArea > 18 || adEstado === 'dilatada';
+        const vdDilated   = vdBasal > 41 || vdEstado === 'dilatado';
+
+        if (htpResult || vdDepressed || adDilated || vdDilated) {
+            let p4 = `En cuanto a las cavidades derechas, `;
+            const rightFindings = [];
+            if (adDilated)   rightFindings.push(`dilatación auricular derecha`);
+            if (vdDilated)   rightFindings.push(`ventrículo derecho dilatado`);
+            if (vdDepressed) rightFindings.push(`función sistólica del VD deprimida (TAPSE ${tapse} mm)`);
+
+            if (rightFindings.length > 0) {
+                p4 += `se detecta ${rightFindings.join(', ')}`;
+            } else {
+                p4 += `las dimensiones y función se encuentran conservadas`;
+            }
+
+            if (htpResult) {
+                const velStr = velIt ? ` (Vmax IT ${velIt} m/s)` : '';
+                p4 += `. La velocidad de la IT${velStr} determina una probabilidad ecocardiográfica de hipertensión pulmonar ${htpResult.probability.toLowerCase()}, con PSAP estimada de ${this.state.psap} mmHg`;
+            }
+
+            paragraphs.push(p4 + '.');
+        }
+
+        // ── P5: Pericardium (only if abnormal) ──
+        if (pePresente) {
+            const peSize  = parseFloat(document.getElementById('pe_tamano')?.value) || 0;
+            const peGrade = peSize >= 20 ? 'severo' : peSize >= 10 ? 'moderado' : 'leve';
+            const compromise = ['pe_colapso_ad', 'pe_colapso_vd', 'pe_variacion_flujo', 'pe_vci_dilatada']
+                .some(id => document.getElementById(id)?.checked);
+            paragraphs.push(`Se observa derrame pericárdico ${peGrade}${compromise ? ' con signos de compromiso hemodinámico' : ''}.`);
+        }
+
+        return `\nIMPRESIÓN DIAGNÓSTICA\n${paragraphs.join('\n\n')}`;
     }
 
     /**

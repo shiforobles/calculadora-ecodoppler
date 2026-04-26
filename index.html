@@ -16,7 +16,7 @@
         rel="stylesheet">
 
     <!-- Styles -->
-    <link rel="stylesheet" href="styles.css?v=17.4">
+    <link rel="stylesheet" href="styles.css?v=17.5">
 </head>
 
 <body>
@@ -25,7 +25,7 @@
         <header class="app-header">
             <div>
                 <h1>Eco Doppler Cardíaco</h1>
-                <p class="version">v17.4</p>
+                <p class="version">v17.5</p>
             </div>
             <div class="voice-controls">
                 <button id="btn-theme-toggle" class="btn btn-voice" title="Cambiar Tema"
@@ -1381,7 +1381,13 @@
 
         <!-- Área de Resultado -->
         <section class="card">
-            <h2 class="section-title">Informe Generado</h2>
+            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;">
+                <h2 class="section-title" style="margin:0;">Informe Generado</h2>
+                <div class="report-mode-selector">
+                    <button id="mode_lista" class="mode-btn mode-btn-active" onclick="uiController.setReportMode('lista')">Lista</button>
+                    <button id="mode_narrativo" class="mode-btn" onclick="uiController.setReportMode('narrativo')">Narrativo</button>
+                </div>
+            </div>
             <textarea id="resultado" class="report-output"
                 placeholder="El informe compacto se generará aquí...&#10;&#10;Complete los datos del paciente y presione 'GENERAR INFORME'"></textarea>
         </section>
@@ -1392,7 +1398,7 @@
     </div>
 
     <!-- JavaScript Modules -->
-    <script src="js/hemodynamics.js?v=17.4"></script>
+    <script src="js/hemodynamics.js?v=17.5"></script>
     <script src="js/validator.js?v=16.0"></script>
     <script src="js/mini-calculators.js?v=16.0"></script>
     <script src="js/quality-control.js?v=16.0"></script>
@@ -1400,7 +1406,7 @@
     <script src="js/motility-model.js?v=16.0"></script>
     <script src="js/motility-controller.js?v=16.0"></script>
     <script src="js/motility-svg.js?v=16.0"></script>
-    <script src="js/ui-controller.js?v=17.4"></script>
+    <script src="js/ui-controller.js?v=17.5"></script>
     <script src="js/ui-extensions.js?v=16.0"></script>
     <script src="js/ui-lanus.js?v=16.0"></script>
     <script src="js/ui-aorta-display.js?v=16.0"></script>
