@@ -36,8 +36,10 @@ class UIController {
         // Report mode toggle buttons
         const btnModeLista = document.getElementById('mode_lista');
         const btnModeNarrativo = document.getElementById('mode_narrativo');
+        const btnModeIA = document.getElementById('mode_ia');
         if (btnModeLista) btnModeLista.addEventListener('click', () => this.setReportMode('lista'));
         if (btnModeNarrativo) btnModeNarrativo.addEventListener('click', () => this.setReportMode('narrativo'));
+        if (btnModeIA) btnModeIA.addEventListener('click', () => this.generateAIReport());
 
         // Button event listeners
         const btnGenerate = document.getElementById('btn_generate');
@@ -2139,6 +2141,203 @@ class UIController {
     }
 
     /**
+     * Collect all relevant clinical data from DOM + state into a JSON object
+     * Used by generateAIReport() to build the Gemini prompt payload
+     */
+    _buildClinicalDataJSON() {
+        const v = id => document.getElementById(id)?.value || null;
+        const n = id => parseFloat(document.getElementById(id)?.value) || null;
+        const c = id => document.getElementById(id)?.checked || false;
+        const sel = id => {
+            const el = document.getElementById(id);
+            return el ? el.options[el.selectedIndex]?.text : null;
+        };
+
+        const fevi = n('fevi');
+        const sexo = v('sexo');
+        const normalFEy = sexo === 'M' ? 52 : 54;
+        const feviLabel = fevi
+            ? fevi >= normalFEy ? 'conservada'
+              : fevi >= 41 ? 'levemente deprimida'
+              : fevi >= 30 ? 'moderadamente deprimida'
+              : 'severamente deprimida'
+            : null;
+
+        const ddvi = n('ddvi');
+        const dilatado = ddvi ? this.calc.isLVDilated(ddvi, sexo) : false;
+
+        const dr = this.state.diastolicResult;
+        const co = this.state.cardiacOutput;
+        const psap = this.state.psap || null;
+
+        const ctx = {
+            bcri:     c('ctx_bcri'),
+            mac:      c('ctx_mac'),
+            im_severa: c('ctx_im'),
+            mcp:      c('ctx_mcp'),
+            valsalva: c('ctx_valsalva')
+        };
+        const activeCtx = Object.keys(ctx).filter(k => ctx[k]);
+
+        const volAi = n('vol_ai');
+        const aiLabel = volAi
+            ? volAi > 48 ? 'severamente dilatada'
+              : volAi >= 42 ? 'moderadamente dilatada'
+              : volAi >= 34 ? 'levemente dilatada'
+              : 'normal'
+            : null;
+
+        const tapse = n('tapse');
+        const sPrima = n('s_prima_vd');
+        const vdFuncion = tapse
+            ? tapse < 17 ? 'deprimida'
+              : tapse < 20 ? 'límite'
+              : 'conservada'
+            : null;
+
+        // Motility text
+        let motilityText = null;
+        if (this.motility) {
+            const motGlobal = v('motilidad_global');
+            if (motGlobal !== 'conservada') {
+                motilityText = this.motility.generateConclusion()?.replace(/\.$/, '') || null;
+            }
+        }
+
+        return {
+            datos_fisicos: {
+                peso_kg: n('peso'), altura_cm: n('altura'),
+                sc_m2: this.state.bsa ? parseFloat(this.state.bsa.toFixed(2)) : null,
+                imc: this.state.bmi ? parseFloat(this.state.bmi.toFixed(1)) : null
+            },
+            ritmo: sel('ritmo'),
+            conduccion: document.getElementById('conduccion')?.value !== 'normal' ? sel('conduccion') : 'Normal',
+            vi: {
+                siv_mm: n('siv'), pp_mm: n('pp'), ddvi_mm: ddvi,
+                fevi_pct: fevi, fevi_clasificacion: feviLabel,
+                masa_indexada_g_m2: this.state.lvMassIndex > 0 ? Math.round(this.state.lvMassIndex) : null,
+                rwt: this.state.rwt ? parseFloat(this.state.rwt.toFixed(2)) : null,
+                geometria: this.state.geometry || null,
+                dilatado,
+                motilidad: motilityText || (v('motilidad_global') === 'conservada' ? 'conservada' : null)
+            },
+            doppler_diastolico: {
+                onda_e_cms: n('onda_e'), onda_a_cms: n('onda_a'),
+                e_septal_cms: n('onda_e_prime_septal'), e_lateral_cms: n('onda_e_prime_lateral'),
+                e_promedio_cms: n('onda_e_prime'),
+                ee_ratio: n('ee_ratio_display'),
+                lavi_ml_m2: volAi, triv_ms: n('triv'), td_ms: n('td'),
+                valsalva_positivo: c('ctx_valsalva'),
+                contexto_especial: activeCtx.length ? activeCtx : null
+            },
+            funcion_diastolica: dr ? { grado: dr.grade, descripcion: dr.description } : null,
+            auricula_izquierda: { lavi_ml_m2: volAi, clasificacion: aiLabel },
+            valvula_mitral: {
+                morfologia: v('morf_mitral'),
+                insuficiencia_grado: v('im_grado'),
+                vc_mm: n('im_vc'), ore_cm2: n('im_ore'), vol_reg_ml: n('im_vr'),
+                estenosis_grado: v('em_grado'),
+                grad_medio_mmhg: n('em_grad_medio'), area_cm2: n('em_area_pht')
+            },
+            valvula_aortica: {
+                morfologia: v('morf_aortica'),
+                estenosis_grado: v('ea_grado'),
+                vmax_ms: n('ea_vmax'), grad_medio_mmhg: n('ea_grad_medio'),
+                ava_cm2: n('ea_ava'), ava_indexada: n('ea_ava_index'), coef_adimensional: n('ea_coef'),
+                insuficiencia_grado: v('ia_grado')
+            },
+            aorta: {
+                raiz_mm: n('ao_raiz'), ascendente_mm: n('ao_asc')
+            },
+            hemodinamica_tsvi: co ? {
+                sv_ml: co.sv, gc_l_min: co.co, ic_l_min_m2: co.ci
+            } : null,
+            cavidades_derechas: {
+                ad_area_cm2: n('ad_area'), vd_basal_mm: n('vd_basal'),
+                tapse_mm: tapse, s_prima_cms: sPrima, funcion_vd: vdFuncion
+            },
+            valvula_tricuspide: {
+                insuficiencia_grado: v('it_grado'),
+                vel_it_ms: n('vel_it'), psap_mmhg: psap
+            },
+            htp: psap ? {
+                psap_mmhg: psap,
+                probabilidad: this.calculateHTPProbability()?.probability || null
+            } : null,
+            pericardio: {
+                libre: !c('pe_presente'),
+                tamano_mm: c('pe_presente') ? n('pe_tamano') : null
+            }
+        };
+    }
+
+    /**
+     * Generate narrative report using Gemini AI
+     * Builds clinical JSON, calls Gemini, replaces CONCLUSIONES with AI response
+     */
+    async generateAIReport() {
+        if (!window.GeminiAI) {
+            this.showToast('Módulo Gemini no cargado. Recargá la página.');
+            return;
+        }
+        if (!GeminiAI.isConfigured()) {
+            this.showToast('Configurá tu Gemini API key en ⚙️ primero.');
+            this.showSyncSetupModal();
+            return;
+        }
+
+        const btn = document.getElementById('mode_ia');
+        const originalText = btn?.textContent || 'Gemini IA';
+        if (btn) { btn.disabled = true; btn.textContent = 'Generando...'; }
+
+        try {
+            // Ensure all calculations are up to date
+            this.calculateAll();
+
+            // Generate standard report first (description + conclusions)
+            await this.generateReport();
+
+            // Build clinical JSON
+            const clinicalData = this._buildClinicalDataJSON();
+            const clinicalJson = JSON.stringify(clinicalData, null, 2);
+
+            // Call Gemini
+            const aiNarrative = await GeminiAI.generateNarrative(clinicalJson);
+
+            // Replace CONCLUSIONES section with AI narrative
+            const reportEl = document.getElementById('resultado');
+            const current  = reportEl.value;
+            const splitKey = '\nCONCLUSIONES\n';
+            const splitIdx = current.lastIndexOf(splitKey);
+
+            if (splitIdx !== -1) {
+                let newReport = current.substring(0, splitIdx)
+                    + '\nIMPRESIÓN DIAGNÓSTICA (Gemini AI)\n'
+                    + aiNarrative;
+                // Re-append signature if present
+                if (window.GoogleSync) {
+                    const firma = GoogleSync.getFirma();
+                    if (firma) newReport += '\n\n' + firma;
+                }
+                reportEl.value = newReport;
+            } else {
+                // No CONCLUSIONES found — append at the end
+                reportEl.value = current + '\n\nIMPRESIÓN DIAGNÓSTICA (Gemini AI)\n' + aiNarrative;
+            }
+
+            // Mark IA mode active visually
+            document.getElementById('mode_lista')?.classList.remove('mode-btn-active');
+            document.getElementById('mode_narrativo')?.classList.remove('mode-btn-active');
+
+            this.showToast('Informe generado con Gemini AI');
+        } catch (err) {
+            alert('Error al generar con IA: ' + err.message);
+        } finally {
+            if (btn) { btn.disabled = false; btn.textContent = originalText; }
+        }
+    }
+
+    /**
      * Copy dataset in TSV format for Excel
      */
     /**
@@ -2416,6 +2615,23 @@ class UIController {
             </div>
 
             <hr style="border:none;border-top:1px solid #e5e7eb;margin:1rem 0;">
+            <p style="margin:0 0 0.5rem;font-size:0.875rem;font-weight:600;color:#374151;">Gemini IA</p>
+            <p style="margin:0 0 0.5rem;font-size:0.8rem;color:#6b7280;">
+                API Key de Google Gemini para generar informes narrativos con IA.
+                Obtené tu key en <strong>aistudio.google.com</strong> → "Get API Key".
+            </p>
+            <div style="display:flex;gap:0.5rem;margin-bottom:1.25rem;">
+                <input id="gemini-key-input" type="password"
+                    value="${window.GeminiAI ? GeminiAI.getKey() : ''}"
+                    placeholder="AIza..."
+                    style="flex:1;border:1px solid #d1d5db;border-radius:6px;padding:0.5rem 0.75rem;font-size:0.875rem;">
+                <button id="gemini-toggle-key"
+                    style="border:1px solid #d1d5db;border-radius:6px;padding:0.5rem 0.75rem;background:#f9fafb;cursor:pointer;font-size:0.8rem;white-space:nowrap;">
+                    Mostrar
+                </button>
+            </div>
+
+            <hr style="border:none;border-top:1px solid #e5e7eb;margin:1rem 0;">
             <p style="margin:0 0 0.75rem;font-size:0.875rem;font-weight:600;color:#374151;">Firma en informe</p>
 
             <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.75rem;">
@@ -2491,6 +2707,17 @@ class UIController {
         document.getElementById('sync-close').addEventListener('click', () => modal.remove());
         modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
 
+        // Gemini key visibility toggle
+        const geminiKeyInput  = document.getElementById('gemini-key-input');
+        const geminiToggleBtn = document.getElementById('gemini-toggle-key');
+        if (geminiToggleBtn && geminiKeyInput) {
+            geminiToggleBtn.addEventListener('click', () => {
+                const show = geminiKeyInput.type === 'password';
+                geminiKeyInput.type = show ? 'text' : 'password';
+                geminiToggleBtn.textContent = show ? 'Ocultar' : 'Mostrar';
+            });
+        }
+
         document.getElementById('sync-save-btn').addEventListener('click', () => {
             const url = document.getElementById('sync-url-input').value.trim();
             if (url && !url.startsWith('https://script.google.com')) {
@@ -2503,6 +2730,9 @@ class UIController {
             GoogleSync.setDoctor(document.getElementById('firma-nombre').value);
             GoogleSync.setMatricula(document.getElementById('firma-matricula').value);
             GoogleSync.setFirmaEnabled(document.getElementById('firma-enabled').checked);
+            // Save Gemini API key
+            const geminiKey = document.getElementById('gemini-key-input')?.value?.trim();
+            if (geminiKey && window.GeminiAI) GeminiAI.setKey(geminiKey);
             this.showToast('✅ Configuración guardada.');
             modal.remove();
         });

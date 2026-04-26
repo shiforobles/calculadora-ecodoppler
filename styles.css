@@ -590,7 +590,10 @@ input.invalid {
 }
 .mode-btn + .mode-btn { border-left: 1px solid var(--color-border); }
 .mode-btn-active { background: var(--color-primary); color: #fff; }
-.mode-btn:hover:not(.mode-btn-active) { background: #e2e8f0; }
+.mode-btn:hover:not(.mode-btn-active):not(.mode-btn-ia) { background: #e2e8f0; }
+.mode-btn-ia { background: #7c3aed; color: #fff; font-weight: 600; }
+.mode-btn-ia:hover { background: #6d28d9; }
+.mode-btn-ia:disabled { background: #a78bfa; cursor: not-allowed; }
 
 /* ========================================
    Diastolic Function Badge (Semáforo)

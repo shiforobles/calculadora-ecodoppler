@@ -16,7 +16,7 @@
         rel="stylesheet">
 
     <!-- Styles -->
-    <link rel="stylesheet" href="styles.css?v=17.5">
+    <link rel="stylesheet" href="styles.css?v=17.6">
 </head>
 
 <body>
@@ -25,7 +25,7 @@
         <header class="app-header">
             <div>
                 <h1>Eco Doppler Cardíaco</h1>
-                <p class="version">v17.5</p>
+                <p class="version">v17.6</p>
             </div>
             <div class="voice-controls">
                 <button id="btn-theme-toggle" class="btn btn-voice" title="Cambiar Tema"
@@ -1386,6 +1386,7 @@
                 <div class="report-mode-selector">
                     <button id="mode_lista" class="mode-btn mode-btn-active">Lista</button>
                     <button id="mode_narrativo" class="mode-btn">Narrativo</button>
+                    <button id="mode_ia" class="mode-btn mode-btn-ia" title="Generar conclusión con Gemini AI">Gemini IA</button>
                 </div>
             </div>
             <textarea id="resultado" class="report-output"
@@ -1398,7 +1399,7 @@
     </div>
 
     <!-- JavaScript Modules -->
-    <script src="js/hemodynamics.js?v=17.5"></script>
+    <script src="js/hemodynamics.js?v=17.6"></script>
     <script src="js/validator.js?v=16.0"></script>
     <script src="js/mini-calculators.js?v=16.0"></script>
     <script src="js/quality-control.js?v=16.0"></script>
@@ -1406,7 +1407,8 @@
     <script src="js/motility-model.js?v=16.0"></script>
     <script src="js/motility-controller.js?v=16.0"></script>
     <script src="js/motility-svg.js?v=16.0"></script>
-    <script src="js/ui-controller.js?v=17.5"></script>
+    <script src="js/gemini-ai.js?v=17.6"></script>
+    <script src="js/ui-controller.js?v=17.6"></script>
     <script src="js/ui-extensions.js?v=16.0"></script>
     <script src="js/ui-lanus.js?v=16.0"></script>
     <script src="js/ui-aorta-display.js?v=16.0"></script>
