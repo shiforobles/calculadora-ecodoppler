@@ -5,8 +5,8 @@
  */
 class GeminiAI {
     static KEY_STORAGE = 'ecodoppler_gemini_key';
-    // Models tried in order — latest suffix avoids version-routing issues
-    static MODELS = ['gemini-1.5-flash-latest', 'gemini-1.5-flash', 'gemini-2.0-flash-latest', 'gemini-2.0-flash'];
+    // Fallback model list if autodetect fails
+    static MODELS = ['gemini-1.5-flash', 'gemini-2.0-flash', 'gemini-1.5-pro', 'gemini-pro'];
 
     static getKey()      { return localStorage.getItem(this.KEY_STORAGE) || ''; }
     static setKey(k)     { localStorage.setItem(this.KEY_STORAGE, k.trim()); }
@@ -34,10 +34,23 @@ FORMATO DE SALIDA:
 - Idioma: español médico de Argentina.`;
 
     /**
+     * Fetch available models for this API key and return names that support generateContent
+     */
+    static async listAvailableModels(key) {
+        const resp = await fetch(
+            `https://generativelanguage.googleapis.com/v1beta/models?key=${key}`
+        );
+        if (!resp.ok) return [];
+        const data = await resp.json();
+        return (data.models || [])
+            .filter(m => (m.supportedGenerationMethods || []).includes('generateContent'))
+            .map(m => m.name.replace('models/', ''));
+    }
+
+    /**
      * Try one model — returns text or throws with the error message
      */
     static async _tryModel(model, key, clinicalJson) {
-        // All stable models available via v1beta (most permissive routing)
         const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`;
         const body = {
             contents: [{
@@ -62,7 +75,7 @@ FORMATO DE SALIDA:
     }
 
     /**
-     * Send clinical JSON to Gemini — tries each model in order until one works
+     * Send clinical JSON to Gemini — auto-detects available models, tries each until one works
      * @param {string} clinicalJson - stringified clinical data
      * @returns {Promise<string>} AI-generated narrative
      */
@@ -70,18 +83,30 @@ FORMATO DE SALIDA:
         const key = this.getKey();
         if (!key) throw new Error('API key de Gemini no configurada. Ingresala en ⚙️ Configuración.');
 
+        // Prefer flash models (faster + cheaper), sorted by preference
+        const flashPriority = ['flash', 'pro'];
+        let available = await this.listAvailableModels(key);
+        if (available.length > 0) {
+            available.sort((a, b) => {
+                const pa = flashPriority.findIndex(p => a.includes(p));
+                const pb = flashPriority.findIndex(p => b.includes(p));
+                return (pa === -1 ? 99 : pa) - (pb === -1 ? 99 : pb);
+            });
+        } else {
+            available = this.MODELS;
+        }
+
         let lastError = null;
-        for (const model of this.MODELS) {
+        for (const model of available) {
             try {
                 return await this._tryModel(model, key, clinicalJson);
             } catch (err) {
                 lastError = err;
-                // Only retry on quota/rate-limit errors; propagate auth errors immediately
-                const isQuota = /quota|rate.limit|resource.exhausted|429/i.test(err.message);
-                if (!isQuota) throw err;
+                const isRetryable = /quota|rate.limit|resource.exhausted|not found|404|429/i.test(err.message);
+                if (!isRetryable) throw err;
             }
         }
-        throw lastError;
+        throw lastError || new Error('No se encontró ningún modelo Gemini disponible con esta API key.');
     }
 }
 
