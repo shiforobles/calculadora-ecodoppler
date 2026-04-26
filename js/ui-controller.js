@@ -2204,8 +2204,10 @@ class UIController {
             }
         }
 
+        const sexo = document.getElementById('sexo')?.value || 'M';
         return {
             datos_fisicos: {
+                sexo: sexo === 'F' ? 'Femenino' : 'Masculino',
                 peso_kg: n('peso'), altura_cm: n('altura'),
                 sc_m2: this.state.bsa ? parseFloat(this.state.bsa.toFixed(2)) : null,
                 imc: this.state.bmi ? parseFloat(this.state.bmi.toFixed(1)) : null

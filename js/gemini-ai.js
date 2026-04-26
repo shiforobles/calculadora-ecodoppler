@@ -16,6 +16,8 @@ class GeminiAI {
 
 El JSON que recibís contiene los datos crudos Y los resultados ya calculados por el algoritmo de la calculadora (geometria, fevi_clasificacion, funcion_diastolica, htp, etc.). Tu tarea es NARRAR esos resultados de forma coherente, NO recalcularlos. Confiá en los campos de clasificación del JSON.
 
+El campo "datos_fisicos.sexo" es siempre "Masculino" o "Femenino". Usalo en TODOS los módulos con umbrales diferenciados por sexo (masa VI, DDVI dilatación, FEy, aorta indexada). NO deduzcas el sexo de otros datos.
+
 ══════════════════════════════════════
 MÓDULO 1 — VENTRÍCULO IZQUIERDO
 ══════════════════════════════════════
