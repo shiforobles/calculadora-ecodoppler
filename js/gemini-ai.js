@@ -5,7 +5,8 @@
  */
 class GeminiAI {
     static KEY_STORAGE = 'ecodoppler_gemini_key';
-    static MODEL       = 'gemini-2.0-flash';
+    // Models tried in order — 1.5-flash has the most generous free quota
+    static MODELS = ['gemini-1.5-flash', 'gemini-2.0-flash', 'gemini-1.5-pro'];
 
     static getKey()      { return localStorage.getItem(this.KEY_STORAGE) || ''; }
     static setKey(k)     { localStorage.setItem(this.KEY_STORAGE, k.trim()); }
@@ -33,7 +34,33 @@ FORMATO DE SALIDA:
 - Idioma: español médico de Argentina.`;
 
     /**
-     * Send clinical JSON to Gemini and return the narrative text
+     * Try one model — returns text or throws with the error message
+     */
+    static async _tryModel(model, key, clinicalJson) {
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`;
+        const body = {
+            system_instruction: { parts: [{ text: this.SYSTEM_PROMPT }] },
+            contents: [{ parts: [{ text: `Datos clínicos del ecocardiograma:\n${clinicalJson}` }] }],
+            generationConfig: { temperature: 0.3, maxOutputTokens: 1024 }
+        };
+        const resp = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+        });
+        if (!resp.ok) {
+            let msg = `Error ${resp.status}`;
+            try { const err = await resp.json(); msg = err?.error?.message || msg; } catch (_) {}
+            throw new Error(msg);
+        }
+        const data = await resp.json();
+        const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (!text) throw new Error('Sin contenido en respuesta');
+        return text.trim();
+    }
+
+    /**
+     * Send clinical JSON to Gemini — tries each model in order until one works
      * @param {string} clinicalJson - stringified clinical data
      * @returns {Promise<string>} AI-generated narrative
      */
@@ -41,38 +68,18 @@ FORMATO DE SALIDA:
         const key = this.getKey();
         if (!key) throw new Error('API key de Gemini no configurada. Ingresala en ⚙️ Configuración.');
 
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/${this.MODEL}:generateContent?key=${key}`;
-
-        const body = {
-            system_instruction: { parts: [{ text: this.SYSTEM_PROMPT }] },
-            contents: [{
-                parts: [{ text: `Datos clínicos del ecocardiograma:\n${clinicalJson}` }]
-            }],
-            generationConfig: {
-                temperature: 0.3,
-                maxOutputTokens: 1024
-            }
-        };
-
-        const resp = await fetch(url, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(body)
-        });
-
-        if (!resp.ok) {
-            let msg = `Error ${resp.status}`;
+        let lastError = null;
+        for (const model of this.MODELS) {
             try {
-                const err = await resp.json();
-                msg = err?.error?.message || msg;
-            } catch (_) {}
-            throw new Error(msg);
+                return await this._tryModel(model, key, clinicalJson);
+            } catch (err) {
+                lastError = err;
+                // Only retry on quota/rate-limit errors; propagate auth errors immediately
+                const isQuota = /quota|rate.limit|resource.exhausted|429/i.test(err.message);
+                if (!isQuota) throw err;
+            }
         }
-
-        const data = await resp.json();
-        const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-        if (!text) throw new Error('Gemini no devolvió contenido. Revisá la API key.');
-        return text.trim();
+        throw lastError;
     }
 }
 

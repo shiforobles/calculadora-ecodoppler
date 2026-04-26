@@ -2301,35 +2301,49 @@ class UIController {
             const clinicalData = this._buildClinicalDataJSON();
             const clinicalJson = JSON.stringify(clinicalData, null, 2);
 
-            // Call Gemini
-            const aiNarrative = await GeminiAI.generateNarrative(clinicalJson);
+            // Call Gemini (tries multiple models, may throw if all quota-exceeded)
+            let aiNarrative = null;
+            let usedFallback = false;
+            try {
+                aiNarrative = await GeminiAI.generateNarrative(clinicalJson);
+            } catch (aiErr) {
+                const isQuota = /quota|rate.limit|resource.exhausted|429/i.test(aiErr.message);
+                if (isQuota) {
+                    // All models quota-exceeded → use rule-based narrative as fallback
+                    usedFallback = true;
+                    aiNarrative = this._buildNarrativeConclusion()
+                        .replace('\nIMPRESIÓN DIAGNÓSTICA\n', '');
+                } else {
+                    throw aiErr;
+                }
+            }
 
-            // Replace CONCLUSIONES section with AI narrative
+            // Replace CONCLUSIONES section
             const reportEl = document.getElementById('resultado');
             const current  = reportEl.value;
             const splitKey = '\nCONCLUSIONES\n';
             const splitIdx = current.lastIndexOf(splitKey);
+            const header   = usedFallback
+                ? '\nIMPRESIÓN DIAGNÓSTICA (modo offline — cuota Gemini agotada)\n'
+                : '\nIMPRESIÓN DIAGNÓSTICA (Gemini AI)\n';
 
             if (splitIdx !== -1) {
-                let newReport = current.substring(0, splitIdx)
-                    + '\nIMPRESIÓN DIAGNÓSTICA (Gemini AI)\n'
-                    + aiNarrative;
-                // Re-append signature if present
+                let newReport = current.substring(0, splitIdx) + header + aiNarrative;
                 if (window.GoogleSync) {
                     const firma = GoogleSync.getFirma();
                     if (firma) newReport += '\n\n' + firma;
                 }
                 reportEl.value = newReport;
             } else {
-                // No CONCLUSIONES found — append at the end
-                reportEl.value = current + '\n\nIMPRESIÓN DIAGNÓSTICA (Gemini AI)\n' + aiNarrative;
+                reportEl.value = current + '\n' + header + aiNarrative;
             }
 
-            // Mark IA mode active visually
             document.getElementById('mode_lista')?.classList.remove('mode-btn-active');
             document.getElementById('mode_narrativo')?.classList.remove('mode-btn-active');
 
-            this.showToast('Informe generado con Gemini AI');
+            this.showToast(usedFallback
+                ? 'Cuota Gemini agotada — informe generado con lógica offline'
+                : 'Informe generado con Gemini AI');
         } catch (err) {
             alert('Error al generar con IA: ' + err.message);
         } finally {
