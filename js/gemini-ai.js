@@ -5,8 +5,8 @@
  */
 class GeminiAI {
     static KEY_STORAGE = 'ecodoppler_gemini_key';
-    // Models tried in order — 1.5-flash has the most generous free quota
-    static MODELS = ['gemini-1.5-flash', 'gemini-2.0-flash', 'gemini-1.5-pro'];
+    // Models tried in order — latest suffix avoids version-routing issues
+    static MODELS = ['gemini-1.5-flash-latest', 'gemini-1.5-flash', 'gemini-2.0-flash-latest', 'gemini-2.0-flash'];
 
     static getKey()      { return localStorage.getItem(this.KEY_STORAGE) || ''; }
     static setKey(k)     { localStorage.setItem(this.KEY_STORAGE, k.trim()); }
@@ -37,15 +37,13 @@ FORMATO DE SALIDA:
      * Try one model — returns text or throws with the error message
      */
     static async _tryModel(model, key, clinicalJson) {
-        // gemini-2.0-* only available in v1beta; 1.5-* stable in v1
-        const apiVer = model.startsWith('gemini-2') ? 'v1beta' : 'v1';
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`.replace('v1beta', apiVer);
+        // All stable models available via v1beta (most permissive routing)
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`;
         const body = {
             contents: [{
                 role: 'user',
                 parts: [{ text: `${this.SYSTEM_PROMPT}\n\nDatos clínicos del ecocardiograma:\n${clinicalJson}` }]
-            }],
-            generationConfig: { temperature: 0.3, maxOutputTokens: 1024 }
+            }]
         };
         const resp = await fetch(url, {
             method: 'POST',
