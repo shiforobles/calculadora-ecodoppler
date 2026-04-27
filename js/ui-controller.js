@@ -2338,8 +2338,8 @@ class UIController {
 
         let p3 = '';
         if (valvular.length > 0) {
-            const major = valvular.filter(v => v.rank >= 2);
-            const minor = valvular.filter(v => v.rank < 2);
+            const major = valvular.filter(v => v.rank >= 3);
+            const minor = valvular.filter(v => v.rank < 3);
             if (major.length > 0) {
                 p3 = 'A nivel valvular, se constata ';
                 if (major.length === 1) {
@@ -2396,7 +2396,11 @@ class UIController {
             p4 += `. No se observa flujo de insuficiencia tricuspídea que permita estimar la presión sistólica de la arteria pulmonar`;
         } else if (htpResult) {
             const velStr = velIt ? ` (Vmax IT ${velIt} m/s)` : '';
-            p4 += `. La velocidad de la IT${velStr} determina una probabilidad ecocardiográfica de hipertensión pulmonar ${htpResult.probability.toLowerCase()}, con PSAP estimada de ${this.state.psap} mmHg`;
+            if (htpResult.probability === 'Baja') {
+                p4 += `. Se registra insuficiencia tricuspídea leve${velStr}, con PSAP estimada de ${this.state.psap} mmHg, sin evidencia de hipertensión pulmonar significativa`;
+            } else {
+                p4 += `. La velocidad de la IT${velStr} determina una probabilidad ecocardiográfica de hipertensión pulmonar ${htpResult.probability.toLowerCase()}, con PSAP estimada de ${this.state.psap} mmHg`;
+            }
         }
         paragraphs.push(p4 + '.');
 
