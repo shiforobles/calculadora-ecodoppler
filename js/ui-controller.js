@@ -1865,17 +1865,12 @@ class UIController {
                 if (firma) report += '\n\n' + firma;
             }
 
-            // Narrative mode: replace CONCLUSIONES with a narrative paragraph
+            // Narrative mode: replace full body with compact header + narrative conclusion
             if (this.reportMode === 'narrativo') {
-                const splitKey = '\nCONCLUSIONES\n';
-                const splitIdx = report.lastIndexOf(splitKey);
-                if (splitIdx !== -1) {
-                    report = report.substring(0, splitIdx) + this._buildNarrativeConclusion();
-                    // Re-append signature if present
-                    if (window.GoogleSync) {
-                        const firma = GoogleSync.getFirma();
-                        if (firma) report += '\n\n' + firma;
-                    }
+                report = this._buildCompactHeader() + this._buildNarrativeConclusion();
+                if (window.GoogleSync) {
+                    const firma = GoogleSync.getFirma();
+                    if (firma) report += '\n\n' + firma;
                 }
             }
 
@@ -2017,6 +2012,104 @@ class UIController {
         document.getElementById('mode_narrativo')?.classList.toggle('mode-btn-active', mode === 'narrativo');
         const current = document.getElementById('resultado').value;
         if (current && current.trim()) this.generateReport();
+    }
+
+    /**
+     * Build compact data header for Narrativo / IA report modes
+     * Replaces the full 8-section body with 4 concise measurement lines
+     */
+    _buildCompactHeader() {
+        const n  = id => parseFloat(document.getElementById(id)?.value) || null;
+        const v  = id => document.getElementById(id)?.value || null;
+        const pad = (label, width = 9) => label.padEnd(width);
+
+        let h = '';
+
+        // ── Title ──
+        h += `ECOCARDIOGRAMA DOPPLER CARDÍACO\n`;
+        h += `${'='.repeat(80)}\n`;
+
+        // ── Patient data ──
+        const peso = v('peso'), altura = v('altura');
+        const sc   = document.getElementById('sc_display')?.value;
+        const bmi  = document.getElementById('bmi_display')?.value;
+        if (peso && altura) {
+            h += bmi
+                ? `Datos Físicos: Peso ${peso} kg | Altura ${altura} cm | SC ${sc} m² | IMC ${bmi}.\n`
+                : `Datos Físicos: Peso ${peso} kg | Altura ${altura} cm | SC ${sc} m².\n`;
+        }
+        if (v('ventana') === 'si') h += `MALA VENTANA ACÚSTICA — limita la evaluación.\n`;
+        h += '\n';
+
+        // ── VI line ──
+        const ddvi = n('ddvi'), dsvi = n('dsvi'), siv = n('siv'), pp = n('pp');
+        const fevi = n('fevi');
+        const masa = this.state.lvMassIndex > 0 ? Math.round(this.state.lvMassIndex) : null;
+        const rwt  = this.state.rwt  > 0 ? this.state.rwt.toFixed(2) : null;
+        const viParts = [];
+        if (ddvi) viParts.push(`DD ${ddvi}mm`);
+        if (dsvi) viParts.push(`DS ${dsvi}mm`);
+        if (siv && pp) viParts.push(`SIV/PP ${siv}/${pp}mm`);
+        if (masa) viParts.push(`Masa ${masa}g/m²`);
+        if (rwt)  viParts.push(`RWT ${rwt}`);
+        if (fevi) viParts.push(`FEy ${fevi}%`);
+        if (this.motility) {
+            const wmsi = parseFloat(this.motility.calculateWMSI?.());
+            if (wmsi && wmsi > 1) viParts.push(`WMSI ${wmsi.toFixed(2)}`);
+        }
+        if (viParts.length) h += `${pad('VI:')}${viParts.join(' | ')}\n`;
+
+        // ── Doppler line ──
+        const ritmoVal = v('ritmo');
+        const isFA = ritmoVal === 'fa' || ritmoVal === 'flutter';
+        const e = n('onda_e'), a = n('onda_a');
+        const ePrime = n('onda_e_prime'), eeRatio = n('ee_ratio_display'), lavi = n('vol_ai');
+        const dParts = [];
+        if (e) dParts.push(`E ${e}cm/s`);
+        if (a && !isFA) dParts.push(`A ${a}cm/s`);
+        if (e && a && !isFA) dParts.push(`E/A ${(e / a).toFixed(2)}`);
+        if (ePrime) dParts.push(`e' ${ePrime}cm/s`);
+        if (eeRatio) dParts.push(`E/e' ${eeRatio}`);
+        if (lavi)   dParts.push(`LAVI ${lavi}ml/m²`);
+        if (dParts.length) h += `${pad('Doppler:')}${dParts.join(' | ')}\n`;
+
+        // ── Aorta line ──
+        const aoRaiz = n('ao_raiz'), aoAsc = n('ao_asc');
+        const bsa = this.state.bsa || null;
+        const aoParts = [];
+        if (aoRaiz) {
+            const idx = bsa ? ` (${(aoRaiz / 10 / bsa).toFixed(2)}cm/m²)` : '';
+            aoParts.push(`Raíz ${aoRaiz}mm${idx}`);
+        }
+        if (aoAsc) {
+            const idx = bsa ? ` (${(aoAsc / 10 / bsa).toFixed(2)}cm/m²)` : '';
+            aoParts.push(`Asc ${aoAsc}mm${idx}`);
+        }
+        if (aoParts.length) h += `${pad('Ao:')}${aoParts.join(' | ')}\n`;
+
+        // ── Right chambers + HTP line ──
+        const tapse = n('tapse'), sPrima = n('s_prima_vd'), vdBasal = n('vd_basal');
+        const itNoVal = v('it_grado') === 'no_valorable';
+        const psap    = (!itNoVal && this.state.psap > 0) ? this.state.psap : null;
+        const rParts  = [];
+        if (vdBasal) rParts.push(`VD ${vdBasal}mm`);
+        if (tapse)   rParts.push(`TAPSE ${tapse}mm`);
+        if (sPrima)  rParts.push(`S' ${sPrima}cm/s`);
+        if (psap)    rParts.push(`PSAP ${psap}mmHg`);
+        else if (itNoVal) rParts.push(`IT no valorable`);
+        if (rParts.length) h += `${pad('Derechas:')}${rParts.join(' | ')}\n`;
+
+        // ── Ritmo line ──
+        const ritmoMap = { sinusal: 'Ritmo Sinusal', fa: 'Fibrilación Auricular (FA)', flutter: 'Flutter Auricular' };
+        let ritmoLine  = ritmoMap[ritmoVal] || 'Ritmo Sinusal';
+        const condEl   = document.getElementById('conduccion');
+        if (condEl?.value && condEl.value !== 'normal') {
+            ritmoLine += ` | ${condEl.options[condEl.selectedIndex].text}`;
+        }
+        h += `${pad('Ritmo:')}${ritmoLine}\n`;
+
+        h += '\n';
+        return h;
     }
 
     /**
@@ -2433,8 +2526,8 @@ class UIController {
             // Ensure all calculations are up to date
             this.calculateAll();
 
-            // Generate standard report first (description + conclusions)
-            await this.generateReport();
+            // Build compact header (measurements summary)
+            const compactHeader = this._buildCompactHeader();
 
             // Build clinical JSON
             const clinicalData = this._buildClinicalDataJSON();
@@ -2448,7 +2541,6 @@ class UIController {
             } catch (aiErr) {
                 const isQuota = /quota|rate.limit|resource.exhausted|429/i.test(aiErr.message);
                 if (isQuota) {
-                    // All models quota-exceeded → use rule-based narrative as fallback
                     usedFallback = true;
                     aiNarrative = this._buildNarrativeConclusion()
                         .replace('\nIMPRESIÓN DIAGNÓSTICA\n', '');
@@ -2457,31 +2549,16 @@ class UIController {
                 }
             }
 
-            // Replace conclusion section — handle both base (CONCLUSIONES) and narrativo mode
-            const reportEl = document.getElementById('resultado');
-            const current  = reportEl.value;
-            const header   = usedFallback
+            const conclusionHeader = usedFallback
                 ? '\nIMPRESIÓN DIAGNÓSTICA (modo offline — cuota Gemini agotada)\n'
                 : '\nIMPRESIÓN DIAGNÓSTICA:\n';
 
-            // Search for any existing conclusion header to replace
-            const candidates = ['\nCONCLUSIONES\n', '\nIMPRESIÓN DIAGNÓSTICA\n', '\nIMPRESIÓN DIAGNÓSTICA:\n'];
-            let splitIdx = -1;
-            for (const key of candidates) {
-                const idx = current.lastIndexOf(key);
-                if (idx !== -1) { splitIdx = idx; break; }
+            let newReport = compactHeader + conclusionHeader + aiNarrative;
+            if (window.GoogleSync) {
+                const firma = GoogleSync.getFirma();
+                if (firma) newReport += '\n\n' + firma;
             }
-
-            if (splitIdx !== -1) {
-                let newReport = current.substring(0, splitIdx) + header + aiNarrative;
-                if (window.GoogleSync) {
-                    const firma = GoogleSync.getFirma();
-                    if (firma) newReport += '\n\n' + firma;
-                }
-                reportEl.value = newReport;
-            } else {
-                reportEl.value = current + '\n' + header + aiNarrative;
-            }
+            document.getElementById('resultado').value = newReport;
 
             document.getElementById('mode_lista')?.classList.remove('mode-btn-active');
             document.getElementById('mode_narrativo')?.classList.remove('mode-btn-active');
