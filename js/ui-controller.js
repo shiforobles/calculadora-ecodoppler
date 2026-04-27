@@ -2326,54 +2326,67 @@ class UIController {
         const morfML = morfMitral.toLowerCase();
         const morfAL = morfAortica.toLowerCase();
 
-        // ── Mitral ──
-        const hasMitralFinding = imGrado !== 'no' || emGrado !== 'no' || mac || morfML.includes('mac') || morfML.includes('calcificación');
-        if (hasMitralFinding) {
-            const rankIM = rankMap[imGrado] || 0;
-            const morfHasEngros  = morfML.includes('engrosamiento');
-            const morfHasTenting = morfML.includes('tenting');
-            const morfHasMAC     = morfML.includes('mac') || morfML.includes('calcificación') || mac;
+        const morfHasEngros  = morfML.includes('engrosamiento');
+        const morfHasTenting = morfML.includes('tenting');
+        const morfHasMAC     = morfML.includes('mac') || morfML.includes('calcificación') || mac;
+        const morfHasBicuspidia = morfAL.includes('bicuspidia');
+        const rankIM = rankMap[imGrado] || 0;
 
-            let s = '';
-            if (emGrado !== 'no') {
-                s = `Se constata estenosis mitral ${emGrado}`;
-                const emAva = document.getElementById('em_area_pht')?.value;
-                if (emAva) s += ` (área ${emAva} cm²)`;
-            } else if (imGrado !== 'no') {
-                if (rankIM >= 3) {
-                    s = `Se constata insuficiencia mitral ${imGrado}`;
-                    if (morfHasTenting) s += ` de mecanismo funcional, secundaria a dilatación/remodelado del VI`;
-                } else {
-                    if (morfHasEngros)  s = `Se evidencia engrosamiento de las valvas mitrales con insuficiencia valvular ${imGrado}`;
-                    else if (morfHasTenting) s = `Se constata insuficiencia mitral ${imGrado} de mecanismo funcional`;
-                    else s = `Se registra insuficiencia mitral ${imGrado}`;
+        // ── Esclerosis bivalvular — integrated sentence ──
+        const isBivalvularSclerosis = eaGrado === 'esclerosis' && (morfHasEngros || morfML.includes('fibroso'));
+        if (isBivalvularSclerosis) {
+            let s = 'Se observan cambios fibrocalcificados incipientes (esclerosis) en los aparatos valvulares mitral y aórtico, que condicionan un engrosamiento de las valvas sin restricción de su apertura sistólica';
+            if (imGrado !== 'no' && rankIM < 3) {
+                s += `. Se asocia una insuficiencia mitral de grado ${imGrado} sin repercusión hemodinámica, mientras que la válvula aórtica no presenta flujos patológicos significativos`;
+            } else if (imGrado !== 'no' && rankIM >= 3) {
+                s += `. Se constata insuficiencia mitral ${imGrado}`;
+            } else {
+                s += `, sin flujos patológicos significativos`;
+            }
+            p3Sentences.push(s);
+        } else {
+            // ── Mitral ──
+            const hasMitralFinding = imGrado !== 'no' || emGrado !== 'no' || morfHasMAC;
+            if (hasMitralFinding) {
+                let s = '';
+                if (emGrado !== 'no') {
+                    s = `Se constata estenosis mitral ${emGrado}`;
+                    const emAva = document.getElementById('em_area_pht')?.value;
+                    if (emAva) s += ` (área ${emAva} cm²)`;
+                } else if (imGrado !== 'no') {
+                    if (rankIM >= 3) {
+                        s = `Se constata insuficiencia mitral ${imGrado}`;
+                        if (morfHasTenting) s += ` de mecanismo funcional, secundaria a dilatación/remodelado del VI`;
+                    } else {
+                        if (morfHasEngros)       s = `Se evidencia engrosamiento de las valvas mitrales con insuficiencia valvular ${imGrado}`;
+                        else if (morfHasTenting) s = `Se constata insuficiencia mitral ${imGrado} de mecanismo funcional`;
+                        else                     s = `Se registra insuficiencia mitral ${imGrado}`;
+                    }
+                    if (morfHasMAC) s += `, con calcificación del anillo mitral (MAC)`;
+                } else if (morfHasMAC) {
+                    s = 'Se evidencia calcificación del anillo mitral (MAC)';
                 }
-                if (morfHasMAC) s += `, con calcificación del anillo mitral (MAC)`;
-            } else if (morfHasMAC) {
-                s = 'Se evidencia calcificación del anillo mitral (MAC)';
+                if (s) p3Sentences.push(s);
             }
-            if (s) p3Sentences.push(s);
-        }
 
-        // ── Aortic ──
-        const hasAorticFinding = eaGrado !== 'no' || iaGrado !== 'no';
-        if (hasAorticFinding) {
-            const rankIA = rankMap[iaGrado] || 0;
-            const morfHasBicuspidia = morfAL.includes('bicuspidia');
-            let s = '';
-            if (eaGrado === 'esclerosis') {
-                s = `La válvula aórtica presenta esclerosis (engrosamiento focal) sin obstrucción`;
-                if (iaGrado !== 'no') s += ` con insuficiencia aórtica ${iaGrado}`;
-                else s += `, sin insuficiencia significativa`;
-            } else if (eaGrado !== 'no') {
-                s = `Se constata estenosis aórtica ${eaGrado}`;
-                if (eaAva || eaGm) s += ` (AVA ${eaAva || '?'} cm²${eaGm ? ', gradiente medio ' + eaGm + ' mmHg' : ''})`;
-                if (iaGrado !== 'no') s += `, asociada a insuficiencia aórtica ${iaGrado}`;
-            } else if (iaGrado !== 'no') {
-                s = `Se registra insuficiencia aórtica ${iaGrado}`;
-                if (morfHasBicuspidia) s += ` en contexto de sospecha de válvula bicúspide`;
+            // ── Aortic ──
+            const hasAorticFinding = eaGrado !== 'no' || iaGrado !== 'no';
+            if (hasAorticFinding) {
+                let s = '';
+                if (eaGrado === 'esclerosis') {
+                    s = `La válvula aórtica presenta esclerosis (engrosamiento focal) sin obstrucción`;
+                    if (iaGrado !== 'no') s += ` con insuficiencia aórtica ${iaGrado}`;
+                    else s += `, sin insuficiencia significativa`;
+                } else if (eaGrado !== 'no') {
+                    s = `Se constata estenosis aórtica ${eaGrado}`;
+                    if (eaAva || eaGm) s += ` (AVA ${eaAva || '?'} cm²${eaGm ? ', gradiente medio ' + eaGm + ' mmHg' : ''})`;
+                    if (iaGrado !== 'no') s += `, asociada a insuficiencia aórtica ${iaGrado}`;
+                } else if (iaGrado !== 'no') {
+                    s = `Se registra insuficiencia aórtica ${iaGrado}`;
+                    if (morfHasBicuspidia) s += ` en contexto de sospecha de válvula bicúspide`;
+                }
+                if (s) p3Sentences.push(s);
             }
-            if (s) p3Sentences.push(s);
         }
 
         let p3 = p3Sentences.length > 0
