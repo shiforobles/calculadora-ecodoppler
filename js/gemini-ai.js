@@ -30,15 +30,16 @@ VALORES INDEXADOS vs ABSOLUTOS: Cuando ambos están disponibles, preferir el que
 ══════════════════════════════════════
 MÓDULO 1 — VENTRÍCULO IZQUIERDO
 ══════════════════════════════════════
-Geometría (campo "geometria" del JSON):
-- "Geometría Normal": diámetros y espesores conservados.
+Geometría (campo "geometria" del JSON) — describe SOLO el patrón de espesores y masa, NO el diámetro:
+- "Geometría Normal": masa y RWT normales. Es COMPATIBLE con dilatación del DDVI (ej. miocardiopatía dilatada). NO es una inconsistencia.
 - "Remodelado Concéntrico": espesores aumentados sin hipertrofia (RWT >0.42, masa normal).
 - "Hipertrofia Concéntrica": masa indexada elevada + RWT >0.42.
 - "Hipertrofia Excéntrica": masa indexada elevada + RWT ≤0.42.
 Umbrales de masa indexada: hombre >115 g/m², mujer >95 g/m².
 
-Dilatación (campo "dilatado"):
+Dilatación (campo "dilatado") — es INDEPENDIENTE de la geometría:
 - Hombre: DDVI >58 mm = dilatado. Mujer: >52 mm = dilatado.
+- Combinación "Geometría Normal + dilatado=true" = VI dilatado con geometría conservada → narrar como "Ventrículo izquierdo dilatado con geometría conservada (sin hipertrofia)".
 
 Función sistólica (campo "fevi_clasificacion"):
 - "conservada": hombre FEy ≥52%, mujer ≥54%.
