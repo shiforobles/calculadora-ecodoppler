@@ -1960,13 +1960,14 @@ class UIController {
             esclerosis_senil: () => {
                 set('sexo', 'M'); set('edad', 76); set('peso', 75); set('altura', 168);
                 set('siv', 11); set('pp', 11); set('ddvi', 48); set('fevi', 58);
-                set('ritmo', 'fa'); set('conduccion', 'normal');
-                set('onda_e', 75); set('onda_e_prime_septal', 7); set('onda_e_prime_lateral', 8);
-                set('vol_ai', 38); set('morf_mitral', 'Leve engrosamiento fibroso de las valvas sin restricción de apertura');
+                set('ritmo', 'sinusal'); set('conduccion', 'normal');
+                set('onda_e', 75); set('onda_a', 90); set('onda_e_prime_septal', 7); set('onda_e_prime_lateral', 8);
+                set('vol_ai', 34); set('ao_raiz', 32); set('ao_asc', 30);
+                set('morf_mitral', 'Leve engrosamiento fibroso de las valvas sin restricción de apertura');
                 set('morf_aortica', 'Esclerosis valvular aórtica (engrosamiento focal) sin restricción de apertura');
                 set('ea_grado', 'esclerosis'); set('im_grado', 'no'); set('ia_grado', 'no');
-                set('tapse', 22); set('s_prima_vd', 12); set('vel_it', 2.5); set('it_grado', 'leve');
-                check('ant_hta', true); check('ant_fa', true);
+                set('tapse', 22); set('s_prima_vd', 12); set('vel_it', 1.5); set('it_grado', 'leve');
+                check('ant_hta', true);
             },
             hta_hvi: () => {
                 set('sexo', 'M'); set('edad', 62); set('peso', 85); set('altura', 170);
