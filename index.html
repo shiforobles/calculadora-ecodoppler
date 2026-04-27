@@ -152,12 +152,12 @@
         <section class="card preset-section">
             <h2 class="section-title">Carga Rápida — Presets</h2>
             <div class="preset-buttons">
-                <button type="button" class="preset-btn" onclick="UIController.applyPreset('normal_joven')" title="Paciente sano menor de 30 años">Normal (joven)</button>
-                <button type="button" class="preset-btn" onclick="UIController.applyPreset('normal_adulto')" title="Paciente adulto sin patología estructural">Normal (adulto)</button>
-                <button type="button" class="preset-btn preset-btn-yellow" onclick="UIController.applyPreset('esclerosis_senil')" title="Esclerosis aórtica y mitral, HVI leve, FA">Esclerosis senil</button>
-                <button type="button" class="preset-btn preset-btn-yellow" onclick="UIController.applyPreset('hta_hvi')" title="HTA con hipertrofia concéntrica">HTA con HVI</button>
-                <button type="button" class="preset-btn preset-btn-red" onclick="UIController.applyPreset('mcd')" title="Miocardiopatía dilatada, FEy 30%">MCDi (FEy 30%)</button>
-                <button type="button" class="preset-btn preset-btn-red" onclick="UIController.applyPreset('iam_anterior')" title="Post-IAM anterior con trastorno segmentario">Post-IAM anterior</button>
+                <button type="button" class="preset-btn" onclick="applyPreset('normal_joven')" title="Paciente sano menor de 30 años">Normal (joven)</button>
+                <button type="button" class="preset-btn" onclick="applyPreset('normal_adulto')" title="Paciente adulto sin patología estructural">Normal (adulto)</button>
+                <button type="button" class="preset-btn preset-btn-yellow" onclick="applyPreset('esclerosis_senil')" title="Esclerosis aórtica y mitral, HVI leve, FA">Esclerosis senil</button>
+                <button type="button" class="preset-btn preset-btn-yellow" onclick="applyPreset('hta_hvi')" title="HTA con hipertrofia concéntrica">HTA con HVI</button>
+                <button type="button" class="preset-btn preset-btn-red" onclick="applyPreset('mcd')" title="Miocardiopatía dilatada, FEy 30%">MCDi (FEy 30%)</button>
+                <button type="button" class="preset-btn preset-btn-red" onclick="applyPreset('iam_anterior')" title="Post-IAM anterior con trastorno segmentario">Post-IAM anterior</button>
             </div>
         </section>
 
@@ -1448,7 +1448,7 @@
     <script src="js/aortic-regurgitation.js?v=16.0"></script>
     <script src="js/valvulopathy-modules.js?v=16.0"></script>
     <script src="js/voice-recognition.js?v=16.0"></script>
-    <script src="app.js?v=16.0"></script>
+    <script src="app.js?v=17.8"></script>
     <script src="js/study-storage.js?v=1.1"></script>
     <script src="js/google-sync.js?v=1.1"></script>
     <script src="js/ai-assistant.js?v=1.5"></script>
@@ -1464,6 +1464,13 @@
             const open = el.style.display === 'none' || el.style.display === '';
             el.style.display = open ? 'block' : 'none';
             btn.classList.toggle('open', open);
+        }
+        function applyPreset(name) {
+            try {
+                window.UIController.applyPreset(name);
+            } catch(e) {
+                alert('Error en preset: ' + e.message);
+            }
         }
     </script>
 
