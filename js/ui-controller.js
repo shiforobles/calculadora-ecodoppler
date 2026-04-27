@@ -1987,7 +1987,7 @@ class UIController {
                 set('vol_ai', 30); set('ao_raiz', 32); set('ao_asc', 30);
                 set('morf_mitral', 'Leve engrosamiento fibroso de las valvas sin restricción de apertura');
                 set('morf_aortica', 'Esclerosis valvular aórtica (engrosamiento focal) sin restricción de apertura');
-                set('ea_grado', 'esclerosis'); set('im_grado', 'leve'); set('ia_grado', 'no');
+                set('ea_grado', 'esclerosis'); set('ea_vmax', 2.2); set('im_grado', 'leve'); set('ia_grado', 'no');
                 set('tapse', 22); set('s_prima_vd', 12); set('vel_it', 1.5); set('it_grado', 'leve');
                 check('ant_hta', true);
             },
@@ -2335,7 +2335,9 @@ class UIController {
         // ── Esclerosis bivalvular — integrated sentence ──
         const isBivalvularSclerosis = eaGrado === 'esclerosis' && (morfHasEngros || morfML.includes('fibroso'));
         if (isBivalvularSclerosis) {
-            let s = 'Se observan cambios fibrocalcificados incipientes (esclerosis) en los aparatos valvulares mitral y aórtico, que condicionan un engrosamiento de las valvas sin restricción de su apertura sistólica';
+            const eaVmax = parseFloat(document.getElementById('ea_vmax')?.value) || null;
+            const vmaxStr = eaVmax ? ` (Vmax Ao ${eaVmax} m/s)` : '';
+            let s = `Se observan cambios fibrocalcificados incipientes (esclerosis) en los aparatos valvulares mitral y aórtico, que condicionan un engrosamiento de las valvas sin restricción de su apertura sistólica${vmaxStr}`;
             if (imGrado !== 'no' && rankIM < 3) {
                 s += `. Se asocia una insuficiencia mitral de grado ${imGrado} sin repercusión hemodinámica, mientras que la válvula aórtica no presenta flujos patológicos significativos`;
             } else if (imGrado !== 'no' && rankIM >= 3) {
