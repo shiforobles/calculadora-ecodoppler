@@ -1918,7 +1918,11 @@ class UIController {
         const set = (id, val) => {
             const el = document.getElementById(id);
             if (!el) return;
+            // Remove min/max constraints temporarily for preset values
+            const prevMin = el.min; const prevMax = el.max;
+            el.removeAttribute('min'); el.removeAttribute('max');
             el.value = val;
+            if (prevMin) el.min = prevMin; if (prevMax) el.max = prevMax;
             el.dispatchEvent(new Event(el.tagName === 'SELECT' ? 'change' : 'input', { bubbles: true }));
         };
         const check = (id, val) => {
@@ -1935,7 +1939,7 @@ class UIController {
                 set('vol_ai', 22); set('morf_mitral', 'Valvas finas y móviles, apertura conservada');
                 set('morf_aortica', 'Válvula trivalva, sigmoideas finas y móviles');
                 set('im_grado', 'no'); set('ia_grado', 'no'); set('ea_grado', 'no');
-                set('tapse', 26); set('s_prima_vd', 15); set('vel_it', '');
+                set('tapse', 26); set('s_prima_vd', 15);
                 set('it_grado', 'no_valorable');
             },
             normal_adulto: () => {
@@ -1946,7 +1950,7 @@ class UIController {
                 set('vol_ai', 28); set('morf_mitral', 'Valvas finas y móviles, apertura conservada');
                 set('morf_aortica', 'Válvula trivalva, sigmoideas finas y móviles');
                 set('im_grado', 'no'); set('ia_grado', 'no'); set('ea_grado', 'no');
-                set('tapse', 24); set('s_prima_vd', 13); set('vel_it', '');
+                set('tapse', 24); set('s_prima_vd', 13);
                 set('it_grado', 'no_valorable');
             },
             esclerosis_senil: () => {
@@ -1968,7 +1972,7 @@ class UIController {
                 set('vol_ai', 35); set('morf_mitral', 'Leve engrosamiento fibroso de las valvas sin restricción de apertura');
                 set('morf_aortica', 'Esclerosis valvular aórtica (engrosamiento focal) sin restricción de apertura');
                 set('ea_grado', 'esclerosis'); set('im_grado', 'no'); set('ia_grado', 'no');
-                set('tapse', 23); set('s_prima_vd', 13); set('vel_it', ''); set('it_grado', 'no_valorable');
+                set('tapse', 23); set('s_prima_vd', 13); set('it_grado', 'no_valorable');
                 check('ant_hta', true);
             },
             mcd: () => {
@@ -1980,7 +1984,7 @@ class UIController {
                 set('morf_aortica', 'Válvula trivalva, sigmoideas finas y móviles');
                 set('im_grado', 'moderada'); set('ia_grado', 'no'); set('ea_grado', 'no');
                 set('tapse', 17); set('s_prima_vd', 9); set('vel_it', 2.9); set('it_grado', 'leve');
-                set('motilidad_global', 'hipoquinesia_global');
+                set('motilidad_global', 'alterada');
             },
             iam_anterior: () => {
                 set('sexo', 'M'); set('edad', 65); set('peso', 80); set('altura', 172);
@@ -1991,7 +1995,7 @@ class UIController {
                 set('morf_aortica', 'Esclerosis valvular aórtica (engrosamiento focal) sin restricción de apertura');
                 set('ea_grado', 'esclerosis'); set('im_grado', 'leve'); set('ia_grado', 'no');
                 set('tapse', 20); set('s_prima_vd', 11); set('vel_it', 2.7); set('it_grado', 'leve');
-                set('motilidad_global', 'segmentaria'); check('ant_isquemia', true);
+                set('motilidad_global', 'alterada'); check('ant_isquemia', true);
             }
         };
 
