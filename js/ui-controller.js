@@ -1817,7 +1817,11 @@ class UIController {
             }
 
             // 8. HTP Conclusion (Probability Only)
-            if (this.state.psap > 0 || htpDetails.length > 0) {
+            const itGradoVal = document.getElementById('it_grado')?.value;
+            if (itGradoVal === 'no_valorable') {
+                report += `${conclusionNum}. IT no valorable, no permite estimar PSAP.\n`;
+                conclusionNum++;
+            } else if (this.state.psap > 0 || htpDetails.length > 0) {
                 const htpResult = this.calculateHTPProbability();
                 report += `${conclusionNum}. Probabilidad Ecocardiográfica de Hipertensión Pulmonar ${htpResult.probability.toUpperCase()}.\n`;
                 conclusionNum++;
@@ -1936,22 +1940,22 @@ class UIController {
                 set('siv', 8); set('pp', 8); set('ddvi', 46); set('fevi', 65);
                 set('ritmo', 'sinusal'); set('conduccion', 'normal');
                 set('onda_e', 95); set('onda_a', 45); set('onda_e_prime_septal', 14); set('onda_e_prime_lateral', 17);
-                set('vol_ai', 22); set('morf_mitral', 'Valvas finas y móviles, apertura conservada');
+                set('vol_ai', 22); set('ao_raiz', 28); set('ao_asc', 26);
+                set('morf_mitral', 'Valvas finas y móviles, apertura conservada');
                 set('morf_aortica', 'Válvula trivalva, sigmoideas finas y móviles');
                 set('im_grado', 'no'); set('ia_grado', 'no'); set('ea_grado', 'no');
-                set('tapse', 26); set('s_prima_vd', 15);
-                set('it_grado', 'no_valorable');
+                set('tapse', 26); set('s_prima_vd', 15); set('it_grado', 'no_valorable');
             },
             normal_adulto: () => {
                 set('sexo', 'M'); set('edad', 55); set('peso', 80); set('altura', 172);
                 set('siv', 10); set('pp', 10); set('ddvi', 50); set('fevi', 60);
                 set('ritmo', 'sinusal'); set('conduccion', 'normal');
                 set('onda_e', 80); set('onda_a', 70); set('onda_e_prime_septal', 9); set('onda_e_prime_lateral', 11);
-                set('vol_ai', 28); set('morf_mitral', 'Valvas finas y móviles, apertura conservada');
+                set('vol_ai', 28); set('ao_raiz', 32); set('ao_asc', 30);
+                set('morf_mitral', 'Valvas finas y móviles, apertura conservada');
                 set('morf_aortica', 'Válvula trivalva, sigmoideas finas y móviles');
                 set('im_grado', 'no'); set('ia_grado', 'no'); set('ea_grado', 'no');
-                set('tapse', 24); set('s_prima_vd', 13);
-                set('it_grado', 'no_valorable');
+                set('tapse', 24); set('s_prima_vd', 13); set('it_grado', 'no_valorable');
             },
             esclerosis_senil: () => {
                 set('sexo', 'M'); set('edad', 76); set('peso', 75); set('altura', 168);
@@ -2055,12 +2059,16 @@ class UIController {
         if (condEl.value !== 'normal') {
             p1 += ` con ${condEl.options[condEl.selectedIndex].text.toLowerCase()}`;
         }
-        p1 += `, se observa un ventrículo izquierdo`;
-
         const hasDifferentGeometry = this.state.geometry && this.state.geometry !== 'Geometría Normal';
-        if (hasDifferentGeometry) p1 += ` con ${this.state.geometry.toLowerCase()}`;
-        if (this.calc.isLVDilated(ddvi, sexo)) {
-            p1 += hasDifferentGeometry ? ` y dilatación ventricular` : ` con dilatación ventricular`;
+        const isDilated = this.calc.isLVDilated(ddvi, sexo);
+
+        if (hasDifferentGeometry) {
+            p1 += `, se observa un ventrículo izquierdo con ${this.state.geometry.toLowerCase()}`;
+            if (isDilated) p1 += ` y dilatación ventricular`;
+        } else if (isDilated) {
+            p1 += `, se observa un ventrículo izquierdo dilatado con geometría conservada`;
+        } else {
+            p1 += `, se observa un ventrículo izquierdo de dimensiones y espesores conservados`;
         }
 
         if (this.motility) {
@@ -2199,7 +2207,8 @@ class UIController {
         }
 
         // ── P4: Right chambers + HTP ──
-        const htpResult  = this.state.psap > 0 ? this.calculateHTPProbability() : null;
+        const itNoVal    = document.getElementById('it_grado')?.value === 'no_valorable';
+        const htpResult  = (!itNoVal && this.state.psap > 0) ? this.calculateHTPProbability() : null;
         const vdDepressed = tapse > 0 && tapse < 17;
         const adDilated   = adArea > 18 || adEstado === 'dilatada';
         const vdDilated   = vdBasal > 41 || vdEstado === 'dilatado';
@@ -2217,7 +2226,9 @@ class UIController {
                 p4 += `las dimensiones y función se encuentran conservadas`;
             }
 
-            if (htpResult) {
+            if (itNoVal) {
+                p4 += `. No se observa flujo de insuficiencia tricuspídea que permita estimar la presión sistólica de la arteria pulmonar`;
+            } else if (htpResult) {
                 const velStr = velIt ? ` (Vmax IT ${velIt} m/s)` : '';
                 p4 += `. La velocidad de la IT${velStr} determina una probabilidad ecocardiográfica de hipertensión pulmonar ${htpResult.probability.toLowerCase()}, con PSAP estimada de ${this.state.psap} mmHg`;
             }
