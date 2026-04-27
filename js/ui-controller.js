@@ -1929,73 +1929,159 @@ class UIController {
             if (el) el.checked = val;
         };
 
+        // Reset antecedentes and common fields before each preset
+        const reset = () => {
+            ['ant_hta','ant_isquemia','ant_crm','ant_epoc','ant_fa','ant_marcapasos','ant_dm','ant_irc','ant_valvulopatia']
+                .forEach(id => check(id, false));
+            set('motilidad_global', 'conservada');
+            set('vd_estado', 'normal');
+            set('ad_estado', 'normal');
+            set('vd_basal', '');
+            set('ad_area', '');
+            set('ant_libre', '');
+        };
+
         const presets = {
-            normal_joven: () => {
-                set('sexo', 'M'); set('edad', 22); set('peso', 70); set('altura', 175);
-                set('siv', 8); set('pp', 8); set('ddvi', 46); set('fevi', 65);
+            adolescente: () => {
+                reset();
+                set('sexo', 'F'); set('edad', 17); set('peso', 52); set('altura', 160);
+                set('siv', 8); set('pp', 8); set('ddvi', 44); set('fevi', 68);
                 set('ritmo', 'sinusal'); set('conduccion', 'normal');
-                set('onda_e', 95); set('onda_a', 45); set('onda_e_prime_septal', 14); set('onda_e_prime_lateral', 17);
-                set('vol_ai', 22); set('ao_raiz', 28); set('ao_asc', 26);
+                set('onda_e', 100); set('onda_a', 50); set('onda_e_prime_septal', 15); set('onda_e_prime_lateral', 19);
+                set('vol_ai', 20); set('ao_raiz', 24); set('ao_asc', 22);
+                set('morf_mitral', 'Valvas finas y móviles, apertura conservada');
+                set('morf_aortica', 'Válvula trivalva, sigmoideas finas y móviles');
+                set('im_grado', 'no'); set('ia_grado', 'no'); set('ea_grado', 'no');
+                set('tapse', 28); set('s_prima_vd', 16); set('it_grado', 'no_valorable');
+            },
+            joven: () => {
+                reset();
+                set('sexo', 'M'); set('edad', 25); set('peso', 72); set('altura', 178);
+                set('siv', 8); set('pp', 8); set('ddvi', 48); set('fevi', 67);
+                set('ritmo', 'sinusal'); set('conduccion', 'normal');
+                set('onda_e', 95); set('onda_a', 50); set('onda_e_prime_septal', 14); set('onda_e_prime_lateral', 17);
+                set('vol_ai', 22); set('ao_raiz', 30); set('ao_asc', 28);
                 set('morf_mitral', 'Valvas finas y móviles, apertura conservada');
                 set('morf_aortica', 'Válvula trivalva, sigmoideas finas y móviles');
                 set('im_grado', 'no'); set('ia_grado', 'no'); set('ea_grado', 'no');
                 set('tapse', 26); set('s_prima_vd', 15); set('it_grado', 'no_valorable');
             },
-            normal_adulto: () => {
-                set('sexo', 'M'); set('edad', 55); set('peso', 80); set('altura', 172);
-                set('siv', 10); set('pp', 10); set('ddvi', 50); set('fevi', 60);
+            adulto: () => {
+                reset();
+                set('sexo', 'M'); set('edad', 50); set('peso', 80); set('altura', 172);
+                set('siv', 10); set('pp', 10); set('ddvi', 50); set('fevi', 62);
                 set('ritmo', 'sinusal'); set('conduccion', 'normal');
-                set('onda_e', 80); set('onda_a', 70); set('onda_e_prime_septal', 9); set('onda_e_prime_lateral', 11);
-                set('vol_ai', 28); set('ao_raiz', 32); set('ao_asc', 30);
+                set('onda_e', 80); set('onda_a', 65); set('onda_e_prime_septal', 9); set('onda_e_prime_lateral', 11);
+                set('vol_ai', 26); set('ao_raiz', 32); set('ao_asc', 30);
                 set('morf_mitral', 'Valvas finas y móviles, apertura conservada');
                 set('morf_aortica', 'Válvula trivalva, sigmoideas finas y móviles');
                 set('im_grado', 'no'); set('ia_grado', 'no'); set('ea_grado', 'no');
                 set('tapse', 24); set('s_prima_vd', 13); set('it_grado', 'no_valorable');
             },
-            esclerosis_senil: () => {
-                set('sexo', 'M'); set('edad', 76); set('peso', 75); set('altura', 168);
-                set('siv', 11); set('pp', 11); set('ddvi', 48); set('fevi', 58);
+            esclerosis_bivalvular: () => {
+                reset();
+                set('sexo', 'M'); set('edad', 68); set('peso', 75); set('altura', 168);
+                set('siv', 10); set('pp', 10); set('ddvi', 50); set('fevi', 60);
                 set('ritmo', 'sinusal'); set('conduccion', 'normal');
-                set('onda_e', 75); set('onda_a', 90); set('onda_e_prime_septal', 7); set('onda_e_prime_lateral', 8);
-                set('vol_ai', 34); set('ao_raiz', 32); set('ao_asc', 30);
+                set('onda_e', 75); set('onda_a', 70); set('onda_e_prime_septal', 8); set('onda_e_prime_lateral', 10);
+                set('vol_ai', 30); set('ao_raiz', 32); set('ao_asc', 30);
+                set('morf_mitral', 'Leve engrosamiento fibroso de las valvas sin restricción de apertura');
+                set('morf_aortica', 'Esclerosis valvular aórtica (engrosamiento focal) sin restricción de apertura');
+                set('ea_grado', 'esclerosis'); set('im_grado', 'leve'); set('ia_grado', 'no');
+                set('tapse', 22); set('s_prima_vd', 12); set('vel_it', 2.5); set('it_grado', 'leve');
+                check('ant_hta', true);
+            },
+            hta_remodelado: () => {
+                reset();
+                set('sexo', 'M'); set('edad', 57); set('peso', 85); set('altura', 172);
+                set('siv', 11); set('pp', 11); set('ddvi', 46); set('fevi', 62);
+                set('ritmo', 'sinusal'); set('conduccion', 'normal');
+                set('onda_e', 65); set('onda_a', 90); set('onda_e_prime_septal', 7); set('onda_e_prime_lateral', 8);
+                set('vol_ai', 34); set('ao_raiz', 34); set('ao_asc', 32);
                 set('morf_mitral', 'Leve engrosamiento fibroso de las valvas sin restricción de apertura');
                 set('morf_aortica', 'Esclerosis valvular aórtica (engrosamiento focal) sin restricción de apertura');
                 set('ea_grado', 'esclerosis'); set('im_grado', 'no'); set('ia_grado', 'no');
-                set('tapse', 22); set('s_prima_vd', 12); set('vel_it', 1.5); set('it_grado', 'leve');
+                set('tapse', 22); set('s_prima_vd', 12); set('it_grado', 'no_valorable');
                 check('ant_hta', true);
             },
             hta_hvi: () => {
+                reset();
                 set('sexo', 'M'); set('edad', 62); set('peso', 85); set('altura', 170);
                 set('siv', 13); set('pp', 13); set('ddvi', 47); set('fevi', 60);
                 set('ritmo', 'sinusal'); set('conduccion', 'normal');
                 set('onda_e', 70); set('onda_a', 100); set('onda_e_prime_septal', 7); set('onda_e_prime_lateral', 9);
-                set('vol_ai', 35); set('morf_mitral', 'Leve engrosamiento fibroso de las valvas sin restricción de apertura');
+                set('vol_ai', 38); set('ao_raiz', 34); set('ao_asc', 32);
+                set('morf_mitral', 'Leve engrosamiento fibroso de las valvas sin restricción de apertura');
                 set('morf_aortica', 'Esclerosis valvular aórtica (engrosamiento focal) sin restricción de apertura');
                 set('ea_grado', 'esclerosis'); set('im_grado', 'no'); set('ia_grado', 'no');
                 set('tapse', 23); set('s_prima_vd', 13); set('it_grado', 'no_valorable');
                 check('ant_hta', true);
             },
-            mcd: () => {
-                set('sexo', 'M'); set('edad', 55); set('peso', 75); set('altura', 170);
-                set('siv', 7); set('pp', 7); set('ddvi', 65); set('fevi', 30);
+            im_iao_leve: () => {
+                reset();
+                set('sexo', 'M'); set('edad', 60); set('peso', 78); set('altura', 170);
+                set('siv', 10); set('pp', 10); set('ddvi', 52); set('fevi', 60);
                 set('ritmo', 'sinusal'); set('conduccion', 'normal');
-                set('onda_e', 100); set('onda_a', 60); set('onda_e_prime_septal', 5); set('onda_e_prime_lateral', 6);
-                set('vol_ai', 45); set('morf_mitral', 'Valvas anatómicamente conservadas con Tenting sistólico secundario a dilatación/remodelado del VI');
+                set('onda_e', 65); set('onda_a', 87); set('onda_e_prime_septal', 7); set('onda_e_prime_lateral', 8);
+                set('vol_ai', 36); set('ao_raiz', 34); set('ao_asc', 32);
+                set('morf_mitral', 'Engrosamiento leve de valvas mitrales, apertura conservada');
+                set('morf_aortica', 'Leve engrosamiento fibroso de sigmoideas, apertura conservada');
+                set('ea_grado', 'no'); set('im_grado', 'leve'); set('ia_grado', 'leve');
+                set('tapse', 22); set('s_prima_vd', 12); set('it_grado', 'no_valorable');
+            },
+            mcd_moderada: () => {
+                reset();
+                set('sexo', 'M'); set('edad', 52); set('peso', 75); set('altura', 170);
+                set('siv', 8); set('pp', 8); set('ddvi', 62); set('fevi', 40);
+                set('ritmo', 'sinusal'); set('conduccion', 'normal');
+                set('onda_e', 90); set('onda_a', 60); set('onda_e_prime_septal', 5); set('onda_e_prime_lateral', 7);
+                set('vol_ai', 42); set('ao_raiz', 30); set('ao_asc', 28);
+                set('morf_mitral', 'Valvas anatómicamente conservadas con Tenting sistólico secundario a dilatación/remodelado del VI');
                 set('morf_aortica', 'Válvula trivalva, sigmoideas finas y móviles');
-                set('im_grado', 'moderada'); set('ia_grado', 'no'); set('ea_grado', 'no');
-                set('tapse', 17); set('s_prima_vd', 9); set('vel_it', 2.9); set('it_grado', 'leve');
+                set('ea_grado', 'no'); set('im_grado', 'moderada'); set('ia_grado', 'no');
+                set('tapse', 20); set('s_prima_vd', 11); set('vel_it', 2.9); set('it_grado', 'leve');
+                set('motilidad_global', 'alterada');
+            },
+            mcd_severa: () => {
+                reset();
+                set('sexo', 'M'); set('edad', 57); set('peso', 78); set('altura', 172);
+                set('siv', 7); set('pp', 7); set('ddvi', 68); set('fevi', 28);
+                set('ritmo', 'sinusal'); set('conduccion', 'normal');
+                set('onda_e', 110); set('onda_a', 42); set('onda_e_prime_septal', 4); set('onda_e_prime_lateral', 5);
+                set('vol_ai', 52); set('ao_raiz', 30); set('ao_asc', 28);
+                set('morf_mitral', 'Valvas anatómicamente conservadas con Tenting sistólico severo secundario a dilatación y remodelado del VI');
+                set('morf_aortica', 'Válvula trivalva, sigmoideas finas y móviles');
+                set('ea_grado', 'no'); set('im_grado', 'moderada'); set('ia_grado', 'no');
+                set('vd_basal', 48); set('vd_estado', 'dilatado');
+                set('tapse', 14); set('s_prima_vd', 7); set('vel_it', 3.6); set('it_grado', 'leve');
                 set('motilidad_global', 'alterada');
             },
             iam_anterior: () => {
+                reset();
                 set('sexo', 'M'); set('edad', 65); set('peso', 80); set('altura', 172);
                 set('siv', 9); set('pp', 10); set('ddvi', 55); set('fevi', 42);
                 set('ritmo', 'sinusal'); set('conduccion', 'normal');
                 set('onda_e', 90); set('onda_a', 65); set('onda_e_prime_septal', 7); set('onda_e_prime_lateral', 9);
-                set('vol_ai', 36); set('morf_mitral', 'Valvas finas y móviles, apertura conservada');
+                set('vol_ai', 36); set('ao_raiz', 32); set('ao_asc', 30);
+                set('morf_mitral', 'Valvas finas y móviles, apertura conservada');
                 set('morf_aortica', 'Esclerosis valvular aórtica (engrosamiento focal) sin restricción de apertura');
                 set('ea_grado', 'esclerosis'); set('im_grado', 'leve'); set('ia_grado', 'no');
                 set('tapse', 20); set('s_prima_vd', 11); set('vel_it', 2.7); set('it_grado', 'leve');
                 set('motilidad_global', 'alterada'); check('ant_isquemia', true);
+            },
+            falla_vd: () => {
+                reset();
+                set('sexo', 'M'); set('edad', 62); set('peso', 75); set('altura', 168);
+                set('siv', 9); set('pp', 9); set('ddvi', 44); set('fevi', 58);
+                set('ritmo', 'sinusal'); set('conduccion', 'normal');
+                set('onda_e', 80); set('onda_a', 70); set('onda_e_prime_septal', 8); set('onda_e_prime_lateral', 10);
+                set('vol_ai', 32); set('ao_raiz', 28); set('ao_asc', 26);
+                set('morf_mitral', 'Valvas finas y móviles, apertura conservada');
+                set('morf_aortica', 'Válvula trivalva, sigmoideas finas y móviles');
+                set('ea_grado', 'no'); set('im_grado', 'leve'); set('ia_grado', 'no');
+                set('vd_basal', 46); set('vd_estado', 'dilatado');
+                set('tapse', 13); set('s_prima_vd', 7); set('vel_it', 3.5); set('it_grado', 'leve');
+                check('ant_epoc', true);
             }
         };
 
