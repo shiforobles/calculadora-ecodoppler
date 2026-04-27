@@ -2350,7 +2350,14 @@ class UIController {
                 }
                 if (minor.length > 0) p3 += `. Adicionalmente, se observa ${minor.map(v => v.txt).join(' y ')}`;
             } else {
-                p3 = `Los hallazgos valvulares son de carácter leve (${minor.map(v => v.txt).join(', ')}), sin repercusión hemodinámica significativa`;
+                const mitralItems = minor.filter(v => v.txt.match(/mitral|anillo/i));
+                const aorticItems = minor.filter(v => v.txt.match(/aórtica|esclerosis valvular/i));
+                const otherItems  = minor.filter(v => !v.txt.match(/mitral|anillo|aórtica|esclerosis valvular/i));
+                const clauses = [];
+                if (mitralItems.length) clauses.push(mitralItems.map(v => v.txt).join(' e '));
+                if (aorticItems.length) clauses.push(aorticItems.map(v => v.txt).join(' e '));
+                if (otherItems.length)  clauses.push(otherItems.map(v => v.txt).join(' e '));
+                p3 = `Se registran hallazgos valvulares leves: ${clauses.join('; ')}, sin repercusión hemodinámica significativa`;
             }
         } else {
             p3 = 'El aparato valvular mitral y aórtico es morfológicamente normal, sin valvulopatías significativas';
@@ -2397,7 +2404,7 @@ class UIController {
         } else if (htpResult) {
             const velStr = velIt ? ` (Vmax IT ${velIt} m/s)` : '';
             if (htpResult.probability === 'Baja') {
-                p4 += `. Se registra insuficiencia tricuspídea leve${velStr}, con PSAP estimada de ${this.state.psap} mmHg, sin evidencia de hipertensión pulmonar significativa`;
+                p4 += `. Se constata insuficiencia tricuspídea leve${velStr}, con baja probabilidad de hipertensión pulmonar (PSAP estimada en ${this.state.psap} mmHg)`;
             } else {
                 p4 += `. La velocidad de la IT${velStr} determina una probabilidad ecocardiográfica de hipertensión pulmonar ${htpResult.probability.toLowerCase()}, con PSAP estimada de ${this.state.psap} mmHg`;
             }
