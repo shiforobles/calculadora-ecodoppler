@@ -1988,7 +1988,7 @@ class UIController {
                 set('morf_mitral', 'Leve engrosamiento fibroso de las valvas sin restricción de apertura');
                 set('morf_aortica', 'Esclerosis valvular aórtica (engrosamiento focal) sin restricción de apertura');
                 set('ea_grado', 'esclerosis'); set('im_grado', 'leve'); set('ia_grado', 'no');
-                set('tapse', 22); set('s_prima_vd', 12); set('vel_it', 2.5); set('it_grado', 'leve');
+                set('tapse', 22); set('s_prima_vd', 12); set('vel_it', 1.5); set('it_grado', 'leve');
                 check('ant_hta', true);
             },
             hta_remodelado: () => {
@@ -2316,54 +2316,71 @@ class UIController {
             paragraphs.push(p2 + '.');
         }
 
-        // ── P3: Valves (always — brief if normal) ──
+        // ── P3: Valves — per-valve descriptive sentences using morphology ──
+        const morfAortica = document.getElementById('morf_aortica')?.value || '';
+        const eaAva = document.getElementById('ea_ava')?.value;
+        const eaGm  = document.getElementById('ea_grad_medio')?.value;
         const rankMap = { 'severa': 4, 'moderada': 3, 'leve': 2, 'minima': 1, 'esclerosis': 0.5, 'no': 0 };
-        const valvular = [];
 
-        if (eaGrado !== 'no' && eaGrado !== 'esclerosis') {
-            const eaAva = document.getElementById('ea_ava')?.value;
-            const eaGm  = document.getElementById('ea_grad_medio')?.value;
-            let txt = `estenosis aórtica ${eaGrado}`;
-            if (eaAva || eaGm) txt += ` (AVA ${eaAva || '?'} cm²${eaGm ? ', gradiente medio ' + eaGm + ' mmHg' : ''})`;
-            valvular.push({ rank: rankMap[eaGrado] || 2, txt });
-        }
-        if (imGrado !== 'no') valvular.push({ rank: rankMap[imGrado] || 1, txt: `insuficiencia mitral ${imGrado}` });
-        if (iaGrado !== 'no') valvular.push({ rank: rankMap[iaGrado] || 1, txt: `insuficiencia aórtica ${iaGrado}` });
-        if (emGrado !== 'no') valvular.push({ rank: rankMap[emGrado] || 2, txt: `estenosis mitral ${emGrado}` });
-        if (eaGrado === 'esclerosis') valvular.push({ rank: 0.5, txt: `esclerosis valvular aórtica sin obstrucción` });
-        if (mac || morfMitral.includes('Calcificación') || morfMitral.includes('MAC')) {
-            valvular.push({ rank: 0.3, txt: `calcificación del anillo mitral (MAC)` });
-        }
-        valvular.sort((a, b) => b.rank - a.rank);
+        const p3Sentences = [];
+        const morfML = morfMitral.toLowerCase();
+        const morfAL = morfAortica.toLowerCase();
 
-        let p3 = '';
-        if (valvular.length > 0) {
-            const major = valvular.filter(v => v.rank >= 3);
-            const minor = valvular.filter(v => v.rank < 3);
-            if (major.length > 0) {
-                p3 = 'A nivel valvular, se constata ';
-                if (major.length === 1) {
-                    p3 += `una ${major[0].txt}`;
+        // ── Mitral ──
+        const hasMitralFinding = imGrado !== 'no' || emGrado !== 'no' || mac || morfML.includes('mac') || morfML.includes('calcificación');
+        if (hasMitralFinding) {
+            const rankIM = rankMap[imGrado] || 0;
+            const morfHasEngros  = morfML.includes('engrosamiento');
+            const morfHasTenting = morfML.includes('tenting');
+            const morfHasMAC     = morfML.includes('mac') || morfML.includes('calcificación') || mac;
+
+            let s = '';
+            if (emGrado !== 'no') {
+                s = `Se constata estenosis mitral ${emGrado}`;
+                const emAva = document.getElementById('em_area_pht')?.value;
+                if (emAva) s += ` (área ${emAva} cm²)`;
+            } else if (imGrado !== 'no') {
+                if (rankIM >= 3) {
+                    s = `Se constata insuficiencia mitral ${imGrado}`;
+                    if (morfHasTenting) s += ` de mecanismo funcional, secundaria a dilatación/remodelado del VI`;
                 } else {
-                    p3 += major.slice(0, -1).map((v, i) => (i === 0 ? `una ${v.txt}` : v.txt)).join(', ');
-                    p3 += ` e ${major[major.length - 1].txt}`;
+                    if (morfHasEngros)  s = `Se evidencia engrosamiento de las valvas mitrales con insuficiencia valvular ${imGrado}`;
+                    else if (morfHasTenting) s = `Se constata insuficiencia mitral ${imGrado} de mecanismo funcional`;
+                    else s = `Se registra insuficiencia mitral ${imGrado}`;
                 }
-                if (minor.length > 0) p3 += `. Adicionalmente, se observa ${minor.map(v => v.txt).join(' y ')}`;
-            } else {
-                const mitralItems = minor.filter(v => v.txt.match(/mitral|anillo/i));
-                const aorticItems = minor.filter(v => v.txt.match(/aórtica|esclerosis valvular/i));
-                const otherItems  = minor.filter(v => !v.txt.match(/mitral|anillo|aórtica|esclerosis valvular/i));
-                const clauses = [];
-                if (mitralItems.length) clauses.push(mitralItems.map(v => v.txt).join(' e '));
-                if (aorticItems.length) clauses.push(aorticItems.map(v => v.txt).join(' e '));
-                if (otherItems.length)  clauses.push(otherItems.map(v => v.txt).join(' e '));
-                p3 = `Se registran hallazgos valvulares leves: ${clauses.join('; ')}, sin repercusión hemodinámica significativa`;
+                if (morfHasMAC) s += `, con calcificación del anillo mitral (MAC)`;
+            } else if (morfHasMAC) {
+                s = 'Se evidencia calcificación del anillo mitral (MAC)';
             }
-        } else {
-            p3 = 'El aparato valvular mitral y aórtico es morfológicamente normal, sin valvulopatías significativas';
+            if (s) p3Sentences.push(s);
         }
 
-        // Aorta — append to valvular paragraph if dilated
+        // ── Aortic ──
+        const hasAorticFinding = eaGrado !== 'no' || iaGrado !== 'no';
+        if (hasAorticFinding) {
+            const rankIA = rankMap[iaGrado] || 0;
+            const morfHasBicuspidia = morfAL.includes('bicuspidia');
+            let s = '';
+            if (eaGrado === 'esclerosis') {
+                s = `La válvula aórtica presenta esclerosis (engrosamiento focal) sin obstrucción`;
+                if (iaGrado !== 'no') s += ` con insuficiencia aórtica ${iaGrado}`;
+                else s += `, sin insuficiencia significativa`;
+            } else if (eaGrado !== 'no') {
+                s = `Se constata estenosis aórtica ${eaGrado}`;
+                if (eaAva || eaGm) s += ` (AVA ${eaAva || '?'} cm²${eaGm ? ', gradiente medio ' + eaGm + ' mmHg' : ''})`;
+                if (iaGrado !== 'no') s += `, asociada a insuficiencia aórtica ${iaGrado}`;
+            } else if (iaGrado !== 'no') {
+                s = `Se registra insuficiencia aórtica ${iaGrado}`;
+                if (morfHasBicuspidia) s += ` en contexto de sospecha de válvula bicúspide`;
+            }
+            if (s) p3Sentences.push(s);
+        }
+
+        let p3 = p3Sentences.length > 0
+            ? p3Sentences.join('. ')
+            : 'El aparato valvular mitral y aórtico es morfológicamente normal, sin valvulopatías significativas';
+
+        // Aorta — append if dilated
         const aoRaiz = parseFloat(document.getElementById('ao_raiz')?.value) || 0;
         const aoAsc  = parseFloat(document.getElementById('ao_asc')?.value) || 0;
         if (sc) {
