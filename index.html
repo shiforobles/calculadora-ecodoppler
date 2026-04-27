@@ -148,6 +148,19 @@
             </div>
         </section>
 
+        <!-- Presets de carga rápida -->
+        <section class="card preset-section">
+            <h2 class="section-title">Carga Rápida — Presets</h2>
+            <div class="preset-buttons">
+                <button type="button" class="preset-btn" onclick="UIController.applyPreset('normal_joven')" title="Paciente sano menor de 30 años">Normal (joven)</button>
+                <button type="button" class="preset-btn" onclick="UIController.applyPreset('normal_adulto')" title="Paciente adulto sin patología estructural">Normal (adulto)</button>
+                <button type="button" class="preset-btn preset-btn-yellow" onclick="UIController.applyPreset('esclerosis_senil')" title="Esclerosis aórtica y mitral, HVI leve, FA">Esclerosis senil</button>
+                <button type="button" class="preset-btn preset-btn-yellow" onclick="UIController.applyPreset('hta_hvi')" title="HTA con hipertrofia concéntrica">HTA con HVI</button>
+                <button type="button" class="preset-btn preset-btn-red" onclick="UIController.applyPreset('mcd')" title="Miocardiopatía dilatada, FEy 30%">MCDi (FEy 30%)</button>
+                <button type="button" class="preset-btn preset-btn-red" onclick="UIController.applyPreset('iam_anterior')" title="Post-IAM anterior con trastorno segmentario">Post-IAM anterior</button>
+            </div>
+        </section>
+
         <!-- VI y Motilidad Parietal -->
         <section class="card">
             <h2 class="section-title">1. Ventrículo Izquierdo y Motilidad</h2>
@@ -523,26 +536,29 @@
                 <div class="form-group grid-span-2">
                     <label for="morf_mitral">Morfología</label>
                     <select id="morf_mitral">
-                        <option value="Valvas finas y móviles, apertura conservada">Valvas finas y móviles (Normal)
-                        </option>
-                        <option value="Leve engrosamiento fibroso de las valvas sin restricción de apertura">Leve
-                            engrosamiento fibroso</option>
-                        <option value="Calcificación del anillo mitral (MAC) sin afectación de las valvas">Calcificación
-                            Anillo (MAC sin afectar valvas)</option>
-                        <option value="Calcificación del anillo mitral que se extiende a la base de las valvas">MAC
-                            extendido a base valvas</option>
-                        <option value="Esclerocalcificación valvular severa con restricción de la movilidad">
-                            Esclerocalcificación Severa</option>
-                        <option
-                            value="Valvas anatómicamente conservadas con Tenting sistólico secundario a dilatación/remodelado del VI">
-                            Funcional (Tenting por VI dilatado)</option>
-                        <option value="Degeneración mixomatosa leve sin prolapso evidente">Degeneración mixomatosa leve
-                        </option>
-                        <option value="Prolapso de valva posterior (PVP)">Prolapso Valva Posterior (PVP)</option>
-                        <option value="Prolapso de valva anterior (PVA)">Prolapso Valva Anterior (PVA)</option>
-                        <option value="Prolapso bivalvar">Prolapso Bivalvar</option>
-                        <option value="Flail (eversión) de valva por probable rotura de cuerda tendinosa">Flail (rotura
-                            cuerda tendinosa)</option>
+                        <optgroup label="─ Normal / Degenerativo (más frecuente)">
+                            <option value="Valvas finas y móviles, apertura conservada">Valvas finas y móviles (Normal)</option>
+                            <option value="Leve engrosamiento fibroso de las valvas sin restricción de apertura">Leve engrosamiento fibroso</option>
+                            <option value="Esclerosis focal de la valva posterior sin restricción de apertura">Esclerosis focal valva posterior</option>
+                            <option value="Calcificación del anillo mitral (MAC) sin afectación de las valvas">Calcificación del anillo mitral (MAC)</option>
+                            <option value="Calcificación del anillo mitral (MAC) con extensión a la base de las valvas">MAC con extensión a base de valvas</option>
+                            <option value="Esclerocalcificación valvular severa con restricción de la movilidad">Esclerocalcificación severa con restricción</option>
+                        </optgroup>
+                        <optgroup label="─ Funcional / Isquémica">
+                            <option value="Valvas anatómicamente conservadas con Tenting sistólico secundario a dilatación/remodelado del VI">Funcional — Tenting por VI dilatado</option>
+                            <option value="Disfunción de músculo papilar de origen isquémico con restricción de la coaptación">Disfunción de músculo papilar (isquémica)</option>
+                        </optgroup>
+                        <optgroup label="─ Mixomatoso / Prolapso">
+                            <option value="Degeneración mixomatosa leve sin prolapso evidente">Degeneración mixomatosa leve</option>
+                            <option value="Prolapso de valva posterior (PVP)">Prolapso valva posterior (PVP)</option>
+                            <option value="Prolapso de valva anterior (PVA)">Prolapso valva anterior (PVA)</option>
+                            <option value="Prolapso bivalvar (enfermedad de Barlow)">Prolapso bivalvar (Barlow)</option>
+                            <option value="Flail (eversión) de valva por probable rotura de cuerda tendinosa">Flail — rotura de cuerda tendinosa</option>
+                        </optgroup>
+                        <optgroup label="─ Reumático / Estenótico">
+                            <option value="Fusión comisural y engrosamiento distal de valvas de aspecto reumático">Fusión comisural (aspecto reumático)</option>
+                            <option value="Estenosis mitral con apertura en domo y restricción de movilidad valvar">Estenosis mitral (apertura en domo)</option>
+                        </optgroup>
                     </select>
                 </div>
                 <div class="form-group">
@@ -784,24 +800,22 @@
                 <div class="form-group grid-span-2">
                     <label for="morf_aortica">Morfología Valvular</label>
                     <select id="morf_aortica">
-                        <option value="Válvula trivalva, sigmoideas finas y móviles">Trivalva Fina (Normal)</option>
-                        <option value="Esclerosis valvular aórtica (engrosamiento focal) sin restricción de apertura">
-                            Esclerosis sin restricción</option>
-                        <option value="Esclerocalcificación leve a moderada con apertura conservada">
-                            Esclerocalcificación leve-moderada</option>
-                        <option
-                            value="Esclerocalcificación valvular severa con restricción significativa de la apertura">
-                            Esclerocalcificación Severa (EAo)</option>
-                        <option value="Calcificación difusa masiva que compromete sigmoideas y anillo aórtico">
-                            Calcificación difusa masiva</option>
-                        <option value="Válvula aórtica bicúspide con apertura sistólica en domo y rafe medio">Bicúspide
-                            (apertura en domo)</option>
-                        <option value="Válvula aórtica bicúspide estenótica">Bicúspide Estenótica</option>
-                        <option
-                            value="Falta de coaptación central de sigmoideas secundaria a dilatación de la raíz aórtica">
-                            IAo por dilatación raíz</option>
-                        <option value="Prolapso de sigmoidea (flail/eversión) hacia el tracto de salida">Prolapso
-                            sigmoidea (flail)</option>
+                        <optgroup label="─ Normal / Degenerativo (más frecuente)">
+                            <option value="Válvula trivalva, sigmoideas finas y móviles">Trivalva, sigmoideas finas y móviles (Normal)</option>
+                            <option value="Esclerosis valvular aórtica (engrosamiento focal) sin restricción de apertura">Esclerosis valvular sin restricción de apertura</option>
+                            <option value="Esclerocalcificación leve a moderada con apertura conservada">Esclerocalcificación leve-moderada con apertura conservada</option>
+                            <option value="Esclerocalcificación valvular severa con restricción significativa de la apertura">Esclerocalcificación severa con restricción (EAo)</option>
+                            <option value="Calcificación difusa masiva que compromete sigmoideas y anillo aórtico">Calcificación difusa masiva (anillo + sigmoideas)</option>
+                        </optgroup>
+                        <optgroup label="─ Congénito / Variante morfológica">
+                            <option value="Válvula aórtica bicúspide con apertura sistólica en domo y rafe medio">Bicúspide confirmada (apertura en domo, rafe medio)</option>
+                            <option value="Morfología bivalva sugestiva de bicuspidia (apertura excéntrica, probable fusión de rafe). Correlacionar con eje corto en sístole">Sospecha de bicuspidia (morfología bivalva, a confirmar)</option>
+                            <option value="Válvula aórtica bicúspide con estenosis severa fibrocalcificada">Bicúspide estenótica</option>
+                        </optgroup>
+                        <optgroup label="─ Insuficiencia / Prolapso">
+                            <option value="Falta de coaptación central de sigmoideas secundaria a dilatación de la raíz aórtica">Falta de coaptación central por dilatación de raíz</option>
+                            <option value="Prolapso de sigmoidea (flail/eversión) hacia el tracto de salida del VI">Prolapso de sigmoidea (flail)</option>
+                        </optgroup>
                     </select>
                 </div>
                 <div class="form-group">

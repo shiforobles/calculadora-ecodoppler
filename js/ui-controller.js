@@ -1911,6 +1911,97 @@ class UIController {
     /**
      * Switch between 'lista' and 'narrativo' report modes
      */
+    /**
+     * Apply a clinical preset — fills typical values for common scenarios
+     */
+    applyPreset(name) {
+        const set = (id, val) => {
+            const el = document.getElementById(id);
+            if (!el) return;
+            el.value = val;
+            el.dispatchEvent(new Event(el.tagName === 'SELECT' ? 'change' : 'input', { bubbles: true }));
+        };
+        const check = (id, val) => {
+            const el = document.getElementById(id);
+            if (el) el.checked = val;
+        };
+
+        const presets = {
+            normal_joven: () => {
+                set('sexo', 'M'); set('edad', 22); set('peso', 70); set('altura', 175);
+                set('siv', 8); set('pp', 8); set('ddvi', 46); set('fevi', 65);
+                set('ritmo', 'sinusal'); set('conduccion', 'normal');
+                set('onda_e', 95); set('onda_a', 45); set('onda_e_prime_septal', 14); set('onda_e_prime_lateral', 17);
+                set('vol_ai', 22); set('morf_mitral', 'Valvas finas y móviles, apertura conservada');
+                set('morf_aortica', 'Válvula trivalva, sigmoideas finas y móviles');
+                set('im_grado', 'no'); set('ia_grado', 'no'); set('ea_grado', 'no');
+                set('tapse', 26); set('s_prima_vd', 15); set('vel_it', '');
+                set('it_grado', 'no_valorable');
+            },
+            normal_adulto: () => {
+                set('sexo', 'M'); set('edad', 55); set('peso', 80); set('altura', 172);
+                set('siv', 10); set('pp', 10); set('ddvi', 50); set('fevi', 60);
+                set('ritmo', 'sinusal'); set('conduccion', 'normal');
+                set('onda_e', 80); set('onda_a', 70); set('onda_e_prime_septal', 9); set('onda_e_prime_lateral', 11);
+                set('vol_ai', 28); set('morf_mitral', 'Valvas finas y móviles, apertura conservada');
+                set('morf_aortica', 'Válvula trivalva, sigmoideas finas y móviles');
+                set('im_grado', 'no'); set('ia_grado', 'no'); set('ea_grado', 'no');
+                set('tapse', 24); set('s_prima_vd', 13); set('vel_it', '');
+                set('it_grado', 'no_valorable');
+            },
+            esclerosis_senil: () => {
+                set('sexo', 'M'); set('edad', 76); set('peso', 75); set('altura', 168);
+                set('siv', 11); set('pp', 11); set('ddvi', 48); set('fevi', 58);
+                set('ritmo', 'fa'); set('conduccion', 'normal');
+                set('onda_e', 75); set('onda_e_prime_septal', 7); set('onda_e_prime_lateral', 8);
+                set('vol_ai', 38); set('morf_mitral', 'Leve engrosamiento fibroso de las valvas sin restricción de apertura');
+                set('morf_aortica', 'Esclerosis valvular aórtica (engrosamiento focal) sin restricción de apertura');
+                set('ea_grado', 'esclerosis'); set('im_grado', 'no'); set('ia_grado', 'no');
+                set('tapse', 22); set('s_prima_vd', 12); set('vel_it', 2.5); set('it_grado', 'leve');
+                check('ant_hta', true); check('ant_fa', true);
+            },
+            hta_hvi: () => {
+                set('sexo', 'M'); set('edad', 62); set('peso', 85); set('altura', 170);
+                set('siv', 13); set('pp', 13); set('ddvi', 47); set('fevi', 60);
+                set('ritmo', 'sinusal'); set('conduccion', 'normal');
+                set('onda_e', 70); set('onda_a', 100); set('onda_e_prime_septal', 7); set('onda_e_prime_lateral', 9);
+                set('vol_ai', 35); set('morf_mitral', 'Leve engrosamiento fibroso de las valvas sin restricción de apertura');
+                set('morf_aortica', 'Esclerosis valvular aórtica (engrosamiento focal) sin restricción de apertura');
+                set('ea_grado', 'esclerosis'); set('im_grado', 'no'); set('ia_grado', 'no');
+                set('tapse', 23); set('s_prima_vd', 13); set('vel_it', ''); set('it_grado', 'no_valorable');
+                check('ant_hta', true);
+            },
+            mcd: () => {
+                set('sexo', 'M'); set('edad', 55); set('peso', 75); set('altura', 170);
+                set('siv', 7); set('pp', 7); set('ddvi', 65); set('fevi', 30);
+                set('ritmo', 'sinusal'); set('conduccion', 'normal');
+                set('onda_e', 100); set('onda_a', 60); set('onda_e_prime_septal', 5); set('onda_e_prime_lateral', 6);
+                set('vol_ai', 45); set('morf_mitral', 'Valvas anatómicamente conservadas con Tenting sistólico secundario a dilatación/remodelado del VI');
+                set('morf_aortica', 'Válvula trivalva, sigmoideas finas y móviles');
+                set('im_grado', 'moderada'); set('ia_grado', 'no'); set('ea_grado', 'no');
+                set('tapse', 17); set('s_prima_vd', 9); set('vel_it', 2.9); set('it_grado', 'leve');
+                set('motilidad_global', 'hipoquinesia_global');
+            },
+            iam_anterior: () => {
+                set('sexo', 'M'); set('edad', 65); set('peso', 80); set('altura', 172);
+                set('siv', 9); set('pp', 10); set('ddvi', 55); set('fevi', 42);
+                set('ritmo', 'sinusal'); set('conduccion', 'normal');
+                set('onda_e', 90); set('onda_a', 65); set('onda_e_prime_septal', 7); set('onda_e_prime_lateral', 9);
+                set('vol_ai', 36); set('morf_mitral', 'Valvas finas y móviles, apertura conservada');
+                set('morf_aortica', 'Esclerosis valvular aórtica (engrosamiento focal) sin restricción de apertura');
+                set('ea_grado', 'esclerosis'); set('im_grado', 'leve'); set('ia_grado', 'no');
+                set('tapse', 20); set('s_prima_vd', 11); set('vel_it', 2.7); set('it_grado', 'leve');
+                set('motilidad_global', 'segmentaria'); check('ant_isquemia', true);
+            }
+        };
+
+        if (presets[name]) {
+            presets[name]();
+            this.calculateAll();
+            this.showToast(`Preset "${name.replace(/_/g, ' ')}" aplicado`);
+        }
+    }
+
     setReportMode(mode) {
         this.reportMode = mode;
         document.getElementById('mode_lista')?.classList.toggle('mode-btn-active', mode === 'lista');
