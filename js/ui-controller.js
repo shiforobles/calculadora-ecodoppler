@@ -1953,8 +1953,10 @@ class UIController {
         const paragraphs = [];
 
         // ── P1: Rhythm + LV ──
-        const ritmoText = document.getElementById('ritmo').options[document.getElementById('ritmo').selectedIndex].text;
-        let p1 = `En ritmo de ${ritmoText.toLowerCase()}`;
+        const ritmoVal = document.getElementById('ritmo').value;
+        const ritmoMap = { sinusal: 'ritmo sinusal', fa: 'Fibrilación Auricular (FA)', flutter: 'Flutter / Aleteo Auricular' };
+        const ritmoLower = ritmoMap[ritmoVal] || document.getElementById('ritmo').options[document.getElementById('ritmo').selectedIndex].text.toLowerCase();
+        let p1 = `En ${ritmoLower}`;
         if (condEl.value !== 'normal') {
             p1 += ` con ${condEl.options[condEl.selectedIndex].text.toLowerCase()}`;
         }
@@ -2348,14 +2350,20 @@ class UIController {
                 }
             }
 
-            // Replace CONCLUSIONES section
+            // Replace conclusion section — handle both base (CONCLUSIONES) and narrativo mode
             const reportEl = document.getElementById('resultado');
             const current  = reportEl.value;
-            const splitKey = '\nCONCLUSIONES\n';
-            const splitIdx = current.lastIndexOf(splitKey);
             const header   = usedFallback
                 ? '\nIMPRESIÓN DIAGNÓSTICA (modo offline — cuota Gemini agotada)\n'
                 : '\nIMPRESIÓN DIAGNÓSTICA:\n';
+
+            // Search for any existing conclusion header to replace
+            const candidates = ['\nCONCLUSIONES\n', '\nIMPRESIÓN DIAGNÓSTICA\n', '\nIMPRESIÓN DIAGNÓSTICA:\n'];
+            let splitIdx = -1;
+            for (const key of candidates) {
+                const idx = current.lastIndexOf(key);
+                if (idx !== -1) { splitIdx = idx; break; }
+            }
 
             if (splitIdx !== -1) {
                 let newReport = current.substring(0, splitIdx) + header + aiNarrative;
