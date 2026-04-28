@@ -2040,7 +2040,8 @@ class UIController {
                 set('morf_aortica', 'Válvula trivalva, sigmoideas finas y móviles');
                 set('ea_grado', 'no'); set('im_grado', 'moderada'); set('ia_grado', 'no');
                 set('tapse', 20); set('s_prima_vd', 11); set('vel_it', 2.9); set('it_grado', 'leve');
-                set('motilidad_global', 'alterada');
+                set('motilidad_global', 'alterada'); set('pattern-selector', 'dilated_cm');
+                set('im_vc', 5); set('im_ore', 0.30); set('im_vr', 45); set('im_area_jet', 'moderada');
             },
             mcd_severa: () => {
                 reset();
@@ -2054,7 +2055,8 @@ class UIController {
                 set('ea_grado', 'no'); set('im_grado', 'moderada'); set('ia_grado', 'no');
                 set('vd_basal', 48); set('vd_estado', 'dilatado');
                 set('tapse', 14); set('s_prima_vd', 7); set('vel_it', 3.6); set('it_grado', 'leve');
-                set('motilidad_global', 'alterada');
+                set('motilidad_global', 'alterada'); set('pattern-selector', 'dilated_cm');
+                set('im_vc', 5); set('im_ore', 0.30); set('im_vr', 45); set('im_area_jet', 'moderada');
             },
             iam_anterior: () => {
                 reset();
@@ -2065,9 +2067,9 @@ class UIController {
                 set('vol_ai', 36); set('ao_raiz', 32); set('ao_asc', 30);
                 set('morf_mitral', 'Valvas finas y móviles, apertura conservada');
                 set('morf_aortica', 'Esclerosis valvular aórtica (engrosamiento focal) sin restricción de apertura');
-                set('ea_grado', 'esclerosis'); set('im_grado', 'leve'); set('ia_grado', 'no');
+                set('ea_grado', 'esclerosis'); set('ea_vmax', 2.0); set('im_grado', 'leve'); set('ia_grado', 'no');
                 set('tapse', 20); set('s_prima_vd', 11); set('vel_it', 2.7); set('it_grado', 'leve');
-                set('motilidad_global', 'alterada'); check('ant_isquemia', true);
+                set('motilidad_global', 'alterada'); set('pattern-selector', 'ischemic_da'); check('ant_isquemia', true);
             },
             falla_vd: () => {
                 reset();
