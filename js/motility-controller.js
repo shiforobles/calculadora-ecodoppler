@@ -400,24 +400,27 @@ class MotilityController {
 
         const wmsi = this.calculateWMSI();
 
-        // SINGLE TERRITORY: Show only predominant severity
+        // SINGLE TERRITORY
         if (affectedTerritories.length === 1) {
             const territory = affectedTerritories[0];
-            return `Trastornos de la motilidad Segmentaria en Territorio ${territory}.`;
+            const counts = byTerritory[territory];
+            const sevParts = [];
+            if (counts.dis > 0) sevParts.push('Disquinesia');
+            if (counts.aki > 0) sevParts.push('Aquinesia');
+            if (counts.hipo > 0) sevParts.push('Hipoquinesia');
+            return `${sevParts.join(' y ')} en territorio ${territory}.`;
         }
 
-        // MULTIPLE TERRITORIES: Show each severity with its territory
+        // MULTIPLE TERRITORIES
         const parts = [];
         affectedTerritories.forEach(territory => {
             const counts = byTerritory[territory];
             const severities = [];
-
+            if (counts.dis > 0) severities.push("Disquinesia");
             if (counts.aki > 0) severities.push("Aquinesia");
             if (counts.hipo > 0) severities.push("Hipoquinesia");
-            if (counts.dis > 0) severities.push("Discinesia");
-
-            const severityText = severities.length === 1 ? severities[0] : severities.join(" e ");
-            parts.push(`${severityText} en territorio de ${territory}`);
+            const severityText = severities.join(" y ");
+            parts.push(`${severityText} en territorio ${territory}`);
         });
 
         return parts.join(", ") + ".";
