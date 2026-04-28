@@ -2359,7 +2359,12 @@ class UIController {
                     if (emAva) s += ` (área ${emAva} cm²)`;
                 } else if (imGrado !== 'no') {
                     if (rankIM >= 3) {
-                        s = `Se constata insuficiencia mitral ${imGrado}`;
+                        const imVc  = document.getElementById('im_vc')?.value;
+                        const imOre = document.getElementById('im_ore')?.value;
+                        const imVr  = document.getElementById('im_vr')?.value;
+                        const imParams = [imVc && `VC ${imVc} mm`, imOre && `EROA ${imOre} cm²`, imVr && `VR ${imVr} ml`].filter(Boolean);
+                        const imParamsStr = imParams.length ? ` (${imParams.join(', ')})` : '';
+                        s = `Se constata insuficiencia mitral ${imGrado}${imParamsStr}`;
                         if (morfHasTenting) s += ` de mecanismo funcional, secundaria a dilatación/remodelado del VI`;
                     } else {
                         if (morfHasEngros)       s = `Se evidencia engrosamiento de las valvas mitrales con insuficiencia valvular ${imGrado}`;
@@ -2390,6 +2395,12 @@ class UIController {
                     if (morfHasBicuspidia) s += ` en contexto de sospecha de válvula bicúspide`;
                 }
                 if (s) p3Sentences.push(s);
+            } else {
+                // Aortic valve normal — always describe explicitly
+                const s = morfAortica
+                    ? `${morfAortica}, sin estenosis o insuficiencia significativas`
+                    : `La válvula aórtica es morfológicamente normal, sin valvulopatías significativas`;
+                p3Sentences.push(s);
             }
         }
 
@@ -2417,10 +2428,11 @@ class UIController {
         const adDilated   = adArea > 18 || adEstado === 'dilatada';
         const vdDilated   = vdBasal > 41 || vdEstado === 'dilatado';
 
+        const sPrimaVdNum = parseFloat(document.getElementById('s_prima_vd')?.value) || 0;
         const rightFindings = [];
         if (adDilated)   rightFindings.push(`dilatación auricular derecha`);
         if (vdDilated)   rightFindings.push(`ventrículo derecho dilatado`);
-        if (vdDepressed) rightFindings.push(`disfunción sistólica del VD (TAPSE ${tapse} mm)`);
+        if (vdDepressed) rightFindings.push(`disfunción sistólica del VD (TAPSE ${tapse} mm${sPrimaVdNum ? `, S' ${sPrimaVdNum} cm/s` : ''})`);
 
         let p4 = '';
         if (rightFindings.length > 0) {
