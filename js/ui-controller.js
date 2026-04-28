@@ -2237,9 +2237,10 @@ class UIController {
         const ritmoVal = document.getElementById('ritmo').value;
         const ritmoMap = { sinusal: 'ritmo sinusal', fa: 'Fibrilación Auricular (FA)', flutter: 'Flutter / Aleteo Auricular' };
         const ritmoLower = ritmoMap[ritmoVal] || document.getElementById('ritmo').options[document.getElementById('ritmo').selectedIndex].text.toLowerCase();
+        const condAbbrMap = { 'bcri': 'BCRI', 'bcrd': 'BCRD', 'marcapasos': 'marcapasos' };
         let p1 = `En ${ritmoLower}`;
         if (condEl.value !== 'normal') {
-            p1 += ` con ${condEl.options[condEl.selectedIndex].text.toLowerCase()}`;
+            p1 += ` con ${condAbbrMap[condEl.value] || condEl.options[condEl.selectedIndex].text.toLowerCase()}`;
         }
         const hasDifferentGeometry = this.state.geometry && this.state.geometry !== 'Geometría Normal';
         const isDilated = this.calc.isLVDilated(ddvi, sexo);
@@ -2260,6 +2261,8 @@ class UIController {
                 if (motConclusion && motConclusion.trim()) {
                     p1 += `, con ${motConclusion.toLowerCase().replace(/\.$/, '')}`;
                 }
+            } else if (condEl.value === 'bcri') {
+                p1 += `, con movimiento septal paradójico en relación a BCRI`;
             } else {
                 p1 += `, con motilidad segmentaria indemne`;
             }
@@ -2286,12 +2289,20 @@ class UIController {
             if (ctxNotes.length) p2 += ` (considerando que ${ctxNotes.join(' y ')})`;
             p2 += `, `;
 
-            if      (dr.grade === 'Normal')        p2 += `la función diastólica es normal, con presiones de llenado del VI dentro de límites fisiológicos`;
-            else if (dr.grade === 'I')             p2 += `se identifica disfunción diastólica grado I (relajación prolongada) con presiones de llenado normales`;
-            else if (dr.grade === 'II')            p2 += `se identifica disfunción diastólica grado II (patrón pseudonormal), constatándose presiones de llenado del VI elevadas`;
-            else if (dr.grade === 'III')           p2 += `se identifica disfunción diastólica grado III (patrón restrictivo), con presiones de llenado marcadamente elevadas`;
-            else if (dr.grade === 'Indeterminado') p2 += `la evaluación diastólica resulta indeterminada por criterios contrapuestos`;
-            else                                   p2 += dr.description.toLowerCase().replace(/^fa.*?[:\.]\s*/i, '').trim();
+            if (isFA) {
+                if      (dr.grade === 'Normal' || dr.grade === 'I') p2 += `las presiones de llenado del VI se encuentran dentro de límites fisiológicos`;
+                else if (dr.grade === 'II')            p2 += `se constatan presiones de llenado del VI elevadas`;
+                else if (dr.grade === 'III')           p2 += `se constatan presiones de llenado del VI marcadamente elevadas`;
+                else if (dr.grade === 'Indeterminado') p2 += `la evaluación de presiones de llenado resulta indeterminada`;
+                else                                   p2 += dr.description.toLowerCase().replace(/^fa.*?[:\.]\s*/i, '').trim();
+            } else {
+                if      (dr.grade === 'Normal')        p2 += `la función diastólica es normal, con presiones de llenado del VI dentro de límites fisiológicos`;
+                else if (dr.grade === 'I')             p2 += `se identifica disfunción diastólica grado I (relajación prolongada) con presiones de llenado normales`;
+                else if (dr.grade === 'II')            p2 += `se identifica disfunción diastólica grado II (patrón pseudonormal), constatándose presiones de llenado del VI elevadas`;
+                else if (dr.grade === 'III')           p2 += `se identifica disfunción diastólica grado III (patrón restrictivo), con presiones de llenado marcadamente elevadas`;
+                else if (dr.grade === 'Indeterminado') p2 += `la evaluación diastólica resulta indeterminada por criterios contrapuestos`;
+                else                                   p2 += dr.description.toLowerCase().replace(/^fa.*?[:\.]\s*/i, '').trim();
+            }
 
             if      (volAi > 48)  p2 += `, asociado a dilatación severa de la aurícula izquierda (LAVI ${volAi} ml/m²)`;
             else if (volAi >= 42) p2 += `, asociado a dilatación moderada de la aurícula izquierda (LAVI ${volAi} ml/m²)`;
@@ -2356,7 +2367,10 @@ class UIController {
                 if (emGrado !== 'no') {
                     s = `Se constata estenosis mitral ${emGrado}`;
                     const emAva = document.getElementById('em_area_pht')?.value;
-                    if (emAva) s += ` (área ${emAva} cm²)`;
+                    const emGm  = document.getElementById('em_grad_medio')?.value;
+                    const emParams = [emAva && `área ${emAva} cm²`, emGm && `gradiente medio ${emGm} mmHg`].filter(Boolean);
+                    if (emParams.length) s += ` (${emParams.join(', ')})`;
+                    if (morfHasMAC) s += `, en contexto de calcificación del anillo mitral (MAC)`;
                 } else if (imGrado !== 'no') {
                     if (rankIM >= 3) {
                         const imVc  = document.getElementById('im_vc')?.value;
@@ -2404,6 +2418,19 @@ class UIController {
             }
         }
 
+        // ASIA / FOP
+        const asiaChecked = document.getElementById('asia_check')?.checked;
+        if (asiaChecked) {
+            const asiaExc = parseFloat(document.getElementById('asia_excursion')?.value) || 0;
+            const asiaShuntVal = document.getElementById('asia_shunt')?.value || 'no';
+            if (asiaExc > 0) {
+                const asiaType = asiaExc >= 10 ? 'aneurisma del septum interauricular (ASIA)' : 'septum interauricular hipermóvil';
+                let asiaS = `Se evidencia ${asiaType}, con excursión máxima de ${asiaExc} mm`;
+                asiaS += asiaShuntVal !== 'no' ? ', con paso de flujo a través del mismo (FOP)' : ', sin shunt evidente por Doppler Color';
+                p3Sentences.push(asiaS);
+            }
+        }
+
         let p3 = p3Sentences.length > 0
             ? p3Sentences.join('. ')
             : 'El aparato valvular mitral y aórtico es morfológicamente normal, sin valvulopatías significativas';
@@ -2424,11 +2451,10 @@ class UIController {
         // ── P4: Right chambers + HTP (always) ──
         const itNoVal    = document.getElementById('it_grado')?.value === 'no_valorable';
         const htpResult  = (!itNoVal && this.state.psap > 0) ? this.calculateHTPProbability() : null;
-        const vdDepressed = tapse > 0 && tapse < 17;
+        const sPrimaVdNum = parseFloat(document.getElementById('s_prima_vd')?.value) || 0;
+        const vdDepressed = (tapse > 0 && tapse <= 17) || (sPrimaVdNum > 0 && sPrimaVdNum < 10);
         const adDilated   = adArea > 18 || adEstado === 'dilatada';
         const vdDilated   = vdBasal > 41 || vdEstado === 'dilatado';
-
-        const sPrimaVdNum = parseFloat(document.getElementById('s_prima_vd')?.value) || 0;
         const rightFindings = [];
         if (adDilated)   rightFindings.push(`dilatación auricular derecha`);
         if (vdDilated)   rightFindings.push(`ventrículo derecho dilatado`);
