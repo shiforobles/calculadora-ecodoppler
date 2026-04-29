@@ -2248,6 +2248,10 @@ class UIController {
         if (hasDifferentGeometry) {
             p1 += `, el ventrículo izquierdo presenta ${this.state.geometry.toLowerCase()}`;
             if (isDilated) p1 += ` con dilatación cavitaria`;
+            const geomParams = [];
+            if (this.state.lvMassIndex > 0) geomParams.push(`masa indexada ${Math.round(this.state.lvMassIndex)} g/m²`);
+            if (this.state.rwt > 0) geomParams.push(`RWT ${this.state.rwt.toFixed(2)}`);
+            if (geomParams.length) p1 += ` (${geomParams.join(', ')})`;
         } else if (isDilated) {
             p1 += `, el ventrículo izquierdo se encuentra dilatado con geometría conservada`;
         } else {
@@ -2259,7 +2263,9 @@ class UIController {
             if (motGlobal !== 'conservada') {
                 const motConclusion = this.motility.generateConclusion();
                 if (motConclusion && motConclusion.trim()) {
-                    p1 += `, con ${motConclusion.toLowerCase().replace(/\.$/, '')}`;
+                    const motConcl = motConclusion.trim().replace(/\.$/, '');
+                    const motConcLower = motConcl.charAt(0).toLowerCase() + motConcl.slice(1);
+                    p1 += `, con ${motConcLower}`;
                 }
             } else if (condEl.value === 'bcri') {
                 p1 += `, con movimiento septal paradójico en relación a BCRI`;
@@ -2356,12 +2362,16 @@ class UIController {
             } else if (imGrado !== 'no' && rankIM >= 3) {
                 s += `. Se constata insuficiencia mitral ${imGrado}`;
             } else {
-                s += `, sin flujos patológicos significativos`;
+                if (iaGrado !== 'no') {
+                    s += `. La válvula aórtica no presenta estenosis significativa; se registra insuficiencia aórtica ${iaGrado}`;
+                } else {
+                    s += `, sin flujos patológicos significativos`;
+                }
             }
             p3Sentences.push(s);
         } else {
             // ── Mitral ──
-            const hasMitralFinding = imGrado !== 'no' || emGrado !== 'no' || morfHasMAC;
+            const hasMitralFinding = imGrado !== 'no' || emGrado !== 'no' || morfHasMAC || morfHasEngros || morfHasTenting;
             if (hasMitralFinding) {
                 let s = '';
                 if (emGrado !== 'no') {
@@ -2388,6 +2398,9 @@ class UIController {
                     if (morfHasMAC) s += `, con calcificación del anillo mitral (MAC)`;
                 } else if (morfHasMAC) {
                     s = 'Se evidencia calcificación del anillo mitral (MAC)';
+                } else if (morfHasEngros || morfHasTenting) {
+                    const morfDesc = morfMitral || 'engrosamiento de las valvas mitrales';
+                    s = `La válvula mitral presenta ${morfDesc.charAt(0).toLowerCase() + morfDesc.slice(1)}, sin insuficiencia ni estenosis significativas`;
                 }
                 if (s) p3Sentences.push(s);
             }
@@ -2411,9 +2424,13 @@ class UIController {
                 if (s) p3Sentences.push(s);
             } else {
                 // Aortic valve normal — always describe explicitly
-                const s = morfAortica
-                    ? `${morfAortica}, sin estenosis o insuficiencia significativas`
-                    : `La válvula aórtica es morfológicamente normal, sin valvulopatías significativas`;
+                let s;
+                if (morfAortica) {
+                    const morfDesc = morfAortica.replace(/^válvula\s+/i, '');
+                    s = `La válvula aórtica es ${morfDesc.charAt(0).toLowerCase() + morfDesc.slice(1)}, sin estenosis o insuficiencia significativas`;
+                } else {
+                    s = `La válvula aórtica es morfológicamente normal, sin valvulopatías significativas`;
+                }
                 p3Sentences.push(s);
             }
         }
@@ -2494,7 +2511,7 @@ class UIController {
             paragraphs.push('Pericardio libre.');
         }
 
-        return `\nIMPRESIÓN DIAGNÓSTICA\n${paragraphs.join('\n\n')}`;
+        return `IMPRESIÓN DIAGNÓSTICA:\n${paragraphs.join('\n\n')}`;
     }
 
     /**
@@ -2698,7 +2715,7 @@ class UIController {
                 if (isQuota) {
                     usedFallback = true;
                     aiNarrative = this._buildNarrativeConclusion()
-                        .replace('\nIMPRESIÓN DIAGNÓSTICA\n', '');
+                        .replace('IMPRESIÓN DIAGNÓSTICA:\n', '');
                 } else {
                     throw aiErr;
                 }
