@@ -2154,6 +2154,19 @@ class UIController {
         }
         if (viParts.length) h += `${pad('VI:')}${viParts.join(' | ')}\n`;
 
+        // ── Motility detail (when altered) ──
+        if (this.motility) {
+            const motGlobal = v('motilidad_global');
+            if (motGlobal && motGlobal !== 'conservada') {
+                const motReport = this.motility.generateMotilityReport();
+                if (motReport && motReport.trim()) {
+                    motReport.trim().split('\n').forEach(line => {
+                        if (line.trim()) h += `         ${line.trim()}\n`;
+                    });
+                }
+            }
+        }
+
         // ── Doppler line ──
         const ritmoVal = v('ritmo');
         const isFA = ritmoVal === 'fa' || ritmoVal === 'flutter';
@@ -2163,14 +2176,65 @@ class UIController {
         if (e) dParts.push(`E ${e}cm/s`);
         if (a && !isFA) dParts.push(`A ${a}cm/s`);
         if (e && a && !isFA) dParts.push(`E/A ${(e / a).toFixed(2)}`);
+        const tdN = n('td');
+        if (tdN) dParts.push(`TD ${tdN}ms`);
         if (ePrime) dParts.push(`e' ${ePrime}cm/s`);
         if (eeRatio) dParts.push(`E/e' ${eeRatio}`);
         if (lavi)   dParts.push(`LAVI ${lavi}ml/m²`);
+        const trivN = n('triv');
+        if (trivN) dParts.push(`TRIV ${trivN}ms`);
         const larsN = n('diast_lars');
         if (larsN)  dParts.push(`LARS ${larsN}%`);
         const pvsdN = n('diast_pvsd');
         if (pvsdN)  dParts.push(`VP S/D ${pvsdN}`);
         if (dParts.length) h += `${pad('Doppler:')}${dParts.join(' | ')}\n`;
+
+        // ── Cardiac output line ──
+        if (this.state.cardiacOutput) {
+            const gc = this.state.cardiacOutput;
+            const gcParts = [`VS ${gc.sv}ml`];
+            if (gc.co) gcParts.push(`GC ${gc.co}L/min`);
+            if (gc.ci) gcParts.push(`IC ${gc.ci}L/min/m²`);
+            h += `${pad('GC:')}${gcParts.join(' | ')}\n`;
+        }
+
+        // ── Valvular numeric parameters ──
+        const valvParts = [];
+        const imGradoV  = v('im_grado');
+        const emGradoV  = v('em_grado');
+        const eaGradoV  = v('ea_grado');
+        const iaGradoV  = v('ia_grado');
+        if (imGradoV && imGradoV !== 'no') {
+            const imParts = [`IM ${imGradoV}`];
+            const imVc = v('im_vc'), imOre = v('im_ore'), imVr = v('im_vr');
+            if (imVc)  imParts.push(`VC ${imVc}mm`);
+            if (imOre) imParts.push(`EROA ${imOre}cm²`);
+            if (imVr)  imParts.push(`VR ${imVr}ml`);
+            valvParts.push(imParts.join(' | '));
+        }
+        if (emGradoV && emGradoV !== 'no') {
+            const emParts = [`EM ${emGradoV}`];
+            const emGm = v('em_grad_medio'), emArea = v('em_area_pht');
+            if (emGm)   emParts.push(`Gm ${emGm}mmHg`);
+            if (emArea) emParts.push(`Area ${emArea}cm²`);
+            valvParts.push(emParts.join(' | '));
+        }
+        if (eaGradoV && eaGradoV !== 'no') {
+            const eaParts = [`EA ${eaGradoV}`];
+            const eaVmax = v('ea_vmax'), eaGm = v('ea_grad_medio'), eaAva = v('ea_ava');
+            if (eaVmax) eaParts.push(`Vmax ${eaVmax}m/s`);
+            if (eaGm)   eaParts.push(`Gm ${eaGm}mmHg`);
+            if (eaAva)  eaParts.push(`AVA ${eaAva}cm²`);
+            valvParts.push(eaParts.join(' | '));
+        }
+        if (iaGradoV && iaGradoV !== 'no') {
+            const iaParts = [`IA ${iaGradoV}`];
+            const iaVc = v('iao_vc'), iaPht = v('iao_pht');
+            if (iaVc)  iaParts.push(`VC ${iaVc}mm`);
+            if (iaPht) iaParts.push(`PHT ${iaPht}ms`);
+            valvParts.push(iaParts.join(' | '));
+        }
+        if (valvParts.length) h += `${pad('Válvulas:')}${valvParts.join('  //  ')}\n`;
 
         // ── Aorta line ──
         const aoRaiz = n('ao_raiz'), aoAsc = n('ao_asc');
@@ -2185,6 +2249,8 @@ class UIController {
             aoParts.push(`Asc ${aoAsc}mm${idx}`);
         }
         if (aoParts.length) h += `${pad('Ao:')}${aoParts.join(' | ')}\n`;
+
+        h += '\n';
 
         // ── Right chambers + HTP line ──
         const tapse = n('tapse'), sPrima = n('s_prima_vd'), vdBasal = n('vd_basal');
@@ -2302,6 +2368,22 @@ class UIController {
             if (mac)  ctxNotes.push(`la presencia de MAC limita la validez del E/e'`);
             if (bcri) ctxNotes.push(`el BCRI excluye el e' septal`);
 
+            // Build brief criteria string from current values for grade explanation
+            const _eSep = parseFloat(document.getElementById('onda_e_prime_septal')?.value) || 0;
+            const _eLat = parseFloat(document.getElementById('onda_e_prime_lateral')?.value) || 0;
+            const _eeR  = parseFloat(document.getElementById('ee_ratio_display')?.value) || 0;
+            const _trV  = parseFloat(document.getElementById('it_vmax')?.value) || 0;
+            const _lars = parseFloat(document.getElementById('diast_lars')?.value) || 0;
+            const _buildDiastCriteria = () => {
+                const parts = [];
+                if (_eSep) parts.push(`e' septal ${_eSep} cm/s`);
+                else if (_eLat) parts.push(`e' lateral ${_eLat} cm/s`);
+                if (_eeR)  parts.push(`E/e' ${_eeR}`);
+                if (_trV)  parts.push(`TR ${_trV} m/s`);
+                if (_lars) parts.push(`LARS ${_lars}%`);
+                return parts.length ? ` (${parts.join(', ')})` : '';
+            };
+
             let p2 = `Desde el punto de vista hemodinámico`;
             if (ctxNotes.length) p2 += ` (considerando que ${ctxNotes.join(' y ')})`;
             p2 += `, `;
@@ -2313,10 +2395,11 @@ class UIController {
                 else if (dr.grade === 'Indeterminado') p2 += `la evaluación de presiones de llenado resulta indeterminada`;
                 else                                   p2 += dr.description.toLowerCase().replace(/^fa.*?[:\.]\s*/i, '').trim();
             } else {
-                if      (dr.grade === 'Normal')        p2 += `la función diastólica es normal, con presiones de llenado del VI dentro de límites fisiológicos`;
-                else if (dr.grade === 'I')             p2 += `se identifica disfunción diastólica grado I (relajación prolongada) con presiones de llenado normales`;
-                else if (dr.grade === 'II')            p2 += `se identifica disfunción diastólica grado II, con presiones de llenado del VI elevadas (leve a moderadamente)`;
-                else if (dr.grade === 'III')           p2 += `se identifica disfunción diastólica grado III, con presiones de llenado del VI marcadamente elevadas`;
+                const crit = _buildDiastCriteria();
+                if      (dr.grade === 'Normal')        p2 += `la función diastólica es normal${crit}, con presiones de llenado del VI dentro de límites fisiológicos`;
+                else if (dr.grade === 'I')             p2 += `se identifica disfunción diastólica grado I (relajación prolongada, e' reducida con E/e' y PSAP normales)${crit}, con presiones de llenado normales`;
+                else if (dr.grade === 'II')            p2 += `se identifica disfunción diastólica grado II (e' reducida, E/e' y/o PSAP elevadas)${crit}, con presiones de llenado del VI elevadas (leve a moderadamente)`;
+                else if (dr.grade === 'III')           p2 += `se identifica disfunción diastólica grado III (tres criterios positivos con E/A ≥2)${crit}, con presiones de llenado del VI marcadamente elevadas`;
                 else if (dr.grade === 'Indeterminado') p2 += `la evaluación diastólica resulta indeterminada por criterios contrapuestos`;
                 else                                   p2 += dr.description.toLowerCase().replace(/^fa.*?[:\.]\s*/i, '').trim();
             }
