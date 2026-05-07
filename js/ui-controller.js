@@ -2198,44 +2198,6 @@ class UIController {
             h += `${pad('GC:')}${gcParts.join(' | ')}\n`;
         }
 
-        // ── Valvular numeric parameters ──
-        const valvParts = [];
-        const imGradoV  = v('im_grado');
-        const emGradoV  = v('em_grado');
-        const eaGradoV  = v('ea_grado');
-        const iaGradoV  = v('ia_grado');
-        if (imGradoV && imGradoV !== 'no') {
-            const imParts = [`IM ${imGradoV}`];
-            const imVc = v('im_vc'), imOre = v('im_ore'), imVr = v('im_vr');
-            if (imVc)  imParts.push(`VC ${imVc}mm`);
-            if (imOre) imParts.push(`EROA ${imOre}cm²`);
-            if (imVr)  imParts.push(`VR ${imVr}ml`);
-            valvParts.push(imParts.join(' | '));
-        }
-        if (emGradoV && emGradoV !== 'no') {
-            const emParts = [`EM ${emGradoV}`];
-            const emGm = v('em_grad_medio'), emArea = v('em_area_pht');
-            if (emGm)   emParts.push(`Gm ${emGm}mmHg`);
-            if (emArea) emParts.push(`Area ${emArea}cm²`);
-            valvParts.push(emParts.join(' | '));
-        }
-        if (eaGradoV && eaGradoV !== 'no') {
-            const eaParts = [`EA ${eaGradoV}`];
-            const eaVmax = v('ea_vmax'), eaGm = v('ea_grad_medio'), eaAva = v('ea_ava');
-            if (eaVmax) eaParts.push(`Vmax ${eaVmax}m/s`);
-            if (eaGm)   eaParts.push(`Gm ${eaGm}mmHg`);
-            if (eaAva)  eaParts.push(`AVA ${eaAva}cm²`);
-            valvParts.push(eaParts.join(' | '));
-        }
-        if (iaGradoV && iaGradoV !== 'no') {
-            const iaParts = [`IA ${iaGradoV}`];
-            const iaVc = v('iao_vc'), iaPht = v('iao_pht');
-            if (iaVc)  iaParts.push(`VC ${iaVc}mm`);
-            if (iaPht) iaParts.push(`PHT ${iaPht}ms`);
-            valvParts.push(iaParts.join(' | '));
-        }
-        if (valvParts.length) h += `${pad('Válvulas:')}${valvParts.join('  //  ')}\n`;
-
         // ── Aorta line ──
         const aoRaiz = n('ao_raiz'), aoAsc = n('ao_asc');
         const bsa = this.state.bsa || null;
