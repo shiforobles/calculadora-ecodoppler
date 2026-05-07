@@ -2315,8 +2315,8 @@ class UIController {
             } else {
                 if      (dr.grade === 'Normal')        p2 += `la función diastólica es normal, con presiones de llenado del VI dentro de límites fisiológicos`;
                 else if (dr.grade === 'I')             p2 += `se identifica disfunción diastólica grado I (relajación prolongada) con presiones de llenado normales`;
-                else if (dr.grade === 'II')            p2 += `se identifica disfunción diastólica grado II (patrón pseudonormal), constatándose presiones de llenado del VI elevadas`;
-                else if (dr.grade === 'III')           p2 += `se identifica disfunción diastólica grado III (patrón restrictivo), con presiones de llenado marcadamente elevadas`;
+                else if (dr.grade === 'II')            p2 += `se identifica disfunción diastólica grado II, con presiones de llenado del VI elevadas (leve a moderadamente)`;
+                else if (dr.grade === 'III')           p2 += `se identifica disfunción diastólica grado III, con presiones de llenado del VI marcadamente elevadas`;
                 else if (dr.grade === 'Indeterminado') p2 += `la evaluación diastólica resulta indeterminada por criterios contrapuestos`;
                 else                                   p2 += dr.description.toLowerCase().replace(/^fa.*?[:\.]\s*/i, '').trim();
             }
