@@ -1,6 +1,6 @@
 /**
  * Hemodynamics Calculator Module
- * Medical formulas based on ASE/EACVI Guidelines 2016
+ * Medical formulas based on ASE Guidelines 2025 (Nagueh et al, JASE 2025;38:537-69)
  * 
  * All calculations validated against clinical standards
  */
@@ -101,7 +101,7 @@ class HemodynamicsCalculator {
     }
 
     /**
-     * Classify Diastolic Function according to ASE 2016 Algorithm
+     * Classify Diastolic Function according to ASE 2025 Algorithm
      * 
      * @param {Object} params - Diastolic parameters
      * @param {number} params.E - Mitral E wave velocity (cm/s)
@@ -110,34 +110,44 @@ class HemodynamicsCalculator {
      * @param {number} params.LAVolIndex - LA volume index (ml/m²)
      * @param {number} params.TRVel - TR velocity (m/s)
      * @param {number} params.LVEF - LV ejection fraction (%)
+     * @param {number} params.LARS - LA Reservoir Strain (%)
+     * @param {number} params.PVSD - Pulmonary Vein S/D ratio
      * @param {string} params.wallMotion - 'normal', 'hipo_global', 'segmentaria'
      * @returns {Object} { grade, description, severity }
      */
     classifyDiastolicFunction(params) {
-        const { E, A, ePrime, eSeptal, eLateral, LAVolIndex = 28, TRVel = 0, LVEF = 60, wallMotion = 'conservada', ritmo = 'sinusal', context = {}, TRIV, TD } = params;
+        const { E, A, ePrime, eSeptal, eLateral, LAVolIndex, TRVel = 0, LVEF = 60, ritmo = 'sinusal', context = {}, TRIV, TD, LARS, PVSD, age = 0 } = params;
         const { bcri = false, mac = false, imSevera = false, mcp = false, valsalva = false } = context;
 
         // TRIV thresholds: ≤70 ms → positive (elevated pressures); ≥100 ms → negative (Grade I direction)
         const trivPositive = !isNaN(TRIV) && TRIV > 0 && TRIV <= 70;
         const trivNegative = !isNaN(TRIV) && TRIV >= 100;
-        const trivAvailable = !isNaN(TRIV) && TRIV > 0;
 
         // TD (Deceleration Time) thresholds: <160 ms → restrictive/elevated; >240 ms → impaired relaxation
-        const tdShort    = !isNaN(TD) && TD > 0 && TD < 160;
-        const tdProlonged = !isNaN(TD) && TD > 0 && TD > 240;
-        const tdAvailable = !isNaN(TD) && TD > 0;
+        const tdShort = !isNaN(TD) && TD > 0 && TD < 160;
 
-        // e' criterion per ASE 2016: septal < 7 OR lateral < 10
-        // BCRI: septal e' unreliable → use lateral only
-        // MAC: both e' unreliable → skip e' criterion entirely
+        // --- 2025 GUIDELINES Table 6: age-specific e' cutoffs ---
+        // 20-39y: septal <7 / lateral <10 / average <9
+        // 40-65y: septal <6 / lateral <8  / average <7
+        // >65y:   septal <6 / lateral <7  / average <6.5
+        let eCutSeptal, eCutLateral, eCutAverage;
+        if (age > 0 && age < 40) {
+            eCutSeptal = 7; eCutLateral = 10; eCutAverage = 9;
+        } else if (age >= 40 && age <= 65) {
+            eCutSeptal = 6; eCutLateral = 8;  eCutAverage = 7;
+        } else {
+            eCutSeptal = 6; eCutLateral = 7;  eCutAverage = 6.5;
+        }
+
+        // 1. Reduced e' velocity (age-adjusted)
         let ePrimeAbnormal = false;
         if (!mac) {
             if (bcri) {
-                ePrimeAbnormal = !isNaN(eLateral) && eLateral < 10;
+                ePrimeAbnormal = !isNaN(eLateral) && eLateral < eCutLateral;
             } else {
-                ePrimeAbnormal = (!isNaN(eSeptal) && eSeptal < 7) ||
-                                 (!isNaN(eLateral) && eLateral < 10) ||
-                                 (isNaN(eSeptal) && isNaN(eLateral) && !isNaN(ePrime) && ePrime < 9);
+                ePrimeAbnormal = (!isNaN(eSeptal)  && eSeptal  < eCutSeptal)  ||
+                                 (!isNaN(eLateral) && eLateral < eCutLateral) ||
+                                 (isNaN(eSeptal) && isNaN(eLateral) && !isNaN(ePrime) && ePrime < eCutAverage);
             }
         }
 
@@ -145,15 +155,32 @@ class HemodynamicsCalculator {
         let ePrimeForRatio = ePrime;
         if (bcri && !isNaN(eLateral)) ePrimeForRatio = eLateral;
 
-        // Warnings to append to description
+        const EeRatio = ePrimeForRatio > 0 ? E / ePrimeForRatio : null;
+
+        // 2. Increased E/e': septal >= 15 or lateral >= 13 or average >= 14
+        let eeRatioAbnormal = false;
+        if (!mac && !imSevera && EeRatio !== null && !isNaN(EeRatio)) {
+            if (bcri) {
+                eeRatioAbnormal = (!isNaN(eLateral) && E / eLateral >= 13);
+            } else {
+                eeRatioAbnormal = (!isNaN(eSeptal) && E / eSeptal >= 15) ||
+                                  (!isNaN(eLateral) && E / eLateral >= 13) ||
+                                  (EeRatio >= 14);
+            }
+        }
+
+        // 3. Increased TR velocity >= 2.8 m/s or PASP >= 35 mm Hg
+        let trAbnormal = (TRVel !== null && TRVel >= 2.8);
+
+        // Warnings — only clinically relevant modifiers (not "Guía 2025")
         const warnings = [];
         if (bcri)     warnings.push('BCRI: e\' septal excluido');
         if (mac)      warnings.push('MAC: E/e\' no válido');
         if (imSevera) warnings.push('IM Severa: E/e\' sobreestima presiones');
-        if (mcp)      warnings.push('MCP: umbrales E/e\' modificados');
+        if (mcp)      warnings.push('MCP: umbrales modificados');
+        if (valsalva) warnings.push('Valsalva (+)');
 
         // Check if we have minimum required data
-        // For FA, we don't need 'A' wave
         const isFA = (ritmo === 'fa' || ritmo === 'flutter');
 
         if (!E || (!isFA && !A) || !ePrime) {
@@ -164,21 +191,16 @@ class HemodynamicsCalculator {
             };
         }
 
-        const EeRatio = E / ePrimeForRatio;
-        // Only calculate E/A if not FA/Flutter and A is present
         const EARatio = (!isFA && A) ? E / A : null;
 
         // --- ATRIAL FIBRILLATION ALGORITHM ---
-        // Per Gantesti / ASE-EACVI: use alternative parameters (no E/A)
-        // 3 criteria: E/e' > 14, TR > 2.8 m/s, LAVI > 34 ml/m²
-        // ≥ 2/3 positive → elevated pressures; 0/3 → normal; 1/3 → indeterminate
         if (isFA) {
             let faCriteria = 0;
             let faData = 0;
 
             if (!mac && !imSevera && !isNaN(EeRatio)) {
                 faData++;
-                if (EeRatio > 14) faCriteria++;
+                if (EeRatio >= 14) faCriteria++;
             }
             if (TRVel > 0) {
                 faData++;
@@ -192,204 +214,91 @@ class HemodynamicsCalculator {
             const warnFA = warnings.length ? ` [${warnings.join('; ')}].` : '';
 
             if (faData < 2) {
-                return {
-                    grade: "Indeterminado",
-                    description: `FA: Datos insuficientes para clasificar presiones de llenado.${warnFA}`,
-                    severity: "yellow"
-                };
+                return { grade: "Indeterminado", description: `FA: Datos insuficientes para clasificar presiones de llenado.${warnFA}`, severity: "yellow" };
             }
 
-            if (LVEF >= 50) {
-                if (faCriteria >= 2) {
-                    return {
-                        grade: "II",
-                        description: `FA: Presiones de llenado VI elevadas (${faCriteria}/${faData} criterios positivos).${warnFA}`,
-                        severity: "red"
-                    };
-                } else if (faCriteria === 0) {
-                    return {
-                        grade: "Normal",
-                        description: `FA: Presiones de llenado VI normales (0/${faData} criterios positivos).${warnFA}`,
-                        severity: "green"
-                    };
-                } else {
-                    return {
-                        grade: "Indeterminado",
-                        description: `FA: Función Diastólica Indeterminada (1/${faData} criterios positivos). Evaluación adicional requerida.${warnFA}`,
-                        severity: "yellow"
-                    };
-                }
+            if (faCriteria >= 2) {
+                return { grade: "II" + (LVEF < 50 ? " (FEy Deprimida)" : ""), description: `FA: Presiones de llenado VI elevadas (${faCriteria}/${faData} criterios positivos).${warnFA}`, severity: "red" };
+            } else if (faCriteria === 0) {
+                return { grade: "Normal", description: `FA: Presiones de llenado VI normales (0/${faData} criterios positivos).${warnFA}`, severity: "green" };
             } else {
-                // FE deprimida + FA
-                if (faCriteria >= 2) {
-                    return {
-                        grade: "III",
-                        description: `FA + FEy Deprimida: Presiones de llenado VI elevadas (${faCriteria}/${faData} criterios positivos).${warnFA}`,
-                        severity: "red"
-                    };
-                } else {
-                    return {
-                        grade: "Indeterminado",
-                        description: `FA + FEy Deprimida: Presiones de llenado no elevadas o indeterminadas.${warnFA}`,
-                        severity: "yellow"
-                    };
-                }
+                return { grade: "Indeterminado", description: `FA: Función Diastólica Indeterminada (1/${faData} criterios positivos). Evaluación adicional requerida.${warnFA}`, severity: "yellow" };
             }
         }
 
-        // --- SINUS RHYTHM ALGORITHM (Standard) ---
-
+        // --- SINUS RHYTHM ALGORITHM 2025 ---
+        
         // Special case: Supernormal pattern (Athletic heart)
-        // e' promedio normal > 9 cm/s (Gantesti / ASE-EACVI)
         if (EARatio > 2 && ePrime >= 9) {
-            return {
-                grade: "Normal",
-                description: `Función Diastólica Normal (Patrón de llenado vigoroso/Atleta). Presiones de llenado VI normales.${warnings.length ? ' [' + warnings.join('; ') + '].' : ''}`,
-                severity: "green"
-            };
+            return { grade: "Normal", description: `Función Diastólica Normal (Patrón Atleta). Presiones de llenado VI normales.${warnings.length ? ' [' + warnings.join('; ') + '].' : ''}`, severity: "green" };
         }
 
-        // Special case: Restrictive pattern (Grade III)
-        if (EARatio > 2 && ePrime < 9) {
-            // TD < 160 ms corroborates restrictive; reversibility checked via Valsalva
-            let gradeIIIDesc = `Disfunción Diastólica Grado III (Patrón Restrictivo). Presiones de llenado VI elevadas.`;
-            if (tdShort) gradeIIIDesc += ` TD acortado (${TD} ms) corrobora patrón restrictivo.`;
-            if (valsalva) gradeIIIDesc += ` Patrón Restrictivo Reversible (E/A normaliza con Valsalva).`;
-            if (warnings.length) gradeIIIDesc += ` [${warnings.join('; ')}].`;
-            return { grade: "III", description: gradeIIIDesc, severity: "red" };
-        }
-
-        // Determine if heart has structural/functional disease
-        const diseased = (LVEF < 50 || wallMotion !== 'conservada' || LAVolIndex > 34 || TRVel > 2.8);
-
-        // Algorithm for normal hearts (LVEF ≥50% and no wall motion abnormalities)
-        if (!diseased) {
-            let criteria = 0;
-
-            if (ePrimeAbnormal) criteria++;
-            if (!mac && !imSevera && EeRatio > 14) criteria++;
-            if (LAVolIndex > 34) criteria++;
-            if (TRVel > 2.8) criteria++;
-
-            if (criteria < 2) {
-                return {
-                    grade: "Normal",
-                    description: `Función Diastólica Normal. Presiones de llenado VI normales.${warnings.length ? ' [' + warnings.join('; ') + '].' : ''}`,
-                    severity: "green"
-                };
-            } else if (criteria === 2) {
-                // Try to break the tie with TRIV and/or TD
-                let tieNote = '';
-                if (trivPositive) tieNote += ` TRIV ≤ 70 ms sugiere presiones de llenado VI elevadas.`;
-                else if (trivNegative) tieNote += ` TRIV ≥ 100 ms sugiere presiones de llenado VI normales.`;
-                if (tdShort) tieNote += ` TD acortado sugiere presiones elevadas.`;
-                else if (tdProlonged) tieNote += ` TD prolongado sugiere alteración de la relajación.`;
-                return {
-                    grade: "Indeterminado",
-                    description: `Función Diastólica Indeterminada (2/4 criterios alterados). Evaluación adicional requerida.${tieNote}${warnings.length ? ' [' + warnings.join('; ') + '].' : ''}`,
-                    severity: "yellow"
-                };
-            } else {
-                // ≥3 criteria met → treat as diseased heart
-                // Proceed to diseased heart algorithm below
-            }
-        }
-
-        // Algorithm for diseased hearts or ≥3 criteria in normal hearts
-        // Grade I: E/A ≤0.8 and E ≤50 cm/s
-        if (EARatio <= 0.8 && E <= 50) {
-            return {
-                grade: "I",
-                description: `Disfunción Diastólica Grado I (Relajación Prolongada). Presiones de llenado VI normales.${warnings.length ? ' [' + warnings.join('; ') + '].' : ''}`,
-                severity: "green"
-            };
-        }
-
-        // Grade II vs Grade I (when E/A > 0.8 or E > 50)
-        // 3 criteria per ASE 2016: E/e' > 14, TR > 2.8, LAVI > 34
-        // MAC / IM Severa: E/e' excluded (unreliable)
-        // Valsalva (+): E/A drops ≤0.8 → confirms pseudonormal → adds positive criterion
-        let criteriaP = 0;
-        let dataPoints = 0;
-
-        const eeThreshold = mcp ? 15 : 14; // MCP uses slightly higher cutoff
-        if (!mac && !imSevera && EeRatio !== null && !isNaN(EeRatio)) {
-            dataPoints++;
-            if (EeRatio > eeThreshold) criteriaP++;
-        }
-
-        if (TRVel !== null && TRVel > 0) {
-            dataPoints++;
-            if (TRVel > 2.8) criteriaP++;
-        }
-
-        if (LAVolIndex !== null && !isNaN(LAVolIndex)) {
-            dataPoints++;
-            if (LAVolIndex > 34) criteriaP++;
-        }
-
-        // Valsalva (+): E/A ≤ 0.8 during Valsalva unmasks pseudonormal → confirms Grade II
-        if (valsalva) {
-            dataPoints++;
-            criteriaP++;
-        }
-
-        // TRIV: real tiebreaker criterion
-        // ≤70 ms → positive (elevated pressures); ≥100 ms → negative (Grade I direction)
-        if (trivAvailable) {
-            dataPoints++;
-            if (trivPositive) criteriaP++;
-            // trivNegative: dataPoints++ already done, criteriaP stays (pushes toward Grade I)
-        }
-
-        // TD: real tiebreaker criterion (in the E/A 0.8-2 range)
-        // <160 ms → supports elevated pressures; >240 ms → supports Grade I
-        if (tdAvailable) {
-            dataPoints++;
-            if (tdShort) criteriaP++;
-            // tdProlonged: dataPoints++ already done, criteriaP stays
-        }
+        let mainCriteriaCount = 0;
+        if (ePrimeAbnormal) mainCriteriaCount++;
+        if (eeRatioAbnormal) mainCriteriaCount++;
+        if (trAbnormal) mainCriteriaCount++;
 
         const warnSuffix = warnings.length ? ` [${warnings.join('; ')}].` : '';
 
-        // Need at least 2 data points to classify
-        if (dataPoints < 2) {
-            return {
-                grade: "Indeterminado",
-                description: `Función Diastólica Indeterminada. Datos insuficientes para clasificar.${warnSuffix}`,
-                severity: "yellow"
-            };
+        // If 3 of the above present
+        if (mainCriteriaCount === 3) {
+            if (EARatio >= 2) {
+                let gradeIIIDesc = `Disfunción Diastólica Grado III (↑↑↑LAP marcada). Presiones de llenado VI marcadamente elevadas.${warnSuffix}`;
+                if (tdShort) gradeIIIDesc = gradeIIIDesc.replace('marcadas.', `marcadas. TD acortado (${TD} ms) corrobora patrón restrictivo.`);
+                return { grade: "III", description: gradeIIIDesc, severity: "red" };
+            } else {
+                return { grade: "II", description: `Disfunción Diastólica Grado II (↑↑LAP leve-moderada). Presiones de llenado VI elevadas.${warnSuffix}`, severity: "red" };
+            }
         }
 
-        // Majority of criteria positive → Grade II (elevated pressures)
-        if (criteriaP > dataPoints / 2) {
-            return {
-                grade: "II",
-                description: `Disfunción Diastólica Grado II (Pseudonormal). Presiones de llenado VI elevadas.${warnSuffix}`,
-                severity: "red"
-            };
-        } else if (criteriaP === 0 || (criteriaP === 1 && dataPoints >= 3)) {
-            // E/A > 0.8 with minority of positive criteria → Normal (not Grade I)
-            // Grade I requires E/A ≤0.8; when E/A is normal, low criterion count = normal filling
-            if (EARatio !== null && EARatio > 0.8) {
-                return {
-                    grade: "Normal",
-                    description: `Función Diastólica Normal. Presiones de llenado VI conservadas.${warnSuffix}`,
-                    severity: "green"
-                };
-            }
-            return {
-                grade: "I",
-                description: `Disfunción Diastólica Grado I (Relajación Prolongada). Presiones de llenado VI normales.${warnSuffix}`,
-                severity: "green"
-            };
-        } else {
-            return {
-                grade: "Indeterminado",
-                description: `Función Diastólica Indeterminada. Evaluación adicional requerida.${warnSuffix}`,
-                severity: "yellow"
-            };
+        // If all 3 normal
+        if (mainCriteriaCount === 0) {
+            return { grade: "Normal", description: `Función Diastólica Normal. Presiones de llenado VI normales.${warnSuffix}`, severity: "green" };
         }
+
+        // If 1 or 2 present
+        if (EARatio <= 0.8) {
+            return { grade: "I", description: `Disfunción Diastólica Grado I (Relajación Prolongada). Presiones de llenado VI normales.${warnSuffix}`, severity: "green" };
+        } 
+        
+        if (EARatio > 0.8) {
+            // Check for Increased LAP using additional parameters
+            let additionalEvidenceLAP = null;
+            let sourceLAP = "";
+            
+            if (!isNaN(PVSD) && PVSD > 0) {
+                additionalEvidenceLAP = PVSD <= 0.67;
+                sourceLAP = "(por Venas Pulmonares)";
+            } else if (!isNaN(LARS) && LARS > 0) {
+                additionalEvidenceLAP = LARS <= 18;
+                sourceLAP = "(por LARS)";
+            } else if (!isNaN(LAVolIndex) && LAVolIndex > 0) {
+                additionalEvidenceLAP = LAVolIndex > 34;
+                sourceLAP = "(por LAVi)";
+            } else if (trivPositive || trivNegative) {
+                additionalEvidenceLAP = trivPositive;
+                sourceLAP = "(por TRIV)";
+            } else if (valsalva) {
+                // Valsalva + as additional evidence
+                additionalEvidenceLAP = true;
+                sourceLAP = "(por Valsalva)";
+            }
+
+            if (additionalEvidenceLAP === true) {
+                return { grade: "II", description: `Disfunción Diastólica Grado II (↑↑LAP leve-moderada). Presiones de llenado VI elevadas ${sourceLAP}.${warnSuffix}`, severity: "red" };
+            } else if (additionalEvidenceLAP === false) {
+                if (mainCriteriaCount === 1 && ePrimeAbnormal) {
+                    return { grade: "Normal", description: `Función Diastólica Normal (o Grado I si sintomático). Presiones de llenado VI normales. Considerar test de esfuerzo.${warnSuffix}`, severity: "green" };
+                } else {
+                    return { grade: "I", description: `Disfunción Diastólica Grado I. Presiones de llenado VI normales.${warnSuffix}`, severity: "green" };
+                }
+            } else {
+                // Cannot determine from additional parameters
+                return { grade: "Indeterminado", description: `Función Diastólica Indeterminada. Datos insuficientes de parámetros secundarios (LARS, V. Pulmonares, LAVi) para determinar presión de llenado.${warnSuffix}`, severity: "yellow" };
+            }
+        }
+
+        return { grade: "Indeterminado", description: `Función Diastólica Indeterminada.${warnSuffix}`, severity: "yellow" };
     }
 
     /**

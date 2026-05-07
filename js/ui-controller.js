@@ -775,10 +775,13 @@ class UIController {
 
         const TRIV = parseFloat(document.getElementById('triv')?.value);
         const TD   = parseFloat(document.getElementById('td')?.value);
+        const LARS = parseFloat(document.getElementById('diast_lars')?.value);
+        const PVSD = parseFloat(document.getElementById('diast_pvsd')?.value);
+        const age  = parseFloat(document.getElementById('edad')?.value) || 0;
 
         // Classify diastolic function
         this.state.diastolicResult = this.calc.classifyDiastolicFunction({
-            E, A, ePrime, eSeptal, eLateral, LAVolIndex, TRVel, LVEF, wallMotion, ritmo, context, TRIV, TD
+            E, A, ePrime, eSeptal, eLateral, LAVolIndex, TRVel, LVEF, wallMotion, ritmo, context, TRIV, TD, LARS, PVSD, age
         });
 
         // Update semaphore display
@@ -1077,6 +1080,10 @@ class UIController {
 
                 const trivVal = document.getElementById('triv')?.value;
                 if (trivVal) diastolicText += `. TRIV ${trivVal} ms`;
+                const larsVal = document.getElementById('diast_lars')?.value;
+                if (larsVal) diastolicText += `. LARS (Strain AI) ${larsVal}%`;
+                const pvsdVal = document.getElementById('diast_pvsd')?.value;
+                if (pvsdVal) diastolicText += `. Venas Pulmonares S/D ${pvsdVal}`;
                 if (document.getElementById('ctx_valsalva')?.checked) diastolicText += `. Valsalva (+)`;
                 report += `${diastolicText}.\n`;
             }
@@ -2159,6 +2166,10 @@ class UIController {
         if (ePrime) dParts.push(`e' ${ePrime}cm/s`);
         if (eeRatio) dParts.push(`E/e' ${eeRatio}`);
         if (lavi)   dParts.push(`LAVI ${lavi}ml/m²`);
+        const larsN = n('diast_lars');
+        if (larsN)  dParts.push(`LARS ${larsN}%`);
+        const pvsdN = n('diast_pvsd');
+        if (pvsdN)  dParts.push(`VP S/D ${pvsdN}`);
         if (dParts.length) h += `${pad('Doppler:')}${dParts.join(' | ')}\n`;
 
         // ── Aorta line ──

@@ -32,6 +32,11 @@
                     style="min-width: 50px; padding: 0.75rem;">
                     <span id="theme-icon">🌙</span>
                 </button>
+                <button id="btn-news-toggle" class="btn btn-voice" title="Novedades y Guías"
+                    style="min-width: 50px; padding: 0.75rem; position: relative;">
+                    <span>🔔</span>
+                    <span id="news-badge" style="position: absolute; top: -5px; right: -5px; background: #ef4444; color: white; border-radius: 50%; padding: 2px 6px; font-size: 0.7rem; font-weight: bold;">1</span>
+                </button>
                 <button id="btn-voice-toggle" class="btn btn-voice" title="Dictado por voz">
                     <span id="voice-icon">🎤</span>
                     <span id="voice-status">Iniciar Dictado</span>
@@ -292,7 +297,7 @@
 
             <!-- Análisis Diastólico -->
             <div class="subsection">
-                <h3 class="subsection-title">🧠 Análisis Diastólico (ASE 2016)</h3>
+                <h3 class="subsection-title">🧠 Análisis Diastólico (ASE 2025)</h3>
 
                 <!-- Campos básicos — siempre visibles -->
                 <div class="grid">
@@ -339,6 +344,14 @@
                         <div class="form-group">
                             <label for="triv">TRIV (ms) <small style="color:#9ca3af">Ref: 70–90</small></label>
                             <input type="number" id="triv" placeholder="ms" min="30" max="150" step="1">
+                        </div>
+                        <div class="form-group">
+                            <label for="diast_lars">LARS (Strain AI) % <small style="color:#9ca3af">Ref: > 18</small></label>
+                            <input type="number" id="diast_lars" placeholder="Ej: 20" min="0" max="100" step="0.1">
+                        </div>
+                        <div class="form-group">
+                            <label for="diast_pvsd">Venas Pulmonares (S/D) <small style="color:#9ca3af">Ref: > 0.67</small></label>
+                            <input type="number" id="diast_pvsd" placeholder="Ej: 0.8" min="0" max="5" step="0.01">
                         </div>
                     </div>
                     <div style="margin-top:0.75rem;padding:0.75rem 1rem;background:#f8fafc;border-radius:8px;border:1px solid #e5e7eb;">
@@ -1434,12 +1447,41 @@
         </section>
 
         <footer class="app-footer">
-            <p>Calculadora Ecodoppler Cardíaco | Fórmulas ASE/EACVI 2016 <span id="app-version" style="opacity:0.55;font-size:0.8em;margin-left:0.5em;">v15.6</span></p>
+            <p>Calculadora Ecodoppler Cardíaco | Fórmulas ASE/EACVI 2025 <span id="app-version" style="opacity:0.55;font-size:0.8em;margin-left:0.5em;">v18.0</span></p>
         </footer>
     </div>
 
+    <!-- Modal Novedades -->
+    <div id="news-modal" class="modal" style="display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); justify-content: center; align-items: center;">
+        <div class="modal-content" style="background-color: var(--color-surface); margin: auto; padding: 20px; border-radius: 8px; max-width: 600px; width: 90%; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+            <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--color-border); padding-bottom: 10px; margin-bottom: 15px;">
+                <h2 style="margin: 0;">🔔 Novedades y Guías Clínicas</h2>
+                <span class="close-modal" id="close-news-modal" style="font-size: 24px; cursor: pointer;">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div style="background: #eef2ff; border-left: 4px solid #4f46e5; padding: 1rem; margin-bottom: 1rem; border-radius: 4px;">
+                    <h3 style="margin-top: 0; color: #3730a3;">¡Actualización ASE 2025!</h3>
+                    <p style="margin-bottom: 0.5rem; color: #1f2937;">La calculadora de Función Diastólica ha sido actualizada a las <strong>Nuevas Guías ASE/EACVI 2025</strong>.</p>
+                    <ul style="margin-bottom: 0; padding-left: 1.5rem; font-size: 0.9rem; color: #374151;">
+                        <li>Nuevos umbrales para onda e' y E/e'</li>
+                        <li>Se incluye Strain Auricular (LARS) como parámetro principal</li>
+                        <li>Nuevo algoritmo de decisión para casos indeterminados</li>
+                    </ul>
+                </div>
+                
+                <h3>📚 Enlaces Recomendados para Actualización</h3>
+                <ul class="news-links-list" style="list-style: none; padding: 0;">
+                    <li style="margin-bottom: 10px;"><a href="https://asecho.org/guidelines/" target="_blank" style="text-decoration: none; color: #2563eb; font-weight: 500;">📄 Guías Oficiales ASE (American Society of Echocardiography)</a></li>
+                    <li style="margin-bottom: 10px;"><a href="https://www.escardio.org/Guidelines" target="_blank" style="text-decoration: none; color: #2563eb; font-weight: 500;">📄 Guías ESC / EACVI</a></li>
+                    <li style="margin-bottom: 10px;"><a href="https://www.sac.org.ar/" target="_blank" style="text-decoration: none; color: #2563eb; font-weight: 500;">🇦🇷 Sociedad Argentina de Cardiología (SAC)</a></li>
+                    <li style="margin-bottom: 10px;"><a href="https://www.fac.org.ar/" target="_blank" style="text-decoration: none; color: #2563eb; font-weight: 500;">🇦🇷 Federación Argentina de Cardiología (FAC)</a></li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
     <!-- JavaScript Modules -->
-    <script src="js/hemodynamics.js?v=17.8"></script>
+    <script src="js/hemodynamics.js?v=17.9"></script>
     <script src="js/validator.js?v=16.0"></script>
     <script src="js/mini-calculators.js?v=16.0"></script>
     <script src="js/quality-control.js?v=16.0"></script>
@@ -1448,7 +1490,7 @@
     <script src="js/motility-controller.js?v=16.1"></script>
     <script src="js/motility-svg.js?v=16.0"></script>
     <script src="js/gemini-ai.js?v=18.1"></script>
-    <script src="js/ui-controller.js?v=19.3"></script>
+    <script src="js/ui-controller.js?v=19.4"></script>
     <script src="js/ui-extensions.js?v=16.0"></script>
     <script src="js/ui-lanus.js?v=16.0"></script>
     <script src="js/ui-aorta-display.js?v=16.0"></script>
