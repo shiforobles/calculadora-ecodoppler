@@ -2134,7 +2134,6 @@ class UIController {
                 : `Datos Físicos: Peso ${peso} kg | Altura ${altura} cm | SC ${sc} m².\n`;
         }
         if (v('ventana') === 'si') h += `MALA VENTANA ACÚSTICA — limita la evaluación.\n`;
-        h += '\n';
 
         // ── VI line ──
         const ddvi = n('ddvi'), dsvi = n('dsvi'), siv = n('siv'), pp = n('pp');
@@ -2154,15 +2153,14 @@ class UIController {
         }
         if (viParts.length) h += `${pad('VI:')}${viParts.join(' | ')}\n`;
 
-        // ── Motility detail (when altered) ──
+        // ── Motility summary line (when altered) ──
         if (this.motility) {
             const motGlobal = v('motilidad_global');
             if (motGlobal && motGlobal !== 'conservada') {
-                const motReport = this.motility.generateMotilityReport();
-                if (motReport && motReport.trim()) {
-                    motReport.trim().split('\n').forEach(line => {
-                        if (line.trim()) h += `         ${line.trim()}\n`;
-                    });
+                const motConcl = this.motility.generateConclusion();
+                if (motConcl && motConcl.trim()) {
+                    const motLine = motConcl.trim().replace(/\.$/, '');
+                    h += `         ${motLine.charAt(0).toUpperCase() + motLine.slice(1)}.\n`;
                 }
             }
         }
@@ -2211,8 +2209,6 @@ class UIController {
             aoParts.push(`Asc ${aoAsc}mm${idx}`);
         }
         if (aoParts.length) h += `${pad('Ao:')}${aoParts.join(' | ')}\n`;
-
-        h += '\n';
 
         // ── Right chambers + HTP line ──
         const tapse = n('tapse'), sPrima = n('s_prima_vd'), vdBasal = n('vd_basal');
@@ -2305,12 +2301,6 @@ class UIController {
                     const motConcl = motConclusion.trim().replace(/\.$/, '');
                     const motConcLower = motConcl.charAt(0).toLowerCase() + motConcl.slice(1);
                     p1 += `, con ${motConcLower}`;
-                    const abnSeg = this.motility.getAbnormalSegments();
-                    const allAbn = [...abnSeg.akinetic, ...abnSeg.dyskinetic, ...abnSeg.hypokinetic];
-                    if (allAbn.length > 0 && typeof MotilityModel !== 'undefined') {
-                        const segNames = allAbn.map(id => MotilityModel.SEGMENTS[id]?.name?.toLowerCase()).filter(Boolean);
-                        if (segNames.length) p1 += ` (${segNames.join(', ')})`;
-                    }
                 }
             } else if (condEl.value === 'bcri') {
                 p1 += `, con movimiento septal paradójico en relación a BCRI`;
