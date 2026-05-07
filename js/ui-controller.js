@@ -2305,6 +2305,12 @@ class UIController {
                     const motConcl = motConclusion.trim().replace(/\.$/, '');
                     const motConcLower = motConcl.charAt(0).toLowerCase() + motConcl.slice(1);
                     p1 += `, con ${motConcLower}`;
+                    const abnSeg = this.motility.getAbnormalSegments();
+                    const allAbn = [...abnSeg.akinetic, ...abnSeg.dyskinetic, ...abnSeg.hypokinetic];
+                    if (allAbn.length > 0 && typeof MotilityModel !== 'undefined') {
+                        const segNames = allAbn.map(id => MotilityModel.SEGMENTS[id]?.name?.toLowerCase()).filter(Boolean);
+                        if (segNames.length) p1 += ` (${segNames.join(', ')})`;
+                    }
                 }
             } else if (condEl.value === 'bcri') {
                 p1 += `, con movimiento septal paradójico en relación a BCRI`;
@@ -2414,7 +2420,12 @@ class UIController {
             const vmaxStr = eaVmax ? ` (Vmax Ao ${eaVmax} m/s)` : '';
             let s = `Se observan cambios fibrocalcificados incipientes (esclerosis) en los aparatos valvulares mitral y aórtico, que condicionan un engrosamiento de las valvas sin restricción de su apertura sistólica${vmaxStr}`;
             if (imGrado !== 'no' && rankIM < 3) {
-                s += `. Se asocia una insuficiencia mitral de grado ${imGrado} sin repercusión hemodinámica, mientras que la válvula aórtica no presenta flujos patológicos significativos`;
+                const imVcB  = document.getElementById('im_vc')?.value;
+                const imOreB = document.getElementById('im_ore')?.value;
+                const imVrB  = document.getElementById('im_vr')?.value;
+                const imPB   = [imVcB && `VC ${imVcB} mm`, imOreB && `EROA ${imOreB} cm²`, imVrB && `VR ${imVrB} ml`].filter(Boolean);
+                const imPsB  = imPB.length ? ` (${imPB.join(', ')})` : '';
+                s += `. Se asocia insuficiencia mitral ${imGrado}${imPsB} sin repercusión hemodinámica, mientras que la válvula aórtica no presenta flujos patológicos significativos`;
             } else if (imGrado !== 'no' && rankIM >= 3) {
                 s += `. Se constata insuficiencia mitral ${imGrado}`;
             } else {
@@ -2438,18 +2449,18 @@ class UIController {
                     if (emParams.length) s += ` (${emParams.join(', ')})`;
                     if (morfHasMAC) s += `, en contexto de calcificación del anillo mitral (MAC)`;
                 } else if (imGrado !== 'no') {
+                    const imVc  = document.getElementById('im_vc')?.value;
+                    const imOre = document.getElementById('im_ore')?.value;
+                    const imVr  = document.getElementById('im_vr')?.value;
+                    const imParams = [imVc && `VC ${imVc} mm`, imOre && `EROA ${imOre} cm²`, imVr && `VR ${imVr} ml`].filter(Boolean);
+                    const imParamsStr = imParams.length ? ` (${imParams.join(', ')})` : '';
                     if (rankIM >= 3) {
-                        const imVc  = document.getElementById('im_vc')?.value;
-                        const imOre = document.getElementById('im_ore')?.value;
-                        const imVr  = document.getElementById('im_vr')?.value;
-                        const imParams = [imVc && `VC ${imVc} mm`, imOre && `EROA ${imOre} cm²`, imVr && `VR ${imVr} ml`].filter(Boolean);
-                        const imParamsStr = imParams.length ? ` (${imParams.join(', ')})` : '';
                         s = `Se constata insuficiencia mitral ${imGrado}${imParamsStr}`;
                         if (morfHasTenting) s += ` de mecanismo funcional, secundaria a dilatación/remodelado del VI`;
                     } else {
-                        if (morfHasEngros)       s = `Se evidencia engrosamiento de las valvas mitrales con insuficiencia valvular ${imGrado}`;
-                        else if (morfHasTenting) s = `Se constata insuficiencia mitral ${imGrado} de mecanismo funcional`;
-                        else                     s = `Se registra insuficiencia mitral ${imGrado}`;
+                        if (morfHasEngros)       s = `Se evidencia engrosamiento de las valvas mitrales con insuficiencia valvular ${imGrado}${imParamsStr}`;
+                        else if (morfHasTenting) s = `Se constata insuficiencia mitral ${imGrado}${imParamsStr} de mecanismo funcional`;
+                        else                     s = `Se registra insuficiencia mitral ${imGrado}${imParamsStr}`;
                     }
                     if (morfHasMAC) s += `, con calcificación del anillo mitral (MAC)`;
                 } else if (morfHasMAC) {
@@ -2483,7 +2494,12 @@ class UIController {
                 let s;
                 if (morfAortica) {
                     const morfDesc = morfAortica.replace(/^válvula\s+/i, '');
-                    s = `La válvula aórtica es ${morfDesc.charAt(0).toLowerCase() + morfDesc.slice(1)}, sin estenosis o insuficiencia significativas`;
+                    const morfDescL = morfDesc.charAt(0).toLowerCase() + morfDesc.slice(1);
+                    if (morfDesc.toLowerCase().includes('esclerosis')) {
+                        s = `La válvula aórtica presenta ${morfDescL}, sin estenosis o insuficiencia significativas`;
+                    } else {
+                        s = `La válvula aórtica es ${morfDescL}, sin estenosis o insuficiencia significativas`;
+                    }
                 } else {
                     s = `La válvula aórtica es morfológicamente normal, sin valvulopatías significativas`;
                 }
@@ -2553,6 +2569,11 @@ class UIController {
             } else {
                 p4 += `. La velocidad de la IT${velStr} determina una probabilidad ecocardiográfica de hipertensión pulmonar ${htpResult.probability.toLowerCase()}, con PSAP estimada de ${this.state.psap} mmHg`;
             }
+        } else {
+            const itGradoVal = document.getElementById('it_grado')?.value;
+            if (itGradoVal && itGradoVal !== 'no' && velIt > 0) {
+                p4 += `. Se registra insuficiencia tricuspídea (Vmax IT ${velIt} m/s), sin hipertensión pulmonar significativa estimable`;
+            }
         }
         paragraphs.push(p4 + '.');
 
@@ -2560,9 +2581,15 @@ class UIController {
         if (pePresente) {
             const peSize  = parseFloat(document.getElementById('pe_tamano')?.value) || 0;
             const peGrade = peSize >= 20 ? 'severo' : peSize >= 10 ? 'moderado' : 'leve';
+            const peLocEl = document.getElementById('pe_ubicacion');
+            const peLoc   = peLocEl ? peLocEl.options[peLocEl.selectedIndex]?.text?.toLowerCase() : '';
             const compromise = ['pe_colapso_ad', 'pe_colapso_vd', 'pe_variacion_flujo', 'pe_vci_dilatada']
                 .some(id => document.getElementById(id)?.checked);
-            paragraphs.push(`Se constata derrame pericárdico ${peGrade}${compromise ? ' con signos de compromiso hemodinámico' : ''}.`);
+            let peStr = `Se constata derrame pericárdico ${peGrade}`;
+            if (peLoc && peLoc !== 'no especificado' && peLoc !== '-') peStr += ` de distribución ${peLoc}`;
+            if (peSize > 0) peStr += `, con separación máxima de ${peSize} mm`;
+            if (compromise) peStr += ', con signos de compromiso hemodinámico';
+            paragraphs.push(peStr + '.');
         } else {
             paragraphs.push('Pericardio libre.');
         }
