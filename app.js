@@ -53,6 +53,36 @@ document.addEventListener('DOMContentLoaded', () => {
 
     console.log('✅ Eco Doppler Cardíaco v14.0 Pro inicializado correctamente');
     console.log('💡 Acceda a window.EcoDoppler desde la consola para debugging');
+    // News Modal Logic
+    const btnNews  = document.getElementById('btn-news-toggle');
+    const newsModal = document.getElementById('news-modal');
+    const closeNews = document.getElementById('close-news-modal');
+    const newsBadge = document.getElementById('news-badge');
+
+    // Badge only shown when there is unread news
+    // "news-last-seen" stores the ID of the latest news item the user opened
+    const LATEST_NEWS_ID = 'ase2025-diastolic';
+    const seenNewsId = localStorage.getItem('news-last-seen');
+    if (newsBadge) {
+        newsBadge.style.display = (seenNewsId === LATEST_NEWS_ID) ? 'none' : '';
+    }
+
+    if (btnNews && newsModal && closeNews) {
+        btnNews.addEventListener('click', () => {
+            newsModal.style.display = 'flex';
+            if (newsBadge) newsBadge.style.display = 'none';
+            localStorage.setItem('news-last-seen', LATEST_NEWS_ID);
+        });
+
+        closeNews.addEventListener('click', () => {
+            newsModal.style.display = 'none';
+        });
+
+        window.addEventListener('click', (event) => {
+            if (event.target === newsModal) newsModal.style.display = 'none';
+        });
+    }
+
 });
 
 /**
