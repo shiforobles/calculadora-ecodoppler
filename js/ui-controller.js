@@ -2326,19 +2326,30 @@ class UIController {
             if (mac)  ctxNotes.push(`la presencia de MAC limita la validez del E/e'`);
             if (bcri) ctxNotes.push(`el BCRI excluye el e' septal`);
 
-            // Build brief criteria string from current values for grade explanation
+            // Build criteria string — only include values that are actually abnormal
             const _eSep = parseFloat(document.getElementById('onda_e_prime_septal')?.value) || 0;
             const _eLat = parseFloat(document.getElementById('onda_e_prime_lateral')?.value) || 0;
             const _eeR  = parseFloat(document.getElementById('ee_ratio_display')?.value) || 0;
             const _trV  = parseFloat(document.getElementById('it_vmax')?.value) || 0;
             const _lars = parseFloat(document.getElementById('diast_lars')?.value) || 0;
+            const _age  = parseFloat(document.getElementById('edad')?.value) || 0;
+            // Age-adjusted e' cutoffs (ASE 2025 Table 6)
+            const _eCutSep = (_age > 0 && _age < 40) ? 7 : 6;
+            const _eCutLat = (_age > 0 && _age < 40) ? 10 : (_age >= 40 && _age <= 65) ? 8 : 7;
             const _buildDiastCriteria = () => {
                 const parts = [];
-                if (_eSep) parts.push(`e' septal ${_eSep} cm/s`);
-                else if (_eLat) parts.push(`e' lateral ${_eLat} cm/s`);
-                if (_eeR)  parts.push(`E/e' ${_eeR}`);
-                if (_trV)  parts.push(`TR ${_trV} m/s`);
-                if (_lars) parts.push(`LARS ${_lars}%`);
+                // e' — only if reduced below age-adjusted cutoff
+                if (!mac && _eSep > 0 && _eSep < _eCutSep) parts.push(`e' septal ${_eSep} cm/s`);
+                else if (!mac && _eLat > 0 && _eLat < _eCutLat) parts.push(`e' lateral ${_eLat} cm/s`);
+                // E/e' — only if elevated (≥15 septal, ≥13 lateral, ≥14 average)
+                if (!mac && _eeR > 0) {
+                    const eeAbn = (_eSep > 0 && _eeR >= 15) || (_eLat > 0 && _eeR >= 13) || (!_eSep && !_eLat && _eeR >= 14);
+                    if (eeAbn) parts.push(`E/e' ${_eeR}`);
+                }
+                // TR velocity — only if ≥ 2.8 m/s
+                if (_trV >= 2.8) parts.push(`TR ${_trV} m/s`);
+                // LARS — only if > 34%
+                if (_lars > 34) parts.push(`LARS ${_lars}%`);
                 return parts.length ? ` (${parts.join(', ')})` : '';
             };
 
