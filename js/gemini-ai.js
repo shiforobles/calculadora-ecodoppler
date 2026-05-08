@@ -47,10 +47,15 @@ Función sistólica (campo "fevi_clasificacion"):
 - "moderadamente deprimida": FEy 30–40%.
 - "severamente deprimida": FEy <30%.
 
+Dispositivo de conducción (campo "conduccion"):
+- Si es "Marcapasos" o "CDI": mencionarlo SIEMPRE en el párrafo 1, integrado en el primer párrafo (ej. "con catéter de marcapasos en VD"). Podés agregar que puede observarse movimiento septal paradójico secundario a estimulación desde el VD.
+- Si es "BCRI": la alteración septal es por conducción, NO por isquemia. Mencionarlo en el contexto de motilidad.
+- Si es "Normal": no comentar la conducción.
+
 Motilidad (campo "motilidad"):
-- Si es "conservada": mencionalo brevemente.
+- SIEMPRE mencionarla en el párrafo 1, aunque sea "conservada" (ej. "con motilidad segmentaria indemne").
 - Si hay alteración segmentaria: describí el territorio afectado e inferí el vaso responsable (DA → anterior/anteroseptal/septal/ápex; CD → inferior/inferoseptal; Cx → lateral/posterolateral).
-- Si hay BCRI en contexto_especial: la alteración septal es por conducción, NO por isquemia.
+- Si hay BCRI o Marcapasos: la alteración septal/septal paradójica es por conducción, NO por isquemia. No atribuirla a enfermedad coronaria sin otros hallazgos que lo respalden.
 
 ══════════════════════════════════════
 MÓDULO 2 — AURÍCULA IZQUIERDA
