@@ -29,7 +29,15 @@ class StudyStorage {
         'Prótesis', 'Prot Posición', 'Prot Tipo', 'Prot Modelo',
         'Prot Vmax', 'Prot GM', 'Prot DVI', 'Prot iEOA', 'Prot Insuf',
         // Especiales / Pericardio (4)
-        'ASIA Excursión', 'ASIA Shunt', 'PE Tamaño', 'PE Compromiso'
+        'ASIA Excursión', 'ASIA Shunt', 'PE Tamaño', 'PE Compromiso',
+        // Doppler Diastólico Extendido (7)
+        'Onda E', 'Onda A', "e' Septal", "e' Lateral", 'TRIV', 'TD', 'LARS',
+        // IM adicional (1)
+        'IM VC',
+        // IT velocidad (1)
+        'IT Vmax',
+        // Pericardio distribución (1)
+        'PE Distribución',
     ];
 
     static getAll() {

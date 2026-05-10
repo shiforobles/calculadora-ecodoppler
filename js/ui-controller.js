@@ -3019,7 +3019,29 @@ class UIController {
                     (document.getElementById('pe_colapso_vd').checked ? 1 : 0) +
                     (document.getElementById('pe_variacion_flujo').checked ? 1 : 0) +
                     (document.getElementById('pe_vci_dilatada').checked ? 1 : 0)
-                ) >= 2) ? 'Si' : 'No'
+                ) >= 2) ? 'Si' : 'No',
+
+            // 12. Doppler Diastólico Extendido (7)
+            document.getElementById('onda_e')?.value || '-',
+            document.getElementById('onda_a')?.value || '-',
+            document.getElementById('onda_e_prime_septal')?.value || '-',
+            document.getElementById('onda_e_prime_lateral')?.value || '-',
+            document.getElementById('triv')?.value || '-',
+            document.getElementById('td')?.value || '-',
+            document.getElementById('diast_lars')?.value || '-',
+
+            // 13. IM — Vena Contracta (1)
+            document.getElementById('im_vc')?.value || '-',
+
+            // 14. IT — Velocidad máxima (1)
+            document.getElementById('vel_it')?.value || '-',
+
+            // 15. Pericardio — Distribución (1)
+            (() => {
+                if (!document.getElementById('pe_presente')?.checked) return '-';
+                const el = document.getElementById('pe_ubicacion');
+                return el ? (el.options[el.selectedIndex]?.text || '-') : '-';
+            })(),
         ];
         return row;
     }
