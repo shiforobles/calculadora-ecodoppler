@@ -2338,11 +2338,13 @@ class UIController {
             const _eProm  = (_eSep > 0 && _eLat > 0) ? parseFloat(((_eSep + _eLat) / 2).toFixed(1)) : 0;
             const _eDisp  = _eProm > 0 ? _eProm : (_eSep > 0 ? _eSep : _eLat);
             const _eLbl   = _eProm > 0 ? 'prom' : (_eSep > 0 ? 'sep' : 'lat');
-            // E/A ratio
+            // E/A ratio — only shown for grades where it's diagnostically relevant (I, III)
             const _ea     = (!isFA && _eVal > 0 && _aVal > 0) ? parseFloat((_eVal / _aVal).toFixed(2)) : 0;
-            // Clause 1 — Relaxation: E/A (pattern) + e'
-            const _rParts = [...(_ea > 0 ? [`E/A ${_ea}`] : []), ...(_eDisp > 0 ? [`e' ${_eLbl} ${_eDisp} cm/s`] : [])];
-            const _rStr   = _rParts.length ? ` (${_rParts.join(', ')})` : '';
+            // Clause 1 — Relaxation: e' alone (Normal, II) or E/A + e' (I, III, Indeterminate)
+            const _rPartsBase = [...(_eDisp > 0 ? [`e' ${_eLbl} ${_eDisp} cm/s`] : [])];
+            const _rPartsEA   = [...(_ea > 0 ? [`E/A ${_ea}`] : []), ..._rPartsBase];
+            const _rStrBase   = _rPartsBase.length ? ` (${_rPartsBase.join(', ')})` : '';
+            const _rStrEA     = _rPartsEA.length   ? ` (${_rPartsEA.join(', ')})`   : '';
             // Clause 2 — Filling pressures: E/e', secondary params, IT velocity as diastolic marker
             const _pParts = [
                 ...(!mac && _eeR > 0 ? [`E/e' ${_eLbl} ${_eeR}`] : []),
@@ -2352,7 +2354,7 @@ class UIController {
             ];
             const _pStr   = _pParts.length ? ` (${_pParts.join(', ')})` : '';
             // Combined for indeterminate (exclude IT to avoid duplication with P4)
-            const _indParts = [..._rParts, ..._pParts.filter(p => !p.startsWith('IT '))];
+            const _indParts = [..._rPartsEA, ..._pParts.filter(p => !p.startsWith('IT '))];
             const _indStr   = _indParts.length ? ` (${_indParts.join(', ')})` : '';
 
             let p2 = `Desde el punto de vista hemodinámico`;
@@ -2367,13 +2369,13 @@ class UIController {
                 else                                   p2 += dr.description.toLowerCase().replace(/^fa.*?[:\.]\s*/i, '').trim();
             } else {
                 if (dr.grade === 'Normal')
-                    p2 += `la función diastólica es normal, con relajación miocárdica conservada${_rStr} y presiones de llenado del VI dentro de límites fisiológicos${_pStr}`;
+                    p2 += `la función diastólica es normal, con relajación miocárdica conservada${_rStrBase} y presiones de llenado del VI dentro de límites fisiológicos${_pStr}`;
                 else if (dr.grade === 'I')
-                    p2 += `se identifica disfunción diastólica grado I, con relajación miocárdica prolongada${_rStr} y presiones de llenado del VI dentro de límites fisiológicos${_pStr}`;
+                    p2 += `se identifica disfunción diastólica grado I, con relajación miocárdica prolongada${_rStrEA} y presiones de llenado del VI dentro de límites fisiológicos${_pStr}`;
                 else if (dr.grade === 'II')
-                    p2 += `se identifica disfunción diastólica grado II, con relajación miocárdica alterada${_rStr} y presiones de llenado del VI elevadas${_pStr}`;
+                    p2 += `se identifica disfunción diastólica grado II, con relajación miocárdica alterada${_rStrBase} y presiones de llenado del VI elevadas${_pStr}`;
                 else if (dr.grade === 'III')
-                    p2 += `se identifica disfunción diastólica grado III, con patrón de llenado restrictivo${_rStr} y presiones de llenado del VI marcadamente elevadas${_pStr}`;
+                    p2 += `se identifica disfunción diastólica grado III, con patrón de llenado restrictivo${_rStrEA} y presiones de llenado del VI marcadamente elevadas${_pStr}`;
                 else if (dr.grade === 'Indeterminado')
                     p2 += `la evaluación diastólica resulta indeterminada por criterios contrapuestos${_indStr}`;
                 else
