@@ -2157,7 +2157,7 @@ class UIController {
         if (this.motility) {
             const motGlobal = v('motilidad_global');
             if (motGlobal && motGlobal !== 'conservada') {
-                const motConcl = this.motility.generateConclusion();
+                const motConcl = this.motility.generateSegmentListText ? this.motility.generateSegmentListText() : this.motility.generateConclusion();
                 if (motConcl && motConcl.trim()) {
                     const motLine = motConcl.trim().replace(/\.$/, '');
                     h += `         ${motLine.charAt(0).toUpperCase() + motLine.slice(1)}.\n`;
@@ -2720,14 +2720,17 @@ class UIController {
                 insuficiencia_grado: v('im_grado'),
                 vc_mm: n('im_vc'), ore_cm2: n('im_ore'), vol_reg_ml: n('im_vr'),
                 estenosis_grado: v('em_grado'),
-                grad_medio_mmhg: n('em_grad_medio'), area_cm2: n('em_area_pht')
+                grad_medio_mmhg: n('em_grad_medio'), area_cm2: n('em_area_pht'),
+                hallazgos_avanzados_im: window.mitralRegurgitation ? window.mitralRegurgitation.generateFindings() : null,
+                hallazgos_avanzados_em: window.mitralStenosis ? window.mitralStenosis.generateFindings() : null
             },
             valvula_aortica: {
                 morfologia: v('morf_aortica'),
                 estenosis_grado: v('ea_grado'),
                 vmax_ms: n('ea_vmax'), grad_medio_mmhg: n('ea_grad_medio'),
                 ava_cm2: n('ea_ava'), ava_indexada: n('ea_ava_index'), coef_adimensional: n('ea_coef'),
-                insuficiencia_grado: v('ia_grado')
+                insuficiencia_grado: v('ia_grado'),
+                hallazgos_avanzados_ia: window.aorticRegurgitationModule ? window.aorticRegurgitationModule.generateFindings() : null
             },
             aorta: (() => {
                 const raiz = n('ao_raiz');
@@ -2754,7 +2757,12 @@ class UIController {
                     insuficiencia_grado: itGrado,
                     vel_it_ms: itNoVal ? null : n('vel_it'),
                     psap_mmhg: itNoVal ? null : (psap || null),
-                    psap_no_estimable: itNoVal || (!psap && !n('vel_it'))
+                    psap_no_estimable: itNoVal || (!psap && !n('vel_it')),
+                    vc_mm: n('it_vc'),
+                    ore_cm2: n('it_ore'),
+                    vol_reg_ml: n('it_vr'),
+                    flujo_hepatico: v('it_flujo_hep'),
+                    hallazgos_avanzados_it: window.tricuspidRegurgitationModule ? window.tricuspidRegurgitationModule.generateFindings() : null
                 };
             })(),
             htp: psap ? {

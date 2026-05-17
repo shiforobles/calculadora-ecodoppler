@@ -324,6 +324,41 @@ class MotilityController {
         }
     }
 
+    // Generate explicit segment list (like in preview "ojo de buey")
+    generateSegmentListText() {
+        const abnormal = this.getAbnormalSegments();
+        const totalAbnormal = abnormal.hypokinetic.length + abnormal.akinetic.length + abnormal.dyskinetic.length;
+        if (totalAbnormal === 0) return "";
+
+        // Dyssynchrony patterns: use descriptive text, not segments
+        if (this.pattern !== 'none') {
+            const currentPattern = MotilityModel.PATTERNS[this.pattern];
+            if (currentPattern && currentPattern.category === 'dyssynchrony') {
+                let description = this.generateMotilityReport();
+                description = description.replace(/\s*\(WMSI:.*?\)\.?\s*$/, '').trim();
+                description = description.replace(/^Se observa(n)? trastornos segmentarios de la motilidad parietal:?\s*/i, '');
+                description = description.replace(/^Se observa(n)?\s*/i, '');
+                return description.charAt(0).toUpperCase() + description.slice(1);
+            }
+        }
+
+        const parts = [];
+        if (abnormal.akinetic.length > 0) {
+            const segNames = abnormal.akinetic.map(id => MotilityModel.SEGMENTS[id].name.toLowerCase()).join(', ');
+            parts.push(`Aquinesia de ${segNames}`);
+        }
+        if (abnormal.hypokinetic.length > 0) {
+            const segNames = abnormal.hypokinetic.map(id => MotilityModel.SEGMENTS[id].name.toLowerCase()).join(', ');
+            parts.push(`Hipoquinesia de ${segNames}`);
+        }
+        if (abnormal.dyskinetic.length > 0) {
+            const segNames = abnormal.dyskinetic.map(id => MotilityModel.SEGMENTS[id].name.toLowerCase()).join(', ');
+            parts.push(`Disquinesia de ${segNames}`);
+        }
+
+        return parts.join('; ') + '.';
+    }
+
     // Generate conclusion (smart format based on territories)
     generateConclusion() {
         const abnormal = this.getAbnormalSegments();
