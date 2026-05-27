@@ -2322,9 +2322,11 @@ class UIController {
         if (this.state.diastolicResult) {
             const dr   = this.state.diastolicResult;
             const isFA = ritmo === 'fa' || ritmo === 'flutter';
+            const valsalvaPos = document.getElementById('ctx_valsalva')?.checked;
             const ctxNotes = [];
-            if (mac)  ctxNotes.push(`la presencia de MAC limita la validez del E/e'`);
-            if (bcri) ctxNotes.push(`el BCRI excluye el e' septal`);
+            if (mac)         ctxNotes.push(`la presencia de MAC limita la validez del E/e'`);
+            if (bcri)        ctxNotes.push(`el BCRI excluye el e' septal`);
+            if (valsalvaPos) ctxNotes.push(`Valsalva positivo`);
 
             // ── Diastolic display variables (ASE 2025 — two-part structure) ──
             const _eSep   = parseFloat(document.getElementById('onda_e_prime_septal')?.value) || 0;
@@ -2545,6 +2547,13 @@ class UIController {
             if (aoRaizIdx > rootLimit) p3 += `. La raíz aórtica se encuentra dilatada (${aoRaiz} mm, ${aoRaizIdx.toFixed(2)} cm/m²)`;
             if (aoAscIdx > ascLimit)   p3 += `. La aorta ascendente se encuentra dilatada (${aoAsc} mm, ${aoAscIdx.toFixed(2)} cm/m²)`;
         }
+        // Prótesis valvular alert
+        const hasProtesis = document.getElementById('prot_check')?.checked;
+        if (hasProtesis && this.state.protAlert) {
+            const pPosEl = document.getElementById('prot_posicion');
+            const pPosText = pPosEl ? pPosEl.options[pPosEl.selectedIndex]?.text?.toLowerCase() : 'valvular';
+            p3 += `. En relación a la prótesis ${pPosText}: ${this.state.protAlert}`;
+        }
         paragraphs.push(p3 + '.');
 
         // ── P4: Right chambers + HTP (always) ──
@@ -2570,19 +2579,48 @@ class UIController {
             }
         }
 
+        // Indirect HTP signs
+        const htpSeptum   = document.getElementById('htp_septum')?.checked;
+        const htpPulmonar = document.getElementById('htp_pulmonar')?.checked;
+        const paatNum     = parseFloat(document.getElementById('paat')?.value) || 0;
+        const htpIndir    = [];
+        if (htpSeptum)                      htpIndir.push('movimiento septal paradójico');
+        if (htpPulmonar)                    htpIndir.push('dilatación del tronco pulmonar');
+        if (paatNum > 0 && paatNum < 100)   htpIndir.push(`tiempo de aceleración pulmonar corto (${paatNum} ms)`);
+        if (htpIndir.length > 0) {
+            p4 += `. Se observan signos indirectos de sobrecarga de presiones pulmonares: ${htpIndir.join(', ')}`;
+        }
+
+        // IT grade + quantification for significant grades
+        const itGradoVal   = document.getElementById('it_grado')?.value;
+        const sigIT        = ['moderada', 'severa', 'masiva', 'torrencial'].includes(itGradoVal);
+        const itVcQ        = document.getElementById('it_vc')?.value;
+        const itOreQ       = document.getElementById('it_ore')?.value;
+        const itVrQ        = document.getElementById('it_vr')?.value;
+        const itFlujHepQ   = document.getElementById('it_flujo_hep')?.value;
+        const itQuantParts = [];
+        if (sigIT) {
+            if (itVcQ)  itQuantParts.push(`VC ${itVcQ} mm`);
+            if (itOreQ) itQuantParts.push(`ORE ${itOreQ} cm²`);
+            if (itVrQ)  itQuantParts.push(`VR ${itVrQ} ml`);
+        }
+        const itQuantStr = itQuantParts.length ? ` (${itQuantParts.join(', ')})` : '';
+        const itFlujStr  = itFlujHepQ === 'reverso' ? '; reverso sistólico en venas suprahepáticas' : '';
+
         if (itNoVal) {
             p4 += `. No se observa flujo de insuficiencia tricuspídea que permita estimar la presión sistólica de la arteria pulmonar`;
         } else if (htpResult) {
-            const velStr = velIt ? ` (Vmax IT ${velIt} m/s)` : '';
+            const velStr = velIt ? ` (Vmax IT ${velIt} m/s${itQuantParts.length ? ', ' + itQuantParts.join(', ') : ''})` : itQuantStr;
             if (htpResult.probability === 'Baja') {
-                p4 += `. Se constata insuficiencia tricuspídea leve${velStr}, con baja probabilidad de hipertensión pulmonar (PSAP estimada en ${this.state.psap} mmHg)`;
+                p4 += `. Se constata insuficiencia tricuspídea leve${velStr}${itFlujStr}, con baja probabilidad de hipertensión pulmonar (PSAP estimada en ${this.state.psap} mmHg)`;
             } else {
-                p4 += `. La velocidad de la IT${velStr} determina una probabilidad ecocardiográfica de hipertensión pulmonar ${htpResult.probability.toLowerCase()}, con PSAP estimada de ${this.state.psap} mmHg`;
+                p4 += `. La insuficiencia tricuspídea${velStr}${itFlujStr} determina una probabilidad ecocardiográfica de hipertensión pulmonar ${htpResult.probability.toLowerCase()}, con PSAP estimada de ${this.state.psap} mmHg`;
             }
         } else {
-            const itGradoVal = document.getElementById('it_grado')?.value;
             if (itGradoVal && itGradoVal !== 'no' && velIt > 0) {
-                p4 += `. Se registra insuficiencia tricuspídea (Vmax IT ${velIt} m/s), sin hipertensión pulmonar significativa estimable`;
+                p4 += `. Se registra insuficiencia tricuspídea${itQuantStr}${itFlujStr} (Vmax IT ${velIt} m/s), sin hipertensión pulmonar significativa estimable`;
+            } else if (sigIT && itQuantParts.length > 0) {
+                p4 += `. Se constata insuficiencia tricuspídea ${itGradoVal}${itQuantStr}${itFlujStr}`;
             }
         }
         paragraphs.push(p4 + '.');
@@ -2598,7 +2636,9 @@ class UIController {
             let peStr = `Se constata derrame pericárdico ${peGrade}`;
             if (peLoc && peLoc !== 'no especificado' && peLoc !== '-') peStr += ` de distribución ${peLoc}`;
             if (peSize > 0) peStr += `, con separación máxima de ${peSize} mm`;
-            if (compromise) peStr += ', con signos de compromiso hemodinámico';
+            peStr += compromise
+                ? ', con signos de compromiso hemodinámico'
+                : ', sin signos de compromiso hemodinámico';
             paragraphs.push(peStr + '.');
         } else {
             paragraphs.push('Pericardio libre.');
