@@ -177,17 +177,30 @@ UIController.prototype.injectPISA = function () {
  * Run Quality Control checks
  */
 UIController.prototype.runQualityControl = function () {
+    const _ddvi = parseFloat(document.getElementById('ddvi').value);
+    const _sexo = document.getElementById('sexo')?.value;
+    const _morf = (document.getElementById('morf_mitral')?.value || '').toLowerCase();
+    const _mitralStructural = _morf.includes('prolapso') || _morf.includes('flail') ||
+                              _morf.includes('engrosamiento') || _morf.includes('calcific') ||
+                              _morf.includes('reumá') || _morf.includes('mixomatos');
+
     const formData = {
         motilidad: document.getElementById('motilidad_global').value,
         fevi: parseFloat(document.getElementById('fevi').value),
         ea_grado: document.getElementById('ea_grado').value,
         ea_ava: parseFloat(document.getElementById('ea_ava').value),
         dsvi: parseFloat(document.getElementById('dsvi').value),
-        ddvi: parseFloat(document.getElementById('ddvi').value),
+        ddvi: _ddvi,
         im_grado: document.getElementById('im_grado').value,
         im_ore: parseFloat(document.getElementById('im_ore').value),
         em_grado: document.getElementById('em_grado').value,
-        em_grad_medio: parseFloat(document.getElementById('em_grad_medio').value)
+        em_grad_medio: parseFloat(document.getElementById('em_grad_medio').value),
+        // ASE 2025 consistency checks
+        geometry: this.state.geometry,
+        lvDilated: (_ddvi && this.calc) ? this.calc.isLVDilated(_ddvi, _sexo) : false,
+        mitralStructural: _mitralStructural,
+        ci: this.state.cardiacOutput ? parseFloat(this.state.cardiacOutput.ci) : null,
+        vol_ai: parseFloat(document.getElementById('vol_ai').value)
     };
 
     this.qc.runChecks(formData);

@@ -635,8 +635,8 @@ class UIController {
         // Calculate RWT
         this.state.rwt = this.calc.calculateRWT(pp, siv, ddvi);
 
-        // Classify geometry
-        this.state.geometry = this.calc.classifyLVGeometry(this.state.lvMassIndex, this.state.rwt, sex);
+        // Classify geometry (ddvi included so a dilated LV is not mislabeled "normal")
+        this.state.geometry = this.calc.classifyLVGeometry(this.state.lvMassIndex, this.state.rwt, sex, parseFloat(ddvi) || 0);
 
         // Check for Concentric Hypertensive Phenotype
         let phenotypeAlert = '';
@@ -1447,7 +1447,7 @@ class UIController {
             if (this.state.geometry) {
                 if (this.state.geometry === 'Geometría Normal') {
                     if (dilated) {
-                        viConclusion += `Ventrículo izquierdo dilatado con geometría ventricular normal`;
+                        viConclusion += `Ventrículo izquierdo dilatado con remodelado excéntrico`;
                     } else {
                         viConclusion += `Ventrículo izquierdo de diámetros y espesores conservados, con geometría ventricular normal`;
                     }
@@ -1568,7 +1568,11 @@ class UIController {
                     gcLabel = `Volumen sistólico ${sv < 60 ? 'reducido' : sv <= 100 ? 'conservado' : 'elevado'}`;
                 }
 
-                report += `${conclusionNum}. ${gcLabel} (${gcDetail}).\n`;
+                report += `${conclusionNum}. ${gcLabel} (${gcDetail})`;
+                if (dilated && ci && ci < 2.2) {
+                    report += `, estimado por ecocardiografía y a correlacionar con la clínica (el VS puede subestimarse en VI severamente dilatado)`;
+                }
+                report += `.\n`;
                 conclusionNum++;
             }
 
@@ -2288,7 +2292,11 @@ class UIController {
             if (this.state.rwt > 0) geomParams.push(`RWT ${this.state.rwt.toFixed(2)}`);
             if (geomParams.length) p1 += ` (${geomParams.join(', ')})`;
         } else if (isDilated) {
-            p1 += `, el ventrículo izquierdo se encuentra dilatado con geometría conservada`;
+            p1 += `, el ventrículo izquierdo se encuentra dilatado con remodelado excéntrico`;
+            const geomParams = [];
+            if (this.state.lvMassIndex > 0) geomParams.push(`masa indexada ${Math.round(this.state.lvMassIndex)} g/m²`);
+            if (this.state.rwt > 0) geomParams.push(`RWT ${this.state.rwt.toFixed(2)}`);
+            if (geomParams.length) p1 += ` (${geomParams.join(', ')})`;
         } else {
             p1 += `, el ventrículo izquierdo presenta dimensiones y espesores parietales conservados`;
         }
@@ -2403,6 +2411,12 @@ class UIController {
                 if (gcLabel) {
                     const nums = ci ? `VS ${sv} ml, IC ${ci} L/min/m²` : `VS ${sv} ml, GC ${co} L/min`;
                     p2 += `. Se constata ${gcLabel} (${nums})`;
+                    // The Doppler-derived SV depends on the LVOT diameter squared and can
+                    // underestimate output in a severely dilated LV. Flag this so the number
+                    // is read with clinical context rather than as a hard measurement.
+                    if (isDilated && ci && ci < 2.2) {
+                        p2 += `, estimado por ecocardiografía y a correlacionar con la clínica dado que el cálculo del volumen sistólico puede subestimarse en ventrículo izquierdo severamente dilatado`;
+                    }
                 }
             }
 
@@ -2466,13 +2480,20 @@ class UIController {
                     const imVr  = document.getElementById('im_vr')?.value;
                     const imParams = [imVc && `VC ${imVc} mm`, imOre && `EROA ${imOre} cm²`, imVr && `VR ${imVr} ml`].filter(Boolean);
                     const imParamsStr = imParams.length ? ` (${imParams.join(', ')})` : '';
+                    // Infer functional (secondary) MR when the valve is structurally normal
+                    // but the LV is dilated with depressed systolic function: the leaflets
+                    // tether (tenting) due to annular dilation / papillary displacement.
+                    const morfStructural = morfHasEngros || morfML.includes('prolapso') ||
+                                           morfML.includes('flail') || morfHasMAC ||
+                                           morfML.includes('reumá') || morfML.includes('mixomatos');
+                    const inferFunctional = !morfStructural && isDilated && fevi > 0 && fevi < 40;
                     if (rankIM >= 3) {
                         s = `Se constata insuficiencia mitral ${imGrado}${imParamsStr}`;
-                        if (morfHasTenting) s += ` de mecanismo funcional, secundaria a dilatación/remodelado del VI`;
+                        if (morfHasTenting || inferFunctional) s += ` de mecanismo funcional, secundaria a dilatación/remodelado del VI con tenting de las valvas`;
                     } else {
-                        if (morfHasEngros)       s = `Se evidencia engrosamiento de las valvas mitrales con insuficiencia valvular ${imGrado}${imParamsStr}`;
-                        else if (morfHasTenting) s = `Se constata insuficiencia mitral ${imGrado}${imParamsStr} de mecanismo funcional`;
-                        else                     s = `Se registra insuficiencia mitral ${imGrado}${imParamsStr}`;
+                        if (morfHasEngros)                        s = `Se evidencia engrosamiento de las valvas mitrales con insuficiencia valvular ${imGrado}${imParamsStr}`;
+                        else if (morfHasTenting || inferFunctional) s = `Se constata insuficiencia mitral ${imGrado}${imParamsStr} de mecanismo funcional por tenting secundario a dilatación de cavidades`;
+                        else                                      s = `Se registra insuficiencia mitral ${imGrado}${imParamsStr}`;
                     }
                     if (morfHasMAC) s += `, con calcificación del anillo mitral (MAC)`;
                 } else if (morfHasMAC) {
@@ -2615,6 +2636,12 @@ class UIController {
                 p4 += `. Se constata insuficiencia tricuspídea leve${velStr}${itFlujStr}, con baja probabilidad de hipertensión pulmonar (PSAP estimada en ${this.state.psap} mmHg)`;
             } else {
                 p4 += `. La insuficiencia tricuspídea${velStr}${itFlujStr} determina una probabilidad ecocardiográfica de hipertensión pulmonar ${htpResult.probability.toLowerCase()}, con PSAP estimada de ${this.state.psap} mmHg`;
+                // If filling pressures are elevated (grade II/III diastolic dysfunction),
+                // the PH most likely has a post-capillary (left heart) component.
+                const _dr = this.state.diastolicResult;
+                if (_dr && (_dr.grade === 'II' || _dr.grade === 'III') && htpResult.probability !== 'Baja') {
+                    p4 += `, compatible con componente postcapilar en el contexto de las presiones de llenado elevadas`;
+                }
             }
         } else {
             if (itGradoVal && itGradoVal !== 'no' && velIt > 0) {

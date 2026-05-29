@@ -65,7 +65,7 @@ class HemodynamicsCalculator {
      * @param {string} sex - 'M' or 'F'
      * @returns {string} Geometry classification
      */
-    classifyLVGeometry(massIndex, rwt, sex) {
+    classifyLVGeometry(massIndex, rwt, sex, ddvi = 0) {
         if (!massIndex || !rwt) return "Datos insuficientes";
 
         // Sex-specific LV mass index thresholds
@@ -73,8 +73,13 @@ class HemodynamicsCalculator {
 
         const hypertrophy = massIndex > limit;
         const concentric = rwt > 0.42;
+        const dilated = ddvi ? this.isLVDilated(ddvi, sex) : false;
 
         if (!hypertrophy && !concentric) {
+            // A dilated LV with low/normal RWT and normal mass is NOT "normal geometry".
+            // It represents eccentric remodeling by dilation (e.g. dilated cardiomyopathy).
+            // Without the diameter we keep the legacy "Geometría Normal" for backward compat.
+            if (dilated) return "Remodelado Excéntrico";
             return "Geometría Normal";
         } else if (!hypertrophy && concentric) {
             return "Remodelado Concéntrico";

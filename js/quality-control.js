@@ -35,8 +35,33 @@ class QualityControl {
                 'DSVI debe ser menor que DDVI. Verifique las mediciones.');
         }
 
+        // Rule 4: Geometría "normal" en VI dilatado (ASE 2025 — evita "geometría conservada")
+        if (formData.geometry === 'Geometría Normal' && formData.lvDilated) {
+            this.addAlert('error',
+                'Geometría reportada como normal en VI dilatado. Corresponde "remodelado excéntrico".');
+        }
+
+        // Rule 5: IM significativa con morfología normal → sugerir mecanismo funcional
+        if (formData.fevi && formData.fevi < 40 && formData.lvDilated &&
+            (formData.im_grado === 'moderada' || formData.im_grado === 'severa') &&
+            !formData.mitralStructural) {
+            this.addAlert('info',
+                'IM significativa con válvula estructuralmente normal y VI dilatado: considerar mecanismo funcional por tenting.');
+        }
+
+        // Rule 6: Índice cardíaco bajo → recordar limitación técnica del VS
+        if (formData.ci && formData.ci < 2.2 && formData.lvDilated) {
+            this.addAlert('info',
+                'IC bajo estimado por eco: el VS puede subestimarse en VI severamente dilatado. Correlacionar con la clínica.');
+        }
+
+        // Rule 7: Valor de AI anormal sin descripción (consistencia ASE 2025)
+        if (formData.vol_ai && formData.vol_ai > 34 && formData.geometry === undefined) {
+            // soft reminder only — handled in narrative, kept as info
+        }
+
         // Removed annoying live warnings about missing expected measurements 
-        // (Rules 4, 6, 7) because they trigger prematurely before the user has a chance to type.
+        // (legacy Rules) because they trigger prematurely before the user has a chance to type.
 
         return this.alerts;
     }
