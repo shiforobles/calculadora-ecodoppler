@@ -17,51 +17,121 @@ class QualityControl {
     runChecks(formData) {
         this.alerts = [];
 
-        // Rule 1: Motilidad vs FEy consistency
+        const num = (v) => (v === null || v === undefined || v === '') ? null : parseFloat(v);
+
+        // ============================================================
+        // GRUPO A — CONSISTENCIA DE DATOS (errores que invalidan el informe)
+        // ============================================================
+
+        // A1: Motilidad conservada con FEy deprimida
         if (formData.motilidad === 'normal' && formData.fevi && formData.fevi < 50) {
             this.addAlert('error',
-                'Incongruencia: Motilidad conservada con FEy deprimida (<50%)');
+                'Incongruencia: motilidad conservada con FEy deprimida (<50%). Revise motilidad segmentaria.');
         }
 
-        // Rule 2: Estenosis Aórtica severa vs AVA
-        if (formData.ea_grado === 'severa' && formData.ea_ava && parseFloat(formData.ea_ava) > 1.2) {
+        // A2: Estenosis aórtica severa vs AVA
+        if (formData.ea_grado === 'severa' && num(formData.ea_ava) && num(formData.ea_ava) > 1.2) {
             this.addAlert('error',
-                'AVA > 1.2 cm² no es compatible con estenosis aórtica severa (debe ser < 1.0)');
+                'AVA > 1.2 cm² no es compatible con estenosis aórtica severa (debe ser < 1.0 cm²).');
         }
 
-        // Rule 3: DSVI >= DDVI (sanidad de datos)
-        if (formData.dsvi && formData.ddvi && parseFloat(formData.dsvi) >= parseFloat(formData.ddvi)) {
+        // A3: DSVI >= DDVI
+        if (num(formData.dsvi) && num(formData.ddvi) && num(formData.dsvi) >= num(formData.ddvi)) {
             this.addAlert('error',
                 'DSVI debe ser menor que DDVI. Verifique las mediciones.');
         }
 
-        // Rule 4: Geometría "normal" en VI dilatado (ASE 2025 — evita "geometría conservada")
+        // A4: Geometría "normal" en VI dilatado (ASE 2025)
         if (formData.geometry === 'Geometría Normal' && formData.lvDilated) {
             this.addAlert('error',
                 'Geometría reportada como normal en VI dilatado. Corresponde "remodelado excéntrico".');
         }
 
-        // Rule 5: IM significativa con morfología normal → sugerir mecanismo funcional
+        // A5: PSAP elevada sin IT cargada para estimarla
+        if (num(formData.psap) && num(formData.psap) > 35 && !formData.itLoaded) {
+            this.addAlert('warning',
+                'PSAP elevada informada sin velocidad de IT cargada. Verifique el origen de la estimación.');
+        }
+
+        // A6: E/e' elevado con diástole reportada como normal
+        if (num(formData.ePrime) && num(formData.eVel) && formData.diastoleNormal) {
+            const eePrime = num(formData.eVel) / num(formData.ePrime);
+            if (eePrime > 14) {
+                this.addAlert('warning',
+                    'E/e\' > 14 (presiones de llenado elevadas) con función diastólica informada como normal. Revise el grado diastólico.');
+            }
+        }
+
+        // ============================================================
+        // GRUPO B — SUGERENCIAS CLÍNICAS (mejoran el informe, no bloquean)
+        // ============================================================
+
+        // B1: IM significativa funcional
         if (formData.fevi && formData.fevi < 40 && formData.lvDilated &&
             (formData.im_grado === 'moderada' || formData.im_grado === 'severa') &&
             !formData.mitralStructural) {
             this.addAlert('info',
-                'IM significativa con válvula estructuralmente normal y VI dilatado: considerar mecanismo funcional por tenting.');
+                'IM significativa con válvula estructuralmente normal y VI dilatado: se describirá como funcional por tenting.');
         }
 
-        // Rule 6: Índice cardíaco bajo → recordar limitación técnica del VS
-        if (formData.ci && formData.ci < 2.2 && formData.lvDilated) {
+        // B2: Bajo gasto — limitación técnica del VS
+        if (num(formData.ci) && num(formData.ci) < 2.2 && formData.lvDilated) {
             this.addAlert('info',
-                'IC bajo estimado por eco: el VS puede subestimarse en VI severamente dilatado. Correlacionar con la clínica.');
+                'IC bajo estimado por eco: el VS puede subestimarse en VI dilatado. Se agregará la aclaración técnica.');
         }
 
-        // Rule 7: Valor de AI anormal sin descripción (consistencia ASE 2025)
-        if (formData.vol_ai && formData.vol_ai > 34 && formData.geometry === undefined) {
-            // soft reminder only — handled in narrative, kept as info
+        // B3: Disfunción diastólica grado 1 sintomática → sugerir eco estrés
+        if (formData.diastolicGrade === 'I' && formData.symptomatic) {
+            this.addAlert('info',
+                'Disfunción diastólica grado 1 en paciente sintomático: considerar eco de estrés diastólico (ASE 2025).');
         }
 
-        // Removed annoying live warnings about missing expected measurements 
-        // (legacy Rules) because they trigger prematurely before the user has a chance to type.
+        // B4: HTP con presiones elevadas → componente postcapilar
+        if (num(formData.psap) && num(formData.psap) >= 35 &&
+            (formData.diastolicGrade === 'II' || formData.diastolicGrade === 'III')) {
+            this.addAlert('info',
+                'HTP con presiones de llenado elevadas: se orientará a componente postcapilar.');
+        }
+
+        // B5: BCRI/MP — no usar e' septal
+        if (formData.bcri || formData.pacemaker) {
+            this.addAlert('info',
+                'BCRI o marcapasos VD presente: usar e\' lateral para la evaluación diastólica (no septal).');
+        }
+
+        // ============================================================
+        // GRUPO C — HALLAZGOS CRÍTICOS (resaltar en el informe — ASE 2025)
+        // ============================================================
+
+        // C1: FEVI severamente deprimida
+        if (formData.fevi && formData.fevi < 30) {
+            this.addAlert('critical',
+                'FEVI severamente deprimida (<30%). Hallazgo significativo a resaltar.');
+        }
+
+        // C2: Estenosis aórtica severa
+        if (formData.ea_grado === 'severa') {
+            this.addAlert('critical',
+                'Estenosis aórtica severa: hallazgo significativo. Considerar referencia según guías de valvulopatías.');
+        }
+
+        // C3: Derrame pericárdico con compromiso hemodinámico
+        if (formData.peCompromise) {
+            this.addAlert('critical',
+                'Derrame pericárdico con signos de compromiso hemodinámico. Comunicar al equipo tratante.');
+        }
+
+        // C4: HTP severa
+        if (num(formData.psap) && num(formData.psap) >= 60) {
+            this.addAlert('critical',
+                'Hipertensión pulmonar severa (PSAP ≥ 60 mmHg). Hallazgo significativo.');
+        }
+
+        // C5: Disfunción severa del VD
+        if (num(formData.tapse) && num(formData.tapse) < 13) {
+            this.addAlert('critical',
+                'Disfunción sistólica severa del VD (TAPSE < 13 mm). Hallazgo significativo.');
+        }
 
         return this.alerts;
     }
@@ -102,14 +172,27 @@ class QualityControl {
         // Remove OK status
         box.classList.remove('qc-ok');
 
+        // Order: critical → error → warning → info
+        const order = { critical: 0, error: 1, warning: 2, info: 3 };
+        const sorted = [...this.alerts].sort((a, b) => (order[a.level] ?? 9) - (order[b.level] ?? 9));
+
         // Render each alert
-        container.innerHTML = this.alerts.map(alert => {
-            const icon = alert.level === 'error' ? '❌' :
+        container.innerHTML = sorted.map(alert => {
+            const icon = alert.level === 'critical' ? '🚨' :
+                alert.level === 'error' ? '❌' :
                 alert.level === 'warning' ? '⚠️' : 'ℹ️';
             return `<div class="qc-alert qc-alert-${alert.level}">
                 ${icon} ${alert.message}
             </div>`;
         }).join('');
+    }
+
+    /**
+     * Return only critical findings (for highlighting in the report summary)
+     * @returns {array} - Array of critical alert messages
+     */
+    getCriticalFindings() {
+        return this.alerts.filter(a => a.level === 'critical').map(a => a.message);
     }
 
     /**

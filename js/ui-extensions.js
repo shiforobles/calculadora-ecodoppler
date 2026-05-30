@@ -184,6 +184,11 @@ UIController.prototype.runQualityControl = function () {
                               _morf.includes('engrosamiento') || _morf.includes('calcific') ||
                               _morf.includes('reumá') || _morf.includes('mixomatos');
 
+    const _diastole = (document.getElementById('diastole')?.value ||
+                       this.state.diastolicResult?.conclusion || '').toLowerCase();
+    const _grade = this.state.diastolicResult?.grade || null;
+    const _itGrado = document.getElementById('it_grado')?.value;
+
     const formData = {
         motilidad: document.getElementById('motilidad_global').value,
         fevi: parseFloat(document.getElementById('fevi').value),
@@ -195,12 +200,25 @@ UIController.prototype.runQualityControl = function () {
         im_ore: parseFloat(document.getElementById('im_ore').value),
         em_grado: document.getElementById('em_grado').value,
         em_grad_medio: parseFloat(document.getElementById('em_grad_medio').value),
-        // ASE 2025 consistency checks
+
+        // ASE 2025 consistency + clinical context
         geometry: this.state.geometry,
         lvDilated: (_ddvi && this.calc) ? this.calc.isLVDilated(_ddvi, _sexo) : false,
         mitralStructural: _mitralStructural,
         ci: this.state.cardiacOutput ? parseFloat(this.state.cardiacOutput.ci) : null,
-        vol_ai: parseFloat(document.getElementById('vol_ai').value)
+        vol_ai: parseFloat(document.getElementById('vol_ai').value),
+        psap: this.state.psap || parseFloat(document.getElementById('psap')?.value),
+        tapse: parseFloat(document.getElementById('tapse')?.value),
+        eVel: parseFloat(document.getElementById('onda_e')?.value),
+        ePrime: parseFloat(document.getElementById('e_prima_prom')?.value),
+        itLoaded: !!(_itGrado && _itGrado !== 'no' && _itGrado !== 'no_valorable'),
+        diastoleNormal: _diastole.includes('normal'),
+        diastolicGrade: _grade,
+        symptomatic: !!(document.getElementById('ant_disnea')?.checked),
+        bcri: !!(document.getElementById('ctx_bcri')?.checked),
+        pacemaker: !!(document.getElementById('ant_marcapasos')?.checked || document.getElementById('ctx_mcp')?.checked),
+        peCompromise: ['pe_colapso_ad', 'pe_colapso_vd', 'pe_variacion_flujo', 'pe_vci_dilatada']
+            .some(id => document.getElementById(id)?.checked)
     };
 
     this.qc.runChecks(formData);
