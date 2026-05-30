@@ -3129,6 +3129,15 @@ class UIController {
                 const el = document.getElementById('pe_ubicacion');
                 return el ? (el.options[el.selectedIndex]?.text || '-') : '-';
             })(),
+
+            // 16. Informe narrativo completo (para el dashboard) (1)
+            (() => {
+                try {
+                    return this._buildNarrativeConclusion ? this._buildNarrativeConclusion() : '-';
+                } catch (e) {
+                    return '-';
+                }
+            })(),
         ];
         return row;
     }

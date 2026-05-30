@@ -38,6 +38,8 @@ class StudyStorage {
         'IT Vmax',
         // Pericardio distribución (1)
         'PE Distribución',
+        // Informe narrativo completo (1) — usado por el dashboard
+        'Informe',
     ];
 
     static getAll() {
