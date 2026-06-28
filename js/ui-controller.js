@@ -2439,8 +2439,41 @@ class UIController {
         const morfHasBicuspidia = morfAL.includes('bicuspidia');
         const rankIM = rankMap[imGrado] || 0;
 
+        // Prótesis aórtica presente → no describir la válvula aórtica nativa como enferma
+        const protChecked      = document.getElementById('prot_check')?.checked;
+        const protPosVal       = document.getElementById('prot_posicion')?.value || '';
+        const aorticProsthesis = protChecked && protPosVal === 'aortica';
+        // Alcance del jet de IM (im_area_jet) — se anexa donde se describe la insuficiencia mitral
+        const imJetMap = {
+            leve:     ', con alcance del jet hasta el tercio proximal de la aurícula izquierda',
+            moderada: ', con alcance del jet hasta los dos tercios de la aurícula izquierda',
+            severa:   ', con alcance del jet hasta la pared posterior de la aurícula izquierda',
+        };
+        const imJetStr = imJetMap[document.getElementById('im_area_jet')?.value] || '';
+
+        // Texto del select (con tildes) para mostrar grados al usuario, en minúscula
+        const gradeText = (id) => {
+            const el = document.getElementById(id);
+            return el ? (el.options[el.selectedIndex]?.text || '').toLowerCase() : '';
+        };
+        const imText = gradeText('im_grado');
+        const iaText = gradeText('ia_grado');
+        const eaText = gradeText('ea_grado');
+        const emText = gradeText('em_grado');
+
+        // Alteración estructural por válvula → habilita informar la insuficiencia "mínima".
+        // Si la válvula es morfológicamente normal, la mínima es fisiológica y se omite.
+        const aorticStructural = eaGrado !== 'no' || morfHasBicuspidia ||
+                                 morfAL.includes('esclerosis') || morfAL.includes('engrosamiento') || morfAL.includes('calcific');
+        const mitralStructural = morfHasEngros || morfHasMAC || emGrado !== 'no' ||
+                                 morfML.includes('prolapso') || morfML.includes('flail') ||
+                                 morfML.includes('reumá')   || morfML.includes('mixomatos') ||
+                                 morfML.includes('esclerosis') || morfML.includes('fibroso');
+        const reportIa = iaGrado !== 'no' && !(iaGrado === 'minima' && !aorticStructural);
+        const reportIm = imGrado !== 'no' && !(imGrado === 'minima' && !mitralStructural);
+
         // ── Esclerosis bivalvular — integrated sentence ──
-        const isBivalvularSclerosis = eaGrado === 'esclerosis' && (morfHasEngros || morfML.includes('fibroso'));
+        const isBivalvularSclerosis = eaGrado === 'esclerosis' && !aorticProsthesis && (morfHasEngros || morfML.includes('fibroso'));
         if (isBivalvularSclerosis) {
             const eaVmax = parseFloat(document.getElementById('ea_vmax')?.value) || null;
             const vmaxStr = eaVmax ? ` (Vmax Ao ${eaVmax} m/s)` : '';
@@ -2451,12 +2484,12 @@ class UIController {
                 const imVrB  = document.getElementById('im_vr')?.value;
                 const imPB   = [imVcB && `VC ${imVcB} mm`, imOreB && `EROA ${imOreB} cm²`, imVrB && `VR ${imVrB} ml`].filter(Boolean);
                 const imPsB  = imPB.length ? ` (${imPB.join(', ')})` : '';
-                s += `. Se asocia insuficiencia mitral ${imGrado}${imPsB} sin repercusión hemodinámica, mientras que la válvula aórtica no presenta flujos patológicos significativos`;
+                s += `. Se asocia insuficiencia mitral ${imText}${imPsB}${imJetStr} sin repercusión hemodinámica, mientras que la válvula aórtica no presenta flujos patológicos significativos`;
             } else if (imGrado !== 'no' && rankIM >= 3) {
-                s += `. Se constata insuficiencia mitral ${imGrado}`;
+                s += `. Se constata insuficiencia mitral ${imText}${imJetStr}`;
             } else {
                 if (iaGrado !== 'no') {
-                    s += `. La válvula aórtica no presenta estenosis significativa; se registra insuficiencia aórtica ${iaGrado}`;
+                    s += `. La válvula aórtica no presenta estenosis significativa; se registra insuficiencia aórtica ${iaText}`;
                 } else {
                     s += `, sin flujos patológicos significativos`;
                 }
@@ -2464,17 +2497,17 @@ class UIController {
             p3Sentences.push(s);
         } else {
             // ── Mitral ──
-            const hasMitralFinding = imGrado !== 'no' || emGrado !== 'no' || morfHasMAC || morfHasEngros || morfHasTenting;
+            const hasMitralFinding = reportIm || emGrado !== 'no' || morfHasMAC || morfHasEngros || morfHasTenting;
             if (hasMitralFinding) {
                 let s = '';
                 if (emGrado !== 'no') {
-                    s = `Se constata estenosis mitral ${emGrado}`;
+                    s = `Se constata estenosis mitral ${emText}`;
                     const emAva = document.getElementById('em_area_pht')?.value;
                     const emGm  = document.getElementById('em_grad_medio')?.value;
                     const emParams = [emAva && `área ${emAva} cm²`, emGm && `gradiente medio ${emGm} mmHg`].filter(Boolean);
                     if (emParams.length) s += ` (${emParams.join(', ')})`;
                     if (morfHasMAC) s += `, en contexto de calcificación del anillo mitral (MAC)`;
-                } else if (imGrado !== 'no') {
+                } else if (reportIm) {
                     const imVc  = document.getElementById('im_vc')?.value;
                     const imOre = document.getElementById('im_ore')?.value;
                     const imVr  = document.getElementById('im_vr')?.value;
@@ -2488,14 +2521,15 @@ class UIController {
                                            morfML.includes('reumá') || morfML.includes('mixomatos');
                     const inferFunctional = !morfStructural && isDilated && fevi > 0 && fevi < 40;
                     if (rankIM >= 3) {
-                        s = `Se constata insuficiencia mitral ${imGrado}${imParamsStr}`;
+                        s = `Se constata insuficiencia mitral ${imText}${imParamsStr}`;
                         if (morfHasTenting || inferFunctional) s += ` de mecanismo funcional, secundaria a dilatación/remodelado del VI con tenting de las valvas`;
                     } else {
-                        if (morfHasEngros)                        s = `Se evidencia engrosamiento de las valvas mitrales con insuficiencia valvular ${imGrado}${imParamsStr}`;
-                        else if (morfHasTenting || inferFunctional) s = `Se constata insuficiencia mitral ${imGrado}${imParamsStr} de mecanismo funcional por tenting secundario a dilatación de cavidades`;
-                        else                                      s = `Se registra insuficiencia mitral ${imGrado}${imParamsStr}`;
+                        if (morfHasEngros)                        s = `Se evidencia engrosamiento de las valvas mitrales con insuficiencia valvular ${imText}${imParamsStr}`;
+                        else if (morfHasTenting || inferFunctional) s = `Se constata insuficiencia mitral ${imText}${imParamsStr} de mecanismo funcional por tenting secundario a dilatación de cavidades`;
+                        else                                      s = `Se registra insuficiencia mitral ${imText}${imParamsStr}`;
                     }
                     if (morfHasMAC) s += `, con calcificación del anillo mitral (MAC)`;
+                    s += imJetStr;
                 } else if (morfHasMAC) {
                     s = 'Se evidencia calcificación del anillo mitral (MAC)';
                 } else if (morfHasEngros || morfHasTenting) {
@@ -2505,38 +2539,42 @@ class UIController {
                 if (s) p3Sentences.push(s);
             }
 
-            // ── Aortic ──
-            const hasAorticFinding = eaGrado !== 'no' || iaGrado !== 'no';
-            if (hasAorticFinding) {
-                let s = '';
-                if (eaGrado === 'esclerosis') {
-                    s = `La válvula aórtica presenta esclerosis (engrosamiento focal) sin obstrucción`;
-                    if (iaGrado !== 'no') s += ` con insuficiencia aórtica ${iaGrado}`;
-                    else s += `, sin insuficiencia significativa`;
-                } else if (eaGrado !== 'no') {
-                    s = `Se constata estenosis aórtica ${eaGrado}`;
-                    if (eaAva || eaGm) s += ` (AVA ${eaAva || '?'} cm²${eaGm ? ', gradiente medio ' + eaGm + ' mmHg' : ''})`;
-                    if (iaGrado !== 'no') s += `, asociada a insuficiencia aórtica ${iaGrado}`;
-                } else if (iaGrado !== 'no') {
-                    s = `Se registra insuficiencia aórtica ${iaGrado}`;
-                    if (morfHasBicuspidia) s += ` en contexto de sospecha de válvula bicúspide`;
-                }
-                if (s) p3Sentences.push(s);
-            } else {
-                // Aortic valve normal — always describe explicitly
-                let s;
-                if (morfAortica) {
-                    const morfDesc = morfAortica.replace(/^válvula\s+/i, '');
-                    const morfDescL = morfDesc.charAt(0).toLowerCase() + morfDesc.slice(1);
-                    if (morfDesc.toLowerCase().includes('esclerosis')) {
-                        s = `La válvula aórtica presenta ${morfDescL}, sin estenosis o insuficiencia significativas`;
-                    } else {
-                        s = `La válvula aórtica es ${morfDescL}, sin estenosis o insuficiencia significativas`;
+            // ── Aortic ── (se omite si hay prótesis aórtica: la válvula nativa fue reemplazada)
+            if (!aorticProsthesis) {
+                const eaVmaxVal = document.getElementById('ea_vmax')?.value;
+                const eaVmaxStr = eaVmaxVal ? ` (Vmax Ao ${eaVmaxVal} m/s)` : '';
+                const hasAorticFinding = eaGrado !== 'no' || reportIa;
+                if (hasAorticFinding) {
+                    let s = '';
+                    if (eaGrado === 'esclerosis') {
+                        s = `La válvula aórtica presenta esclerosis (engrosamiento focal) sin obstrucción${eaVmaxStr}`;
+                        if (reportIa) s += ` con insuficiencia aórtica ${iaText}`;
+                        else s += `, sin insuficiencia significativa`;
+                    } else if (eaGrado !== 'no') {
+                        s = `Se constata estenosis aórtica ${eaText}`;
+                        if (eaAva || eaGm) s += ` (AVA ${eaAva || '?'} cm²${eaGm ? ', gradiente medio ' + eaGm + ' mmHg' : ''})`;
+                        if (reportIa) s += `, asociada a insuficiencia aórtica ${iaText}`;
+                    } else if (reportIa) {
+                        s = `Se registra insuficiencia aórtica ${iaText}`;
+                        if (morfHasBicuspidia) s += ` en contexto de sospecha de válvula bicúspide`;
                     }
+                    if (s) p3Sentences.push(s);
                 } else {
-                    s = `La válvula aórtica es morfológicamente normal, sin valvulopatías significativas`;
+                    // Aortic valve normal — always describe explicitly
+                    let s;
+                    if (morfAortica) {
+                        const morfDesc = morfAortica.replace(/^válvula\s+/i, '');
+                        const morfDescL = morfDesc.charAt(0).toLowerCase() + morfDesc.slice(1);
+                        if (morfDesc.toLowerCase().includes('esclerosis')) {
+                            s = `La válvula aórtica presenta ${morfDescL}${eaVmaxStr}, sin estenosis o insuficiencia significativas`;
+                        } else {
+                            s = `La válvula aórtica es ${morfDescL}, sin estenosis o insuficiencia significativas`;
+                        }
+                    } else {
+                        s = `La válvula aórtica es morfológicamente normal, sin valvulopatías significativas`;
+                    }
+                    p3Sentences.push(s);
                 }
-                p3Sentences.push(s);
             }
         }
 
@@ -2555,25 +2593,70 @@ class UIController {
 
         let p3 = p3Sentences.length > 0
             ? p3Sentences.join('. ')
-            : 'El aparato valvular mitral y aórtico es morfológicamente normal, sin valvulopatías significativas';
+            : (aorticProsthesis
+                ? 'La válvula mitral es morfológicamente normal'
+                : 'El aparato valvular mitral y aórtico es morfológicamente normal, sin valvulopatías significativas');
 
-        // Aorta — append if dilated
+        // Válvula pulmonar — texto fijo (la app no captura patología pulmonar).
+        // Para quitarlo, poné INCLUIR_VALVULA_PULMONAR en false.
+        const INCLUIR_VALVULA_PULMONAR = false;
+        if (INCLUIR_VALVULA_PULMONAR) p3 += '. La válvula pulmonar es de morfología y apertura conservadas';
+
+        // Aorta — reportar valores indexados siempre que estén cargados (normal vs dilatada)
         const aoRaiz = parseFloat(document.getElementById('ao_raiz')?.value) || 0;
         const aoAsc  = parseFloat(document.getElementById('ao_asc')?.value) || 0;
-        if (sc) {
+        if (sc && (aoRaiz || aoAsc)) {
             const rootLimit  = sexo === 'M' ? 2.15 : 2.11;
             const ascLimit   = sexo === 'M' ? 2.11 : 2.03;
             const aoRaizIdx  = aoRaiz ? aoRaiz / sc / 10 : 0;
             const aoAscIdx   = aoAsc  ? aoAsc  / sc / 10 : 0;
-            if (aoRaizIdx > rootLimit) p3 += `. La raíz aórtica se encuentra dilatada (${aoRaiz} mm, ${aoRaizIdx.toFixed(2)} cm/m²)`;
-            if (aoAscIdx > ascLimit)   p3 += `. La aorta ascendente se encuentra dilatada (${aoAsc} mm, ${aoAscIdx.toFixed(2)} cm/m²)`;
+            const rootDil    = aoRaizIdx > rootLimit;
+            const ascDil     = aoAscIdx  > ascLimit;
+            const normSegs = [];
+            if (aoRaiz && !rootDil) normSegs.push(`raíz ${aoRaiz} mm [${aoRaizIdx.toFixed(2)} cm/m²]`);
+            if (aoAsc  && !ascDil)  normSegs.push(`ascendente ${aoAsc} mm [${aoAscIdx.toFixed(2)} cm/m²]`);
+            if (normSegs.length) p3 += `. La aorta torácica proximal presenta dimensiones conservadas (${normSegs.join(', ')})`;
+            if (rootDil) p3 += `. La raíz aórtica se encuentra dilatada (${aoRaiz} mm, ${aoRaizIdx.toFixed(2)} cm/m²)`;
+            if (ascDil)  p3 += `. La aorta ascendente se encuentra dilatada (${aoAsc} mm, ${aoAscIdx.toFixed(2)} cm/m²)`;
         }
-        // Prótesis valvular alert
+
+        // Prótesis valvular — descripción completa de los parámetros cargados
         const hasProtesis = document.getElementById('prot_check')?.checked;
-        if (hasProtesis && this.state.protAlert) {
-            const pPosEl = document.getElementById('prot_posicion');
-            const pPosText = pPosEl ? pPosEl.options[pPosEl.selectedIndex]?.text?.toLowerCase() : 'valvular';
-            p3 += `. En relación a la prótesis ${pPosText}: ${this.state.protAlert}`;
+        if (hasProtesis) {
+            const pPosEl   = document.getElementById('prot_posicion');
+            const pTipoEl  = document.getElementById('prot_tipo');
+            const pPosText = pPosEl  ? pPosEl.options[pPosEl.selectedIndex]?.text?.toLowerCase()   : 'valvular';
+            const pTipoTxt = pTipoEl ? pTipoEl.options[pTipoEl.selectedIndex]?.text?.toLowerCase() : '';
+            const pNum     = document.getElementById('prot_numero')?.value?.trim();
+            const pVmax    = document.getElementById('prot_vmax')?.value;
+            const pGm      = document.getElementById('prot_gm')?.value;
+            const pDviRaw  = document.getElementById('prot_dvi_disp')?.textContent?.trim();
+            const pIeoaRaw = document.getElementById('prot_ieoa_disp')?.textContent?.trim();
+            const pDvi     = (pDviRaw  && pDviRaw  !== '-') ? pDviRaw  : '';
+            const pIeoa    = (pIeoaRaw && pIeoaRaw !== '-') ? pIeoaRaw : '';
+            const pInsuf   = document.getElementById('prot_insuficiencia')?.value || 'no';
+
+            let protStr = `Portador de reemplazo valvular en posición ${pPosText} con prótesis ${pTipoTxt}`;
+            if (pNum) protStr += ` (Modelo/Nº ${pNum})`;
+            const protParams = [];
+            if (pVmax) protParams.push(`velocidad pico ${pVmax} m/s`);
+            if (pGm)   protParams.push(`gradiente medio ${pGm} mmHg`);
+            if (pDvi)  protParams.push(`DVI ${pDvi}`);
+            if (pIeoa) protParams.push(`iEOA ${pIeoa} cm²/m²`);
+            if (protParams.length) protStr += `. Parámetros: ${protParams.join(', ')}`;
+
+            // Regurgitación (peri)protésica — combina tipo (prot_insuficiencia) con grado (iaGrado) si es aórtica
+            const sigIa = iaGrado !== 'no' && iaGrado !== 'minima';
+            if (aorticProsthesis) {
+                if      (pInsuf === 'paravalvular')   protStr += `, con insuficiencia paravalvular (leak)${sigIa ? ' ' + iaText : ''}`;
+                else if (pInsuf === 'intraprotesica') protStr += `, con insuficiencia intraprotésica${sigIa ? ' ' + iaText : ''}`;
+                else if (sigIa)                       protStr += `, con insuficiencia (peri)protésica ${iaText}`;
+            } else {
+                if      (pInsuf === 'paravalvular')   protStr += `, con insuficiencia paravalvular (leak)`;
+                else if (pInsuf === 'intraprotesica') protStr += `, con insuficiencia intraprotésica`;
+            }
+            if (this.state.protAlert) protStr += `. ${this.state.protAlert}`;
+            p3 += `. ${protStr}`;
         }
         paragraphs.push(p3 + '.');
 
@@ -2620,13 +2703,13 @@ class UIController {
         const itVrQ        = document.getElementById('it_vr')?.value;
         const itFlujHepQ   = document.getElementById('it_flujo_hep')?.value;
         const itQuantParts = [];
-        if (sigIT) {
-            if (itVcQ)  itQuantParts.push(`VC ${itVcQ} mm`);
-            if (itOreQ) itQuantParts.push(`ORE ${itOreQ} cm²`);
-            if (itVrQ)  itQuantParts.push(`VR ${itVrQ} ml`);
-        }
+        if (itVcQ)  itQuantParts.push(`VC ${itVcQ} mm`);
+        if (itOreQ) itQuantParts.push(`ORE ${itOreQ} cm²`);
+        if (itVrQ)  itQuantParts.push(`VR ${itVrQ} ml`);
         const itQuantStr = itQuantParts.length ? ` (${itQuantParts.join(', ')})` : '';
-        const itFlujStr  = itFlujHepQ === 'reverso' ? '; reverso sistólico en venas suprahepáticas' : '';
+        let itFlujStr = '';
+        if      (itFlujHepQ === 'reverso')         itFlujStr = '; reverso sistólico en venas suprahepáticas';
+        else if (itFlujHepQ === 'normal' && sigIT) itFlujStr = '; flujo sistólico anterógrado conservado en venas suprahepáticas';
 
         if (itNoVal) {
             p4 += `. No se observa flujo de insuficiencia tricuspídea que permita estimar la presión sistólica de la arteria pulmonar`;
