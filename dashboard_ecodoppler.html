@@ -82,11 +82,20 @@ h1 em{font-style:italic;color:var(--teal)}
 .chart-box{position:relative;height:260px}
 .chart-box.tall{height:320px}
 
-/* BULLSEYE */
-.bullseye-wrap{display:flex;flex-direction:column;align-items:center;gap:1rem}
-.bullseye-legend{display:flex;gap:1rem;flex-wrap:wrap;justify-content:center;font-size:.75rem;color:var(--ink-dim)}
-.bullseye-legend span{display:flex;align-items:center;gap:.35rem}
-.dot{width:12px;height:12px;border-radius:3px;display:inline-block}
+/* MOTILIDAD (territorio · patrón · WMSI) */
+.mot-wrap{display:flex;flex-direction:column;gap:1.25rem}
+.mot-wmsi{text-align:center;padding:.3rem 0 .1rem}
+.mot-wmsi-val{font-family:'Fraunces',serif;font-weight:900;font-size:2.6rem;line-height:1;color:var(--teal)}
+.mot-wmsi-cap{font-size:.72rem;color:var(--ink-dim);font-family:'Space Mono',monospace;margin-top:.4rem}
+.mot-section-title{font-size:.72rem;text-transform:uppercase;letter-spacing:.1em;color:var(--ink-dim);font-weight:600;margin-bottom:.7rem}
+.mot-row{margin-bottom:.65rem}
+.mot-row:last-child{margin-bottom:0}
+.mot-row-head{display:flex;justify-content:space-between;align-items:baseline;gap:.5rem;margin-bottom:.28rem}
+.mot-row-label{font-size:.82rem;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mot-row-count{font-size:.78rem;color:var(--ink-dim);font-family:'Space Mono',monospace;flex-shrink:0}
+.mot-track{height:8px;border-radius:6px;background:var(--bg2);overflow:hidden}
+.mot-fill{height:100%;border-radius:6px;transition:width .5s ease}
+.mot-foot{font-size:.72rem;color:var(--ink-dim);text-align:center;margin-top:.2rem}
 
 /* TABLE */
 .table-controls{display:flex;gap:1rem;flex-wrap:wrap;margin-bottom:1rem;align-items:center}
@@ -232,17 +241,9 @@ tbody tr:hover{background:var(--panel2)}
       <div class="chart-box"><canvas id="chart-fevi"></canvas></div>
     </div>
     <div class="panel col-4">
-      <h2>Mapa de Motilidad Agregado</h2>
-      <p class="hint">Frecuencia de alteración por segmento (17-AHA)</p>
-      <div class="bullseye-wrap">
-        <svg id="bullseye" viewBox="0 0 320 320" width="280" height="280"></svg>
-        <div class="bullseye-legend">
-          <span><i class="dot" style="background:#1a2440"></i>0%</span>
-          <span><i class="dot" style="background:#fbbf24"></i>bajo</span>
-          <span><i class="dot" style="background:#fb923c"></i>medio</span>
-          <span><i class="dot" style="background:#f87171"></i>alto</span>
-        </div>
-      </div>
+      <h2>Motilidad Parietal Alterada</h2>
+      <p class="hint">Territorio coronario · patrón · WMSI</p>
+      <div id="mot-viz"></div>
     </div>
   </div>
 
@@ -647,58 +648,80 @@ function renderCharts(){
 }
 
 /* ============ BULLSEYE ============ */
-const SEG_NAMES={
-  1:'basal anterior',2:'basal anteroseptal',3:'basal inferoseptal',4:'basal inferior',5:'basal inferolateral',6:'basal anterolateral',
-  7:'medio anterior',8:'medio anteroseptal',9:'medio inferoseptal',10:'medio inferior',11:'medio inferolateral',12:'medio anterolateral',
-  13:'apical anterior',14:'apical septal',15:'apical inferior',16:'apical lateral',17:'apex'
-};
-function renderBullseye(){
-  // Contar frecuencia de mención de cada segmento en Motilidad Detalle
-  const freq={}; for(let i=1;i<=17;i++)freq[i]=0;
-  let totalAlt=0;
-  STUDIES.forEach(s=>{
-    const d=txt(s['Motilidad Detalle']).toLowerCase();
-    if(!d||d==='-')return;
-    totalAlt++;
-    for(let i=1;i<=17;i++){ if(d.includes(SEG_NAMES[i])) freq[i]++; }
-  });
-  const maxF=Math.max(1,...Object.values(freq));
-  const color=f=>{ if(f===0)return'#1a2440'; const r=f/maxF; return r>0.66?'#f87171':r>0.33?'#fb923c':'#fbbf24'; };
+// La base guarda motilidad a nivel TERRITORIO coronario (DA/Cx/CD) + patrón + WMSI,
+// no por segmento AHA. Clasifica el texto de "Motilidad Detalle" en 5 categorías clínicas.
+function classifyMot(raw){
+  const wm=raw.match(/WMSI:\s*([\d.,]+)/i);
+  const wmsi=wm?parseFloat(wm[1].replace(',','.')):null;
+  // territorios coronarios (tokens en mayúscula, no confundir con "Dilatada", etc.)
+  const terr=[];
+  if(/\bDA\b/.test(raw))terr.push('DA');
+  if(/\bCx\b/.test(raw))terr.push('Cx');
+  if(/\bCD\b/.test(raw))terr.push('CD');
+  // etiqueta: lo que sigue a "Patrón:", o el texto sin la cola "(WMSI ...)"
+  const pm=raw.match(/Patr[oó]n:\s*(.+?)\s*\(WMSI/i);
+  const label=(pm?pm[1]:raw.replace(/\s*\(WMSI[^)]*\)\s*$/i,'')).trim();
+  const L=label.toLowerCase();
+  let cat;
+  if(/dilatada/.test(L)) cat='Miocardiopatía Dilatada';
+  else if(/marcapasos|\bmcp\b/.test(L)) cat='Marcapasos (MCP)';
+  else if(/bcri|disincron/.test(L)) cat='Disincronía / BCRI';
+  else if(/cirug/.test(L)) cat='Post Cirugía Cardíaca';
+  else cat='Isquémico / coronario'; // isquémico, hipo/aquinesia territorial, multivaso, trastornos segmentarios
+  return {wmsi,terr,cat};
+}
 
-  const svg=document.getElementById('bullseye');
-  const cx=160,cy=160;
-  const R=[0,45,90,135,160]; // apex, apical, mid, basal radius bounds
-  function arc(ri,re,a0,a1){
-    const p=(r,a)=>{const rad=(a-90)*Math.PI/180;return[cx+r*Math.cos(rad),cy+r*Math.sin(rad)]};
-    const[x1,y1]=p(re,a1),[x2,y2]=p(re,a0),[x3,y3]=p(ri,a0),[x4,y4]=p(ri,a1);
-    const laf=(a1-a0)<=180?0:1;
-    return`M${x1} ${y1}A${re} ${re} 0 ${laf} 0 ${x2} ${y2}L${x3} ${y3}A${ri} ${ri} 0 ${laf} 1 ${x4} ${y4}Z`;
-  }
-  // segment angular layout (anterior top, septal left, lateral right)
-  const layout=[
-    // basal
-    {id:1,ri:135,re:160,a0:-30,a1:30},{id:6,ri:135,re:160,a0:30,a1:90},{id:5,ri:135,re:160,a0:90,a1:150},
-    {id:4,ri:135,re:160,a0:150,a1:210},{id:3,ri:135,re:160,a0:210,a1:270},{id:2,ri:135,re:160,a0:270,a1:330},
-    // mid
-    {id:7,ri:90,re:135,a0:-30,a1:30},{id:12,ri:90,re:135,a0:30,a1:90},{id:11,ri:90,re:135,a0:90,a1:150},
-    {id:10,ri:90,re:135,a0:150,a1:210},{id:9,ri:90,re:135,a0:210,a1:270},{id:8,ri:90,re:135,a0:270,a1:330},
-    // apical
-    {id:13,ri:45,re:90,a0:-45,a1:45},{id:16,ri:45,re:90,a0:45,a1:135},{id:15,ri:45,re:90,a0:135,a1:225},{id:14,ri:45,re:90,a0:225,a1:315},
-  ];
-  let html='';
-  layout.forEach(seg=>{
-    const f=freq[seg.id];
-    const mid=(seg.a0+seg.a1)/2, midr=(seg.ri+seg.re)/2;
-    const rad=(mid-90)*Math.PI/180;
-    const lx=cx+midr*Math.cos(rad), ly=cy+midr*Math.sin(rad);
-    html+=`<path d="${arc(seg.ri,seg.re,seg.a0,seg.a1)}" fill="${color(f)}" stroke="#0a0e1a" stroke-width="2">
-      <title>${seg.id}. ${SEG_NAMES[seg.id]}: ${f} estudios</title></path>`;
-    html+=`<text x="${lx}" y="${ly+3}" text-anchor="middle" font-size="9" fill="#e8edf7" font-family="Space Mono">${f||''}</text>`;
-  });
-  // apex
-  html+=`<circle cx="${cx}" cy="${cy}" r="45" fill="${color(freq[17])}" stroke="#0a0e1a" stroke-width="2"><title>17. apex: ${freq[17]}</title></circle>`;
-  html+=`<text x="${cx}" y="${cy+3}" text-anchor="middle" font-size="9" fill="#e8edf7" font-family="Space Mono">${freq[17]||''}</text>`;
-  svg.innerHTML=html;
+function renderMotility(){
+  const el=document.getElementById('mot-viz');
+  const parsed=STUDIES.map(s=>txt(s['Motilidad Detalle'])).filter(d=>d!=='').map(classifyMot);
+  const n=parsed.length;
+  if(!n){ el.innerHTML='<p class="hint">Sin estudios con motilidad alterada.</p>'; return; }
+
+  // Territorio (un estudio puede comprometer más de uno)
+  const terr={DA:0,Cx:0,CD:0};
+  parsed.forEach(p=>p.terr.forEach(t=>terr[t]++));
+  // Patrón (orden clínico fijo)
+  const CATS=['Isquémico / coronario','Miocardiopatía Dilatada','Marcapasos (MCP)','Disincronía / BCRI','Post Cirugía Cardíaca'];
+  const pat={}; CATS.forEach(c=>pat[c]=0);
+  parsed.forEach(p=>pat[p.cat]++);
+  // WMSI
+  const ws=parsed.map(p=>p.wmsi).filter(x=>x!=null);
+  const prom=ws.length?(ws.reduce((a,b)=>a+b,0)/ws.length):null;
+  const mn=ws.length?Math.min(...ws):null, mx=ws.length?Math.max(...ws):null;
+
+  const bar=(label,val,maxVal,color)=>{
+    const pct=maxVal>0?Math.round(val/maxVal*100):0;
+    return `<div class="mot-row" title="${label}: ${val}">
+      <div class="mot-row-head"><span class="mot-row-label">${label}</span><span class="mot-row-count">${val}</span></div>
+      <div class="mot-track"><div class="mot-fill" style="width:${pct}%;background:${color}"></div></div>
+    </div>`;
+  };
+
+  const terrMax=Math.max(1,terr.DA,terr.Cx,terr.CD);
+  const terrColors={DA:'#2dd4bf',Cx:'#3b82f6',CD:'#fbbf24'};
+  const terrHtml=[['DA','Descendente anterior'],['Cx','Circunfleja'],['CD','Coronaria derecha']]
+    .map(([k,full])=>bar(`${k} · ${full}`,terr[k],terrMax,terrColors[k])).join('');
+
+  const patColors=['#fb7185','#a78bfa','#fb923c','#34d399','#60a5fa'];
+  const patMax=Math.max(1,...CATS.map(c=>pat[c]));
+  const patHtml=CATS.filter(c=>pat[c]>0).map(c=>bar(c,pat[c],patMax,patColors[CATS.indexOf(c)])).join('');
+
+  el.innerHTML=`
+    <div class="mot-wrap">
+      <div class="mot-wmsi">
+        <div class="mot-wmsi-val">${prom!=null?prom.toFixed(2):'—'}</div>
+        <div class="mot-wmsi-cap">WMSI promedio · rango ${mn!=null?mn.toFixed(2):'—'}–${mx!=null?mx.toFixed(2):'—'}</div>
+      </div>
+      <div class="mot-section">
+        <div class="mot-section-title">Territorio coronario</div>
+        ${terrHtml}
+      </div>
+      <div class="mot-section">
+        <div class="mot-section-title">Patrón de motilidad</div>
+        ${patHtml}
+      </div>
+      <div class="mot-foot">n = ${n} estudios con motilidad alterada (de ${STUDIES.length})</div>
+    </div>`;
 }
 
 /* ============ TABLE ============ */
@@ -889,7 +912,7 @@ document.querySelectorAll('th[data-sort]').forEach(th=>{
 document.addEventListener('keydown',e=>{if(e.key==='Escape')closeModal()});
 
 /* ============ INIT ============ */
-function renderAll(){mergeStudies();renderKPIs();renderCharts();renderBullseye();renderTable();}
+function renderAll(){mergeStudies();renderKPIs();renderCharts();renderMotility();renderTable();}
 
 async function init(){
   // 1. Mostrar primero lo que ya tenemos (instantáneo)
