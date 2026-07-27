@@ -21,6 +21,9 @@ class UIController {
             diastolicResult: null
         };
         this.reportMode = 'lista';
+        // Se marca cuando el usuario edita el informe a mano: lo editado es lo que se
+        // guarda y no debe sobrescribirse por una regeneración sin avisar.
+        this.reportEdited = false;
     }
 
     /**
@@ -40,6 +43,20 @@ class UIController {
         if (btnModeLista) btnModeLista.addEventListener('click', () => this.setReportMode('lista'));
         if (btnModeNarrativo) btnModeNarrativo.addEventListener('click', () => this.setReportMode('narrativo'));
         if (btnModeIA) btnModeIA.addEventListener('click', () => this.generateAIReport());
+
+        // Presets: desplegable + administración
+        this.renderPresetSelector();
+        const selPreset = document.getElementById('preset_selector');
+        document.getElementById('btn_aplicar_preset')?.addEventListener('click', () => {
+            const nombre = selPreset?.value;
+            if (!nombre) { this.showToast('Elegí un preset de la lista'); return; }
+            this.applyPreset(nombre);
+        });
+        document.getElementById('btn_admin_presets')?.addEventListener('click', () => this.showPresetManager());
+
+        // Ediciones manuales sobre el informe
+        const txtResultado = document.getElementById('resultado');
+        if (txtResultado) txtResultado.addEventListener('input', () => { this.reportEdited = true; });
 
         // Button event listeners
         const btnGenerate = document.getElementById('btn_generate');
@@ -951,6 +968,12 @@ class UIController {
      */
     async generateReport() {
         try {
+            // No pisar ediciones manuales sin consentimiento explícito
+            const prevReport = document.getElementById('resultado')?.value || '';
+            if (this.reportEdited && prevReport.trim()) {
+                if (!confirm('El informe fue editado a mano. ¿Regenerarlo y descartar esos cambios?')) return;
+            }
+
             // Force recalculation
             this.calculateAll();
 
@@ -986,6 +1009,10 @@ class UIController {
             if (document.getElementById('ventana').value === 'si') {
                 report += `MALA VENTANA ACÚSTICA que limita la evaluación ecocardiográfica.\n`;
             }
+
+            // Antecedentes + observaciones del médico
+            const datosClinicosLista = this._buildDatosClinicos();
+            if (datosClinicosLista) report += `${datosClinicosLista}\n`;
 
             // ========== 1. VENTRÍCULO IZQUIERDO ==========
             report += `1. VENTRÍCULO IZQUIERDO\n`;
@@ -1154,7 +1181,7 @@ class UIController {
                 // Mitral Regurgitation - Smart Module
                 if (window.mitralRegurgitation && imGrado !== 'no' && imGrado !== 'minima') {
                     const imFindings = window.mitralRegurgitation.generateFindings();
-                    if (imFindings) report += `${imFindings}\n`;
+                    if (imFindings) report += `${imFindings}${this._jetLineaLista('im')}\n`;
                 } else if (imGrado !== 'no' && imGrado !== 'minima') {
                     // Fallback (should not happen if loaded correctly)
                     const imVc = document.getElementById('im_vc').value;
@@ -1234,7 +1261,7 @@ class UIController {
                     // ONLY FINDINGS in description (Mapeo, params)
                     const iaoFindings = window.aorticRegurgitationModule.generateFindings();
                     if (iaoFindings) {
-                        report += `${iaoFindings}\n`;
+                        report += `${iaoFindings.trim()}${this._jetLineaLista('iao')}\n`;
                     } else if (iaGrado !== 'no' && iaGrado !== 'minima') {
                         // Fallback if manual grade is selected but no advanced data entered
                         report += `Insuficiencia Aórtica ${iaGrado}.\n`;
@@ -1379,7 +1406,9 @@ class UIController {
                 }
             }
 
-            report += `.\n`;
+            report += `.`;
+            if (itGrado !== 'no_valorable' && itGrado !== 'no') report += this._jetLineaLista('it');
+            report += `\n`;
 
             // ========== 7. VÁLVULA PULMONAR ==========
             report += `7. VÁLVULA PULMONAR\n`;
@@ -1887,6 +1916,7 @@ class UIController {
 
             // Display report
             document.getElementById('resultado').value = report;
+            this.reportEdited = false;
 
         } catch (error) {
             console.error('Error generating report:', error);
@@ -1925,184 +1955,272 @@ class UIController {
      * Apply a clinical preset — fills typical values for common scenarios
      */
     applyPreset(name) {
+        const preset = window.PresetStore?.get(name);
+        if (!preset) return;
+
         const set = (id, val) => {
             const el = document.getElementById(id);
             if (!el) return;
-            // Remove min/max constraints temporarily for preset values
-            const prevMin = el.min; const prevMax = el.max;
+            if (el.type === 'checkbox') { el.checked = !!val; el.dispatchEvent(new Event('change', { bubbles: true })); return; }
+            // Los presets pueden traer valores fuera de los límites del input
+            const prevMin = el.min, prevMax = el.max;
             el.removeAttribute('min'); el.removeAttribute('max');
             el.value = val;
-            if (prevMin) el.min = prevMin; if (prevMax) el.max = prevMax;
+            if (prevMin) el.min = prevMin;
+            if (prevMax) el.max = prevMax;
             el.dispatchEvent(new Event(el.tagName === 'SELECT' ? 'change' : 'input', { bubbles: true }));
         };
-        const check = (id, val) => {
+
+        // Campos que arrastran del estudio anterior y deben volver a su base
+        ['ant_hta','ant_isquemia','ant_crm','ant_epoc','ant_fa','ant_marcapasos','ant_dm','ant_irc',
+         'ant_valvulopatia','ant_atc','ant_rva','ant_rvm'].forEach(id => set(id, false));
+        set('motilidad_global', 'conservada');
+        set('vd_estado', 'normal');
+        set('ad_estado', 'normal');
+        set('vd_basal', '');
+        set('ad_area', '');
+        set('ant_libre', '');
+
+        // Datos del paciente: sólo se completan si están vacíos. Un preset describe el
+        // estudio, no reemplaza a la persona que ya cargaste.
+        const demo = window.PACIENTE_DEMO?.[name] || {};
+        (window.CAMPOS_PACIENTE || []).forEach(id => {
             const el = document.getElementById(id);
-            if (el) el.checked = val;
+            if (!el) return;
+            const vacio = !el.value || String(el.value).trim() === '';
+            if (vacio && demo[id] !== undefined) set(id, demo[id]);
+        });
+
+        Object.entries(preset.campos || {}).forEach(([id, val]) => set(id, val));
+
+        this.calculateAll();
+        this.showToast(`Preset "${preset.label || name.replace(/_/g, ' ')}" aplicado`);
+    }
+
+    /**
+     * Campos que un preset guarda del formulario actual: todo lo que describe el estudio,
+     * excluyendo los datos del paciente y los valores calculados por la app.
+     */
+    _camposDePreset() {
+        const excluidos = new Set([
+            ...(window.CAMPOS_PACIENTE || []),
+            'paciente_id', 'fecha', 'ant_libre', 'resultado',
+        ]);
+        const campos = {};
+        document.querySelectorAll('input, select, textarea').forEach(el => {
+            const id = el.id;
+            if (!id || excluidos.has(id)) return;
+            if (el.disabled || el.readOnly) return;          // displays calculados
+            if (id.endsWith('_display') || id.endsWith('_disp')) return;
+            if (el.type === 'checkbox') {
+                if (el.checked) campos[id] = true;
+            } else if (el.type === 'radio') {
+                if (el.checked) campos[id] = el.value;
+            } else if (el.value !== '' && el.value != null) {
+                const num = parseFloat(el.value);
+                campos[id] = (!isNaN(num) && String(num) === String(el.value).trim()) ? num : el.value;
+            }
+        });
+        return campos;
+    }
+
+    /** Guarda el estado actual del formulario como preset (nuevo o sobrescribiendo uno) */
+    guardarPresetActual(nombre, label) {
+        const existente = window.PresetStore.get(nombre);
+        window.PresetStore.guardar(nombre, {
+            label:  label || existente?.label || nombre,
+            grupo:  existente?.grupo  || 'propio',
+            titulo: existente?.titulo || `Preset propio: ${label || nombre}`,
+            campos: this._camposDePreset(),
+        });
+        this.renderPresetSelector();
+        this.showToast(`💾 Preset "${label || nombre}" guardado con los valores actuales`);
+    }
+
+    /** Dibuja el desplegable de presets a partir de los presets efectivos */
+    renderPresetSelector() {
+        const sel = document.getElementById('preset_selector');
+        if (!sel || !window.PresetStore) return;
+
+        const previo = sel.value;
+        const todos = window.PresetStore.getAll();
+        const grupos = {
+            normal: 'Sin patología estructural',
+            leve:   'Patología leve / moderada',
+            severo: 'Patología significativa',
+            propio: 'Mis presets',
         };
 
-        // Reset antecedentes and common fields before each preset
-        const reset = () => {
-            ['ant_hta','ant_isquemia','ant_crm','ant_epoc','ant_fa','ant_marcapasos','ant_dm','ant_irc','ant_valvulopatia']
-                .forEach(id => check(id, false));
-            set('motilidad_global', 'conservada');
-            set('vd_estado', 'normal');
-            set('ad_estado', 'normal');
-            set('vd_basal', '');
-            set('ad_area', '');
-            set('ant_libre', '');
-        };
+        sel.innerHTML = '<option value="">Elegir preset…</option>';
+        Object.entries(grupos).forEach(([grupo, titulo]) => {
+            const delGrupo = Object.entries(todos).filter(([, p]) => (p.grupo || 'propio') === grupo);
+            if (!delGrupo.length) return;
+            const og = document.createElement('optgroup');
+            og.label = titulo;
+            delGrupo.forEach(([nombre, p]) => {
+                const opt = document.createElement('option');
+                opt.value = nombre;
+                opt.textContent = window.PresetStore.esPersonalizado(nombre) ? `${p.label} ✏️` : p.label;
+                opt.title = p.titulo || '';
+                og.appendChild(opt);
+            });
+            sel.appendChild(og);
+        });
+        if (todos[previo]) sel.value = previo;
+    }
 
-        const presets = {
-            adolescente: () => {
-                reset();
-                set('sexo', 'F'); set('edad', 17); set('peso', 52); set('altura', 160);
-                set('siv', 8); set('pp', 8); set('ddvi', 44); set('fevi', 68);
-                set('ritmo', 'sinusal'); set('conduccion', 'normal');
-                set('onda_e', 100); set('onda_a', 50); set('onda_e_prime_septal', 15); set('onda_e_prime_lateral', 19);
-                set('vol_ai', 20); set('ao_raiz', 24); set('ao_asc', 22);
-                set('morf_mitral', 'Valvas finas y móviles, apertura conservada');
-                set('morf_aortica', 'Válvula trivalva, sigmoideas finas y móviles');
-                set('im_grado', 'no'); set('ia_grado', 'no'); set('ea_grado', 'no');
-                set('tapse', 28); set('s_prima_vd', 16); set('it_grado', 'no_valorable');
-            },
-            joven: () => {
-                reset();
-                set('sexo', 'M'); set('edad', 25); set('peso', 72); set('altura', 178);
-                set('siv', 8); set('pp', 8); set('ddvi', 48); set('fevi', 67);
-                set('ritmo', 'sinusal'); set('conduccion', 'normal');
-                set('onda_e', 95); set('onda_a', 50); set('onda_e_prime_septal', 14); set('onda_e_prime_lateral', 17);
-                set('vol_ai', 22); set('ao_raiz', 30); set('ao_asc', 28);
-                set('morf_mitral', 'Valvas finas y móviles, apertura conservada');
-                set('morf_aortica', 'Válvula trivalva, sigmoideas finas y móviles');
-                set('im_grado', 'no'); set('ia_grado', 'no'); set('ea_grado', 'no');
-                set('tapse', 26); set('s_prima_vd', 15); set('it_grado', 'no_valorable');
-            },
-            adulto: () => {
-                reset();
-                set('sexo', 'M'); set('edad', 50); set('peso', 80); set('altura', 172);
-                set('siv', 10); set('pp', 10); set('ddvi', 50); set('fevi', 62);
-                set('ritmo', 'sinusal'); set('conduccion', 'normal');
-                set('onda_e', 80); set('onda_a', 65); set('onda_e_prime_septal', 9); set('onda_e_prime_lateral', 11);
-                set('vol_ai', 26); set('ao_raiz', 32); set('ao_asc', 30);
-                set('morf_mitral', 'Valvas finas y móviles, apertura conservada');
-                set('morf_aortica', 'Válvula trivalva, sigmoideas finas y móviles');
-                set('im_grado', 'no'); set('ia_grado', 'no'); set('ea_grado', 'no');
-                set('tapse', 24); set('s_prima_vd', 13); set('it_grado', 'no_valorable');
-            },
-            esclerosis_bivalvular: () => {
-                reset();
-                set('sexo', 'M'); set('edad', 68); set('peso', 75); set('altura', 168);
-                set('siv', 10); set('pp', 10); set('ddvi', 50); set('fevi', 60);
-                set('ritmo', 'sinusal'); set('conduccion', 'normal');
-                set('onda_e', 75); set('onda_a', 70); set('onda_e_prime_septal', 8); set('onda_e_prime_lateral', 10);
-                set('vol_ai', 30); set('ao_raiz', 32); set('ao_asc', 30);
-                set('morf_mitral', 'Leve engrosamiento fibroso de las valvas sin restricción de apertura');
-                set('morf_aortica', 'Esclerosis valvular aórtica (engrosamiento focal) sin restricción de apertura');
-                set('ea_grado', 'esclerosis'); set('ea_vmax', 2.2); set('im_grado', 'leve'); set('ia_grado', 'no');
-                set('tapse', 22); set('s_prima_vd', 12); set('vel_it', 1.5); set('it_grado', 'leve');
-                check('ant_hta', true);
-            },
-            hta_remodelado: () => {
-                reset();
-                set('sexo', 'M'); set('edad', 57); set('peso', 85); set('altura', 172);
-                set('siv', 11); set('pp', 11); set('ddvi', 46); set('fevi', 62);
-                set('ritmo', 'sinusal'); set('conduccion', 'normal');
-                set('onda_e', 65); set('onda_a', 90); set('onda_e_prime_septal', 7); set('onda_e_prime_lateral', 8);
-                set('vol_ai', 34); set('ao_raiz', 34); set('ao_asc', 32);
-                set('morf_mitral', 'Leve engrosamiento fibroso de las valvas sin restricción de apertura');
-                set('morf_aortica', 'Esclerosis valvular aórtica (engrosamiento focal) sin restricción de apertura');
-                set('ea_grado', 'esclerosis'); set('im_grado', 'no'); set('ia_grado', 'no');
-                set('tapse', 22); set('s_prima_vd', 12); set('it_grado', 'no_valorable');
-                check('ant_hta', true);
-            },
-            hta_hvi: () => {
-                reset();
-                set('sexo', 'M'); set('edad', 62); set('peso', 85); set('altura', 170);
-                set('siv', 13); set('pp', 13); set('ddvi', 47); set('fevi', 60);
-                set('ritmo', 'sinusal'); set('conduccion', 'normal');
-                set('onda_e', 70); set('onda_a', 100); set('onda_e_prime_septal', 7); set('onda_e_prime_lateral', 9);
-                set('vol_ai', 38); set('ao_raiz', 34); set('ao_asc', 32);
-                set('morf_mitral', 'Leve engrosamiento fibroso de las valvas sin restricción de apertura');
-                set('morf_aortica', 'Esclerosis valvular aórtica (engrosamiento focal) sin restricción de apertura');
-                set('ea_grado', 'esclerosis'); set('im_grado', 'no'); set('ia_grado', 'no');
-                set('tapse', 23); set('s_prima_vd', 13); set('it_grado', 'no_valorable');
-                check('ant_hta', true);
-            },
-            im_iao_leve: () => {
-                reset();
-                set('sexo', 'M'); set('edad', 60); set('peso', 78); set('altura', 170);
-                set('siv', 10); set('pp', 10); set('ddvi', 52); set('fevi', 60);
-                set('ritmo', 'sinusal'); set('conduccion', 'normal');
-                set('onda_e', 65); set('onda_a', 87); set('onda_e_prime_septal', 7); set('onda_e_prime_lateral', 8);
-                set('vol_ai', 36); set('ao_raiz', 34); set('ao_asc', 32);
-                set('morf_mitral', 'Engrosamiento leve de valvas mitrales, apertura conservada');
-                set('morf_aortica', 'Leve engrosamiento fibroso de sigmoideas, apertura conservada');
-                set('ea_grado', 'no'); set('im_grado', 'leve'); set('ia_grado', 'leve');
-                set('tapse', 22); set('s_prima_vd', 12); set('it_grado', 'no_valorable');
-            },
-            mcd_moderada: () => {
-                reset();
-                set('sexo', 'M'); set('edad', 52); set('peso', 75); set('altura', 170);
-                set('siv', 8); set('pp', 8); set('ddvi', 62); set('fevi', 40);
-                set('ritmo', 'sinusal'); set('conduccion', 'normal');
-                set('onda_e', 90); set('onda_a', 60); set('onda_e_prime_septal', 5); set('onda_e_prime_lateral', 7);
-                set('vol_ai', 42); set('ao_raiz', 30); set('ao_asc', 28);
-                set('morf_mitral', 'Valvas anatómicamente conservadas con Tenting sistólico secundario a dilatación/remodelado del VI');
-                set('morf_aortica', 'Válvula trivalva, sigmoideas finas y móviles');
-                set('ea_grado', 'no'); set('im_grado', 'moderada'); set('ia_grado', 'no');
-                set('tapse', 20); set('s_prima_vd', 11); set('vel_it', 2.9); set('it_grado', 'leve');
-                set('motilidad_global', 'alterada'); set('pattern-selector', 'dilated_cm');
-                set('im_vc', 5); set('im_ore', 0.30); set('im_vr', 45); set('im_area_jet', 'moderada');
-            },
-            mcd_severa: () => {
-                reset();
-                set('sexo', 'M'); set('edad', 57); set('peso', 78); set('altura', 172);
-                set('siv', 7); set('pp', 7); set('ddvi', 68); set('fevi', 28);
-                set('ritmo', 'sinusal'); set('conduccion', 'normal');
-                set('onda_e', 110); set('onda_a', 42); set('onda_e_prime_septal', 4); set('onda_e_prime_lateral', 5);
-                set('vol_ai', 52); set('ao_raiz', 30); set('ao_asc', 28);
-                set('morf_mitral', 'Valvas anatómicamente conservadas con Tenting sistólico severo secundario a dilatación y remodelado del VI');
-                set('morf_aortica', 'Válvula trivalva, sigmoideas finas y móviles');
-                set('ea_grado', 'no'); set('im_grado', 'moderada'); set('ia_grado', 'no');
-                set('vd_basal', 48); set('vd_estado', 'dilatado');
-                set('tapse', 14); set('s_prima_vd', 7); set('vel_it', 3.6); set('it_grado', 'leve');
-                set('motilidad_global', 'alterada'); set('pattern-selector', 'dilated_cm');
-                set('im_vc', 5); set('im_ore', 0.30); set('im_vr', 45); set('im_area_jet', 'moderada');
-            },
-            iam_anterior: () => {
-                reset();
-                set('sexo', 'M'); set('edad', 65); set('peso', 80); set('altura', 172);
-                set('siv', 9); set('pp', 10); set('ddvi', 55); set('fevi', 42);
-                set('ritmo', 'sinusal'); set('conduccion', 'normal');
-                set('onda_e', 90); set('onda_a', 65); set('onda_e_prime_septal', 7); set('onda_e_prime_lateral', 9);
-                set('vol_ai', 36); set('ao_raiz', 32); set('ao_asc', 30);
-                set('morf_mitral', 'Valvas finas y móviles, apertura conservada');
-                set('morf_aortica', 'Esclerosis valvular aórtica (engrosamiento focal) sin restricción de apertura');
-                set('ea_grado', 'esclerosis'); set('ea_vmax', 2.0); set('im_grado', 'leve'); set('ia_grado', 'no');
-                set('tapse', 20); set('s_prima_vd', 11); set('vel_it', 2.7); set('it_grado', 'leve');
-                set('motilidad_global', 'alterada'); set('pattern-selector', 'ischemic_da'); check('ant_isquemia', true);
-            },
-            falla_vd: () => {
-                reset();
-                set('sexo', 'M'); set('edad', 62); set('peso', 75); set('altura', 168);
-                set('siv', 9); set('pp', 9); set('ddvi', 44); set('fevi', 58);
-                set('ritmo', 'sinusal'); set('conduccion', 'normal');
-                set('onda_e', 80); set('onda_a', 70); set('onda_e_prime_septal', 8); set('onda_e_prime_lateral', 10);
-                set('vol_ai', 32); set('ao_raiz', 28); set('ao_asc', 26);
-                set('morf_mitral', 'Valvas finas y móviles, apertura conservada');
-                set('morf_aortica', 'Válvula trivalva, sigmoideas finas y móviles');
-                set('ea_grado', 'no'); set('im_grado', 'leve'); set('ia_grado', 'no');
-                set('vd_basal', 46); set('vd_estado', 'dilatado');
-                set('tapse', 13); set('s_prima_vd', 7); set('vel_it', 3.5); set('it_grado', 'leve');
-                check('ant_epoc', true);
+    /** Modal de administración de presets */
+    showPresetManager() {
+        document.getElementById('preset-manager-modal')?.remove();
+        const seleccionado = document.getElementById('preset_selector')?.value || '';
+
+        const modal = document.createElement('div');
+        modal.id = 'preset-manager-modal';
+        modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;z-index:9999;padding:1rem;';
+        modal.innerHTML = `
+            <div style="background:var(--color-surface,#fff);color:var(--color-text,#111);border-radius:10px;max-width:560px;width:100%;max-height:90vh;overflow:auto;padding:1.25rem;box-shadow:0 10px 40px rgba(0,0,0,.3);">
+                <h3 style="margin:0 0 .25rem;">Administrar presets</h3>
+                <p style="margin:0 0 1rem;font-size:.85rem;opacity:.75;">
+                    Los presets guardan el estudio, nunca los datos del paciente (sexo, edad, peso y altura).
+                </p>
+
+                <label style="display:block;font-size:.85rem;font-weight:600;margin-bottom:.25rem;">Preset</label>
+                <select id="pm_preset" style="width:100%;padding:.45rem;margin-bottom:1rem;border:1px solid var(--color-border,#ccc);border-radius:6px;"></select>
+
+                <div style="border:1px solid var(--color-border,#ddd);border-radius:8px;padding:.85rem;margin-bottom:.85rem;">
+                    <strong style="font-size:.9rem;">Guardar el formulario actual</strong>
+                    <p style="margin:.35rem 0 .6rem;font-size:.8rem;opacity:.75;">
+                        Toma todos los valores cargados ahora y los guarda en el preset elegido arriba.
+                    </p>
+                    <button id="pm_sobrescribir" class="btn-secondary" style="width:100%;">💾 Sobrescribir el preset elegido</button>
+                </div>
+
+                <div style="border:1px solid var(--color-border,#ddd);border-radius:8px;padding:.85rem;margin-bottom:.85rem;">
+                    <strong style="font-size:.9rem;">Crear un preset nuevo</strong>
+                    <input id="pm_nuevo_nombre" placeholder="Nombre, ej: Control post-TAVI"
+                           style="width:100%;padding:.45rem;margin:.5rem 0;border:1px solid var(--color-border,#ccc);border-radius:6px;">
+                    <button id="pm_crear" class="btn-secondary" style="width:100%;">➕ Crear con los valores actuales</button>
+                </div>
+
+                <div style="border:1px solid var(--color-border,#ddd);border-radius:8px;padding:.85rem;margin-bottom:.85rem;">
+                    <strong style="font-size:.9rem;">Restaurar o eliminar</strong>
+                    <p id="pm_restaurar_info" style="margin:.35rem 0 .6rem;font-size:.8rem;opacity:.75;"></p>
+                    <button id="pm_restaurar" class="btn-secondary" style="width:100%;">↩️ Restaurar / eliminar</button>
+                </div>
+
+                <div style="border:1px solid var(--color-border,#ddd);border-radius:8px;padding:.85rem;margin-bottom:1rem;">
+                    <strong style="font-size:.9rem;">Respaldo</strong>
+                    <p style="margin:.35rem 0 .6rem;font-size:.8rem;opacity:.75;">
+                        Tus presets viven en este navegador. Si limpiás los datos de navegación se pierden:
+                        exportalos para tener copia o llevarlos a otra computadora.
+                    </p>
+                    <div style="display:flex;gap:.5rem;">
+                        <button id="pm_exportar" class="btn-secondary" style="flex:1;">⬇️ Exportar</button>
+                        <button id="pm_importar" class="btn-secondary" style="flex:1;">⬆️ Importar</button>
+                        <input type="file" id="pm_archivo" accept="application/json,.json" style="display:none;">
+                    </div>
+                </div>
+
+                <button id="pm_cerrar" class="btn-secondary" style="width:100%;">Cerrar</button>
+            </div>`;
+        document.body.appendChild(modal);
+        modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+
+        // Poblar el selector del modal reutilizando el desplegable principal
+        const pmSel = modal.querySelector('#pm_preset');
+        const todos = window.PresetStore.getAll();
+        Object.entries(todos).forEach(([nombre, p]) => {
+            const opt = document.createElement('option');
+            opt.value = nombre;
+            opt.textContent = window.PresetStore.esPersonalizado(nombre) ? `${p.label} ✏️ (modificado)` : p.label;
+            pmSel.appendChild(opt);
+        });
+        if (todos[seleccionado]) pmSel.value = seleccionado;
+
+        const actualizarInfo = () => {
+            const nombre = pmSel.value;
+            const info = modal.querySelector('#pm_restaurar_info');
+            const btn  = modal.querySelector('#pm_restaurar');
+            if (!window.PresetStore.esPersonalizado(nombre)) {
+                info.textContent = 'Este preset está en sus valores originales, no hay nada que restaurar.';
+                btn.disabled = true;
+                btn.style.opacity = '.5';
+            } else if (window.PresetStore.esDeFabrica(nombre)) {
+                info.textContent = 'Modificado por vos. Se puede volver a los valores originales de la app.';
+                btn.disabled = false;
+                btn.style.opacity = '1';
+                btn.textContent = '↩️ Restaurar valores originales';
+            } else {
+                info.textContent = 'Preset creado por vos. Esta acción lo elimina definitivamente.';
+                btn.disabled = false;
+                btn.style.opacity = '1';
+                btn.textContent = '🗑️ Eliminar este preset';
             }
         };
+        pmSel.addEventListener('change', actualizarInfo);
+        actualizarInfo();
 
-        if (presets[name]) {
-            presets[name]();
-            this.calculateAll();
-            this.showToast(`Preset "${name.replace(/_/g, ' ')}" aplicado`);
-        }
+        modal.querySelector('#pm_sobrescribir').addEventListener('click', () => {
+            const nombre = pmSel.value;
+            const p = window.PresetStore.get(nombre);
+            if (!confirm(`¿Guardar los valores del formulario actual en el preset "${p.label}"?`)) return;
+            this.guardarPresetActual(nombre, p.label);
+            modal.remove();
+        });
+
+        modal.querySelector('#pm_crear').addEventListener('click', () => {
+            const label = modal.querySelector('#pm_nuevo_nombre').value.trim();
+            if (!label) { alert('Poné un nombre para el preset nuevo.'); return; }
+            const clave = 'propio_' + label.toLowerCase()
+                .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+                .replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+            if (window.PresetStore.get(clave) && !confirm(`Ya existe un preset con ese nombre. ¿Sobrescribirlo?`)) return;
+            this.guardarPresetActual(clave, label);
+            modal.remove();
+        });
+
+        modal.querySelector('#pm_restaurar').addEventListener('click', () => {
+            const nombre = pmSel.value;
+            const esFabrica = window.PresetStore.esDeFabrica(nombre);
+            const p = window.PresetStore.get(nombre);
+            const msg = esFabrica
+                ? `¿Devolver "${p.label}" a sus valores originales? Se pierden tus cambios sobre este preset.`
+                : `¿Eliminar definitivamente el preset "${p.label}"?`;
+            if (!confirm(msg)) return;
+            window.PresetStore.restaurar(nombre);
+            this.renderPresetSelector();
+            this.showToast(esFabrica ? '↩️ Preset restaurado' : '🗑️ Preset eliminado');
+            modal.remove();
+        });
+
+        modal.querySelector('#pm_exportar').addEventListener('click', () => {
+            const json = window.PresetStore.exportar();
+            if (json === '{}') { alert('Todavía no tenés presets propios ni modificados para exportar.'); return; }
+            const blob = new Blob([json], { type: 'application/json' });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = `presets-ecodoppler-${new Date().toISOString().slice(0, 10)}.json`;
+            a.click();
+            URL.revokeObjectURL(a.href);
+            this.showToast('⬇️ Presets exportados');
+        });
+
+        const archivo = modal.querySelector('#pm_archivo');
+        modal.querySelector('#pm_importar').addEventListener('click', () => archivo.click());
+        archivo.addEventListener('change', async () => {
+            const f = archivo.files?.[0];
+            if (!f) return;
+            try {
+                const n = window.PresetStore.importar(await f.text());
+                this.renderPresetSelector();
+                this.showToast(`⬆️ ${n} preset(s) importados`);
+                modal.remove();
+            } catch (err) {
+                alert(`No se pudo importar: ${err.message}`);
+            }
+        });
+
+        modal.querySelector('#pm_cerrar').addEventListener('click', () => modal.remove());
     }
 
     setReportMode(mode) {
@@ -2111,6 +2229,133 @@ class UIController {
         document.getElementById('mode_narrativo')?.classList.toggle('mode-btn-active', mode === 'narrativo');
         const current = document.getElementById('resultado').value;
         if (current && current.trim()) this.generateReport();
+    }
+
+    /**
+     * Características del jet regurgitante (dirección y número) para una válvula dada.
+     * `valvula` es 'im' | 'iao' | 'it'.
+     *
+     * Devuelve { descripcion, advertencia }:
+     *  - descripcion: cláusula para encadenar a la oración de la insuficiencia.
+     *  - advertencia: oración aparte con la limitación metodológica que impone el hallazgo.
+     *    Un jet excéntrico adherido a la pared pierde energía y el área color subestima la
+     *    severidad; con más de un jet, la vena contracta y el PISA de uno solo la subestiman.
+     */
+    _jetCaracteristicas(valvula) {
+        const dir  = document.getElementById(`${valvula}_jet_direccion`)?.value || '';
+        const num  = document.getElementById(`${valvula}_jet_numero`)?.value || '';
+        if (!dir && !num) return { descripcion: '', advertencia: '' };
+
+        const dirMap = {
+            im: {
+                central:       'jet central',
+                exc_anterior:  'jet excéntrico dirigido hacia la pared anterior de la aurícula izquierda',
+                exc_posterior: 'jet excéntrico dirigido hacia la pared posterior de la aurícula izquierda',
+                exc_septal:    'jet excéntrico dirigido hacia el septum interauricular',
+                exc_lateral:   'jet excéntrico dirigido hacia la pared lateral de la aurícula izquierda',
+                coanda:        'jet excéntrico adherido a la pared auricular (efecto Coanda)',
+            },
+            iao: {
+                central:    'jet central',
+                exc_mitral: 'jet excéntrico dirigido hacia la valva mitral anterior',
+                exc_septal: 'jet excéntrico dirigido hacia el septum interventricular',
+                coanda:     'jet excéntrico adherido a la pared del tracto de salida (efecto Coanda)',
+            },
+            it: {
+                central:     'jet central',
+                exc_septal:  'jet excéntrico dirigido hacia el septum interauricular',
+                exc_lateral: 'jet excéntrico dirigido hacia la pared lateral de la aurícula derecha',
+                coanda:      'jet excéntrico adherido a la pared auricular (efecto Coanda)',
+            },
+        }[valvula] || {};
+
+        const esExcentrico = dir && dir !== 'central';
+        const esMultiple   = num === 'dos' || num === 'multiples';
+        const numTexto     = num === 'dos' ? 'dos jets regurgitantes independientes'
+                           : num === 'multiples' ? 'múltiples jets regurgitantes'
+                           : '';
+
+        // ── Descripción ──
+        const partes = [];
+        if (dirMap[dir]) partes.push(dirMap[dir]);
+        if (numTexto)    partes.push(numTexto);
+        else if (num === 'unico' && !dir) partes.push('jet regurgitante único');
+        const descripcion = partes.length ? `, con ${partes.join(' y ')}` : '';
+
+        // ── Advertencia metodológica ──
+        const avisos = [];
+        if (esExcentrico) {
+            const base = dir === 'coanda'
+                ? 'Por tratarse de un jet excéntrico adherido a la pared, la estimación por área color subestima la severidad'
+                : 'Dada la excentricidad del jet, la valoración por área color resulta poco confiable';
+            avisos.push(valvula === 'iao'
+                ? `${base} y el ancho del jet respecto del TSVI no resulta aplicable, ponderándose los parámetros cuantitativos`
+                : `${base}, por lo que se ponderan los parámetros cuantitativos`);
+        }
+        if (esMultiple) {
+            avisos.push('Al tratarse de más de un jet, la vena contracta y el orificio regurgitante de uno solo subestiman la severidad global, que se estima por la suma de los volúmenes regurgitantes');
+        }
+
+        return { descripcion, advertencia: avisos.length ? avisos.join('. ') + '.' : '' };
+    }
+
+    /**
+     * Versión para el modo lista de las características del jet: la descripción como
+     * frase suelta más la advertencia metodológica, listas para concatenar.
+     */
+    _jetLineaLista(valvula) {
+        const { descripcion, advertencia } = this._jetCaracteristicas(valvula);
+        if (!descripcion && !advertencia) return '';
+        let t = '';
+        if (descripcion) {
+            // "…, con jet central" → " Jet central." como oración propia
+            const d = descripcion.replace(/^,\s*con\s+/, '');
+            t += ` ${d.charAt(0).toUpperCase() + d.slice(1)}.`;
+        }
+        if (advertencia) t += ` ${advertencia}`;
+        return t;
+    }
+
+    /**
+     * Bloque "DATOS CLÍNICOS": antecedentes tildados redactados en prosa +
+     * el texto libre del médico reproducido TEXTUALMENTE entre comillas.
+     * El texto libre nunca se reinterpreta ni se expande: lo escrito es lo que se informa.
+     * Devuelve '' si no hay antecedentes ni observaciones.
+     */
+    _buildDatosClinicos() {
+        const c = id => document.getElementById(id)?.checked;
+
+        const antecedentes = [
+            c('ant_hta')          && 'hipertensión arterial',
+            c('ant_isquemia')     && 'cardiopatía isquémica',
+            c('ant_atc')          && 'angioplastia coronaria con colocación de stent',
+            c('ant_crm')          && 'cirugía de revascularización miocárdica',
+            c('ant_rva')          && 'recambio valvular aórtico',
+            c('ant_rvm')          && 'recambio valvular mitral',
+            c('ant_valvulopatia') && 'valvulopatía conocida',
+            c('ant_fa')           && 'fibrilación auricular',
+            c('ant_marcapasos')   && 'portación de marcapasos/CDI',
+            c('ant_dm')           && 'diabetes mellitus',
+            c('ant_irc')          && 'insuficiencia renal crónica',
+            c('ant_epoc')         && 'enfermedad pulmonar obstructiva crónica',
+        ].filter(Boolean);
+
+        const obs = document.getElementById('ant_libre')?.value?.trim() || '';
+        if (!antecedentes.length && !obs) return '';
+
+        let t = 'DATOS CLÍNICOS: ';
+        if (antecedentes.length) {
+            const lista = antecedentes.length === 1
+                ? antecedentes[0]
+                : `${antecedentes.slice(0, -1).join(', ')} y ${antecedentes[antecedentes.length - 1]}`;
+            t += `Paciente con antecedentes de ${lista}.`;
+        }
+        if (obs) {
+            // Comillas tipográficas y sin punto duplicado si el médico ya lo puso
+            const obsLimpio = obs.replace(/\s+/g, ' ').replace(/[.\s]+$/, '');
+            t += `${antecedentes.length ? ' ' : ''}Se consigna: «${obsLimpio}».`;
+        }
+        return t;
     }
 
     /**
@@ -2138,6 +2383,9 @@ class UIController {
                 : `Datos Físicos: Peso ${peso} kg | Altura ${altura} cm | SC ${sc} m².\n`;
         }
         if (v('ventana') === 'si') h += `MALA VENTANA ACÚSTICA — limita la evaluación.\n`;
+
+        const datosClinicos = this._buildDatosClinicos();
+        if (datosClinicos) h += `${datosClinicos}\n`;
 
         // ── VI line ──
         const ddvi = n('ddvi'), dsvi = n('dsvi'), siv = n('siv'), pp = n('pp');
@@ -2219,7 +2467,12 @@ class UIController {
         const itNoVal = v('it_grado') === 'no_valorable';
         const psap    = (!itNoVal && this.state.psap > 0) ? this.state.psap : null;
         const rParts  = [];
-        if (vdBasal) rParts.push(`VD ${vdBasal}mm`);
+        const adAreaH = n('ad_area'), adAreaIdxH = n('ad_area_index');
+        const vdMedioH = n('vd_medio'), vdLongH = n('vd_longitud');
+        if (adAreaH) rParts.push(`AD ${adAreaH}cm²${adAreaIdxH ? ` (${adAreaIdxH}cm²/m²)` : ''}`);
+        if (vdBasal) rParts.push(`VD basal ${vdBasal}mm`);
+        if (vdMedioH) rParts.push(`VD medio ${vdMedioH}mm`);
+        if (vdLongH)  rParts.push(`VD long ${vdLongH}mm`);
         if (tapse)   rParts.push(`TAPSE ${tapse}mm`);
         if (sPrima)  rParts.push(`S' ${sPrima}cm/s`);
         if (psap)    rParts.push(`PSAP ${psap}mmHg`);
@@ -2301,6 +2554,13 @@ class UIController {
             p1 += `, el ventrículo izquierdo presenta dimensiones y espesores parietales conservados`;
         }
 
+        if (this.state.hypertensivePhenotype) {
+            p1 += `, hallazgos que en conjunto con el índice de masa corporal sugieren un fenotipo hipertensivo concéntrico`;
+        }
+
+        const hasPacemaker = document.getElementById('ant_marcapasos')?.checked;
+        const hasCRM       = document.getElementById('ant_crm')?.checked;
+
         if (this.motility) {
             const motGlobal = document.getElementById('motilidad_global').value;
             if (motGlobal !== 'conservada') {
@@ -2312,9 +2572,19 @@ class UIController {
                 }
             } else if (condEl.value === 'bcri') {
                 p1 += `, con movimiento septal paradójico en relación a BCRI`;
-            } else {
+            } else if (!hasPacemaker && !hasCRM) {
                 p1 += `, con motilidad segmentaria indemne`;
             }
+        }
+
+        // Asincronía septal atribuible a estimulación por marcapasos o a post-operatorio de CRM
+        if (hasPacemaker || hasCRM) {
+            const asincCausa = hasPacemaker && hasCRM
+                ? 'a la estimulación por marcapasos y al post-operatorio de cirugía de revascularización miocárdica'
+                : hasPacemaker
+                    ? 'a la estimulación por marcapasos'
+                    : 'al post-operatorio de cirugía de revascularización miocárdica';
+            p1 += `, observándose movimiento asincrónico del septum interventricular secundario ${asincCausa}`;
         }
 
         if (fevi) {
@@ -2427,7 +2697,39 @@ class UIController {
         const morfAortica = document.getElementById('morf_aortica')?.value || '';
         const eaAva = document.getElementById('ea_ava')?.value;
         const eaGm  = document.getElementById('ea_grad_medio')?.value;
+        const eaAvaIdx = document.getElementById('ea_ava_index')?.value;
+        const eaCoef   = document.getElementById('ea_coef')?.value;
         const rankMap = { 'severa': 4, 'moderada': 3, 'leve': 2, 'minima': 1, 'esclerosis': 0.5, 'no': 0 };
+
+        // Detalle cuantitativo de la insuficiencia aórtica (módulo avanzado iao_*):
+        // alcance del jet, parámetros y flujo reverso holodiastólico en aorta descendente.
+        const iaoDetalleStr = (() => {
+            const iv = id => document.getElementById(id)?.value;
+            const iN = id => parseFloat(iv(id)) || 0;
+            const alcanceMap = {
+                tsvi:   'el tracto de salida del ventrículo izquierdo (subvalvular)',
+                mitral: 'el borde libre de la valva mitral anterior',
+                apex:   'el tercio medio/apical del ventrículo izquierdo',
+            };
+            const alcance = iv('iao_jet_alcance');
+            const iaoParams = [
+                iN('iao_vc')        && `vena contracta ${iN('iao_vc')} cm`,
+                iN('iao_pht')       && `PHT ${iN('iao_pht')} ms`,
+                iN('iao_rvol')      && `volumen regurgitante ${iN('iao_rvol')} ml/latido`,
+                iN('iao_eroa')      && `EROA ${iN('iao_eroa')} cm²`,
+                iN('iao_jet_width') && `ancho del jet respecto del TSVI ${iN('iao_jet_width')}%`,
+            ].filter(Boolean);
+            const reverso = document.getElementById('iao_flujo_reverso')?.checked;
+
+            // Sin datos cargados en el módulo avanzado no hay nada que agregar al grado
+            if (!iaoParams.length && !reverso && (!alcance || alcance === 'tsvi')) return '';
+
+            let d = '';
+            if (alcance && alcanceMap[alcance]) d += `, con jet que alcanza ${alcanceMap[alcance]}`;
+            if (iaoParams.length) d += `${d ? '' : ','} (${iaoParams.join(', ')})`;
+            if (reverso) d += `, y flujo reverso holodiastólico en la aorta descendente supradiafragmática`;
+            return d;
+        })();
 
         const p3Sentences = [];
         const morfML = morfMitral.toLowerCase();
@@ -2450,6 +2752,20 @@ class UIController {
             severa:   ', con alcance del jet hasta la pared posterior de la aurícula izquierda',
         };
         const imJetStr = imJetMap[document.getElementById('im_area_jet')?.value] || '';
+        // Inversión sistólica del flujo en venas pulmonares — criterio de severidad de la IM
+        const imVenasStr = document.getElementById('im_inversion_venas')?.checked
+            ? `, con inversión del flujo sistólico en las venas pulmonares`
+            : '';
+        // Dirección y número de jets — se anexan a la oración de cada insuficiencia,
+        // y sus advertencias metodológicas cierran el párrafo valvular.
+        const jetIM  = this._jetCaracteristicas('im');
+        const jetIAo = this._jetCaracteristicas('iao');
+        // Dirección del jet antes del alcance, que es como se lee en el informe.
+        // Si ya se nombró el jet al dar su dirección, el alcance se encadena con "que
+        // alcanza" en lugar de repetir "con jet que alcanza".
+        const imJetFullStr  = jetIM.descripcion + imJetStr;
+        const iaoDetalleFullStr = jetIAo.descripcion +
+            (jetIAo.descripcion ? iaoDetalleStr.replace(/^,\s*con jet que alcanza/, ' que alcanza') : iaoDetalleStr);
 
         // Texto del select (con tildes) para mostrar grados al usuario, en minúscula
         const gradeText = (id) => {
@@ -2484,21 +2800,37 @@ class UIController {
                 const imVrB  = document.getElementById('im_vr')?.value;
                 const imPB   = [imVcB && `VC ${imVcB} mm`, imOreB && `EROA ${imOreB} cm²`, imVrB && `VR ${imVrB} ml`].filter(Boolean);
                 const imPsB  = imPB.length ? ` (${imPB.join(', ')})` : '';
-                s += `. Se asocia insuficiencia mitral ${imText}${imPsB}${imJetStr} sin repercusión hemodinámica, mientras que la válvula aórtica no presenta flujos patológicos significativos`;
+                s += `. Se asocia insuficiencia mitral ${imText}${imPsB}${imJetFullStr}${imVenasStr} sin repercusión hemodinámica, mientras que la válvula aórtica no presenta flujos patológicos significativos`;
             } else if (imGrado !== 'no' && rankIM >= 3) {
-                s += `. Se constata insuficiencia mitral ${imText}${imJetStr}`;
+                s += `. Se constata insuficiencia mitral ${imText}${imJetFullStr}${imVenasStr}`;
             } else {
                 if (iaGrado !== 'no') {
-                    s += `. La válvula aórtica no presenta estenosis significativa; se registra insuficiencia aórtica ${iaText}`;
+                    s += `. La válvula aórtica no presenta estenosis significativa; se registra insuficiencia aórtica ${iaText}${iaoDetalleFullStr}`;
                 } else {
                     s += `, sin flujos patológicos significativos`;
                 }
             }
             p3Sentences.push(s);
+            // Advertencias del jet, pegadas a la oración que describen
+            if (reportIm && jetIM.advertencia)  p3Sentences.push(jetIM.advertencia.replace(/\.$/, ''));
+            if (reportIa && jetIAo.advertencia) p3Sentences.push(jetIAo.advertencia.replace(/\.$/, ''));
         } else {
             // ── Mitral ──
             const hasMitralFinding = reportIm || emGrado !== 'no' || morfHasMAC || morfHasEngros || morfHasTenting;
             if (hasMitralFinding) {
+                // La morfología cargada se enuncia como oración propia cuando describe una
+                // alteración estructural y la oración del hallazgo no la reproduce por sí sola.
+                const morfMitralGenerico = !morfMitral.trim() || /valvas finas y móviles/i.test(morfML);
+                const morfMitralEnHallazgo = (reportIm && rankIM < 3 && morfHasEngros) ||
+                                             (!reportIm && emGrado === 'no' && (morfHasEngros || morfHasTenting));
+                let morfMitralEmitida = false;
+                if (!morfMitralGenerico && !morfMitralEnHallazgo && (reportIm || emGrado !== 'no')) {
+                    p3Sentences.push(`La válvula mitral presenta ${morfMitral.charAt(0).toLowerCase() + morfMitral.slice(1)}`);
+                    morfMitralEmitida = true;
+                }
+                // Evita repetir la MAC si la morfología recién enunciada ya la describe
+                const macYaDescripto = morfMitralEmitida && (morfML.includes('mac') || morfML.includes('calcific'));
+
                 let s = '';
                 if (emGrado !== 'no') {
                     s = `Se constata estenosis mitral ${emText}`;
@@ -2506,7 +2838,7 @@ class UIController {
                     const emGm  = document.getElementById('em_grad_medio')?.value;
                     const emParams = [emAva && `área ${emAva} cm²`, emGm && `gradiente medio ${emGm} mmHg`].filter(Boolean);
                     if (emParams.length) s += ` (${emParams.join(', ')})`;
-                    if (morfHasMAC) s += `, en contexto de calcificación del anillo mitral (MAC)`;
+                    if (morfHasMAC && !macYaDescripto) s += `, en contexto de calcificación del anillo mitral (MAC)`;
                 } else if (reportIm) {
                     const imVc  = document.getElementById('im_vc')?.value;
                     const imOre = document.getElementById('im_ore')?.value;
@@ -2528,8 +2860,8 @@ class UIController {
                         else if (morfHasTenting || inferFunctional) s = `Se constata insuficiencia mitral ${imText}${imParamsStr} de mecanismo funcional por tenting secundario a dilatación de cavidades`;
                         else                                      s = `Se registra insuficiencia mitral ${imText}${imParamsStr}`;
                     }
-                    if (morfHasMAC) s += `, con calcificación del anillo mitral (MAC)`;
-                    s += imJetStr;
+                    if (morfHasMAC && !macYaDescripto) s += `, con calcificación del anillo mitral (MAC)`;
+                    s += imJetFullStr + imVenasStr;
                 } else if (morfHasMAC) {
                     s = 'Se evidencia calcificación del anillo mitral (MAC)';
                 } else if (morfHasEngros || morfHasTenting) {
@@ -2537,7 +2869,14 @@ class UIController {
                     s = `La válvula mitral presenta ${morfDesc.charAt(0).toLowerCase() + morfDesc.slice(1)}, sin insuficiencia ni estenosis significativas`;
                 }
                 if (s) p3Sentences.push(s);
+            } else if (!(protChecked && protPosVal === 'mitral')) {
+                // Válvula mitral sin hallazgos — se describe explícitamente, igual que la aórtica
+                const morfMitralDesc = morfMitral.trim();
+                p3Sentences.push(morfMitralDesc
+                    ? `La válvula mitral presenta ${morfMitralDesc.charAt(0).toLowerCase() + morfMitralDesc.slice(1)}, sin estenosis ni insuficiencia significativas`
+                    : `La válvula mitral es morfológicamente normal, sin valvulopatías significativas`);
             }
+            if (reportIm && jetIM.advertencia) p3Sentences.push(jetIM.advertencia.replace(/\.$/, ''));
 
             // ── Aortic ── (se omite si hay prótesis aórtica: la válvula nativa fue reemplazada)
             if (!aorticProsthesis) {
@@ -2545,20 +2884,39 @@ class UIController {
                 const eaVmaxStr = eaVmaxVal ? ` (Vmax Ao ${eaVmaxVal} m/s)` : '';
                 const hasAorticFinding = eaGrado !== 'no' || reportIa;
                 if (hasAorticFinding) {
+                    // Morfología aórtica cargada — se enuncia aparte salvo que la propia
+                    // oración del hallazgo ya la describa (esclerosis, bicuspidia).
+                    const morfAoGenerico = !morfAortica.trim() || /trivalva|sigmoideas finas y móviles/i.test(morfAL);
+                    const morfAoEnHallazgo = eaGrado === 'esclerosis' ||
+                                             (eaGrado === 'no' && reportIa && morfHasBicuspidia);
+                    if (!morfAoGenerico && !morfAoEnHallazgo) {
+                        const morfAoDesc = morfAortica.replace(/^válvula\s+/i, '');
+                        p3Sentences.push(`La válvula aórtica presenta ${morfAoDesc.charAt(0).toLowerCase() + morfAoDesc.slice(1)}`);
+                    }
+
                     let s = '';
                     if (eaGrado === 'esclerosis') {
                         s = `La válvula aórtica presenta esclerosis (engrosamiento focal) sin obstrucción${eaVmaxStr}`;
-                        if (reportIa) s += ` con insuficiencia aórtica ${iaText}`;
+                        if (reportIa) s += ` con insuficiencia aórtica ${iaText}${iaoDetalleFullStr}`;
                         else s += `, sin insuficiencia significativa`;
                     } else if (eaGrado !== 'no') {
                         s = `Se constata estenosis aórtica ${eaText}`;
-                        if (eaAva || eaGm) s += ` (AVA ${eaAva || '?'} cm²${eaGm ? ', gradiente medio ' + eaGm + ' mmHg' : ''})`;
-                        if (reportIa) s += `, asociada a insuficiencia aórtica ${iaText}`;
+                        const eaParams = [
+                            eaVmaxVal && `Vmax ${eaVmaxVal} m/s`,
+                            eaGm      && `gradiente medio ${eaGm} mmHg`,
+                            eaAva     && `AVA ${eaAva} cm²`,
+                            eaAvaIdx  && `AVA indexada ${eaAvaIdx} cm²/m²`,
+                            eaCoef    && `coeficiente adimensional ${eaCoef}`,
+                        ].filter(Boolean);
+                        if (eaParams.length) s += ` (${eaParams.join(', ')})`;
+                        if (reportIa) s += `, asociada a insuficiencia aórtica ${iaText}${iaoDetalleFullStr}`;
                     } else if (reportIa) {
                         s = `Se registra insuficiencia aórtica ${iaText}`;
                         if (morfHasBicuspidia) s += ` en contexto de sospecha de válvula bicúspide`;
+                        s += iaoDetalleFullStr;
                     }
                     if (s) p3Sentences.push(s);
+                    if (reportIa && jetIAo.advertencia) p3Sentences.push(jetIAo.advertencia.replace(/\.$/, ''));
                 } else {
                     // Aortic valve normal — always describe explicitly
                     let s;
@@ -2667,21 +3025,50 @@ class UIController {
         const vdDepressed = (tapse > 0 && tapse <= 17) || (sPrimaVdNum > 0 && sPrimaVdNum < 10);
         const adDilated   = adArea > 18 || adEstado === 'dilatada';
         const vdDilated   = vdBasal > 41 || vdEstado === 'dilatado';
+        // Medidas cargadas de cavidades derechas — se vuelcan junto al hallazgo cualitativo
+        const adAreaIdx  = parseFloat(document.getElementById('ad_area_index')?.value) || 0;
+        const vdMedio    = parseFloat(document.getElementById('vd_medio')?.value) || 0;
+        const vdLongitud = parseFloat(document.getElementById('vd_longitud')?.value) || 0;
+        const adMedidas  = adArea
+            ? [`área ${adArea} cm²`, adAreaIdx && `indexada ${adAreaIdx} cm²/m²`].filter(Boolean)
+            : [];
+        const vdMedidas = [
+            vdBasal    && `basal ${vdBasal} mm`,
+            vdMedio    && `medio ${vdMedio} mm`,
+            vdLongitud && `longitud ${vdLongitud} mm`,
+        ].filter(Boolean);
+        const adMedidasStr = adMedidas.length ? ` (${adMedidas.join(', ')})` : '';
+        const vdMedidasStr = vdMedidas.length ? ` (${vdMedidas.join(', ')})` : '';
+
         const rightFindings = [];
-        if (adDilated)   rightFindings.push(`dilatación auricular derecha`);
-        if (vdDilated)   rightFindings.push(`ventrículo derecho dilatado`);
+        if (adDilated)   rightFindings.push(`dilatación auricular derecha${adMedidasStr}`);
+        if (vdDilated)   rightFindings.push(`ventrículo derecho dilatado${vdMedidasStr}`);
         if (vdDepressed) rightFindings.push(`disfunción sistólica del VD (TAPSE ${tapse} mm${sPrimaVdNum ? `, S' ${sPrimaVdNum} cm/s` : ''})`);
 
         let p4 = '';
         if (rightFindings.length > 0) {
             p4 = `Las cavidades derechas evidencian ${rightFindings.join(', ')}`;
+            // Medidas de la cavidad no dilatada — para que ninguna quede sin reportar
+            const normales = [
+                !adDilated && adMedidas.length && `aurícula derecha de dimensiones normales${adMedidasStr}`,
+                !vdDilated && vdMedidas.length && `ventrículo derecho de dimensiones normales${vdMedidasStr}`,
+            ].filter(Boolean);
+            if (normales.length) p4 += `, con ${normales.join(' y ')}`;
+            if (!vdDepressed && tapse > 0) {
+                p4 += `, conservando la función sistólica del VD (TAPSE ${tapse} mm${sPrimaVdNum ? `, S' ${sPrimaVdNum} cm/s` : ''})`;
+            }
         } else {
             p4 = `Las cavidades derechas son de dimensiones y función conservadas`;
-            const sPrimaVd = document.getElementById('s_prima_vd')?.value;
-            if (tapse > 0) {
-                p4 += ` (TAPSE ${tapse} mm${sPrimaVd ? `, S' ${sPrimaVd} cm/s` : ''})`;
-            }
+            const p4Medidas = [
+                adMedidas.length && `aurícula derecha ${adMedidas.join(', ')}`,
+                vdMedidas.length && `ventrículo derecho ${vdMedidas.join(', ')}`,
+                tapse > 0 && `TAPSE ${tapse} mm`,
+                sPrimaVdNum && `S' ${sPrimaVdNum} cm/s`,
+            ].filter(Boolean);
+            if (p4Medidas.length) p4 += ` (${p4Medidas.join('; ')})`;
         }
+
+        if (hasPacemaker) p4 += `. Se visualiza catéter de marcapasos en cavidades derechas`;
 
         // Indirect HTP signs
         const htpSeptum   = document.getElementById('htp_septum')?.checked;
@@ -2710,13 +3097,19 @@ class UIController {
         let itFlujStr = '';
         if      (itFlujHepQ === 'reverso')         itFlujStr = '; reverso sistólico en venas suprahepáticas';
         else if (itFlujHepQ === 'normal' && sigIT) itFlujStr = '; flujo sistólico anterógrado conservado en venas suprahepáticas';
+        // Dirección/número del jet tricuspídeo: se antepone al flujo hepático
+        const jetIT = this._jetCaracteristicas('it');
+        itFlujStr = jetIT.descripcion + itFlujStr;
 
         if (itNoVal) {
             p4 += `. No se observa flujo de insuficiencia tricuspídea que permita estimar la presión sistólica de la arteria pulmonar`;
         } else if (htpResult) {
             const velStr = velIt ? ` (Vmax IT ${velIt} m/s${itQuantParts.length ? ', ' + itQuantParts.join(', ') : ''})` : itQuantStr;
             if (htpResult.probability === 'Baja') {
-                p4 += `. Se constata insuficiencia tricuspídea leve${velStr}${itFlujStr}, con baja probabilidad de hipertensión pulmonar (PSAP estimada en ${this.state.psap} mmHg)`;
+                // El grado es el cargado, no un "leve" fijo: la probabilidad de HTP baja
+                // no implica que la insuficiencia tricuspídea sea leve.
+                const itGradoTxt = (itGradoVal && itGradoVal !== 'no') ? ` ${itGradoVal}` : '';
+                p4 += `. Se constata insuficiencia tricuspídea${itGradoTxt}${velStr}${itFlujStr}, con baja probabilidad de hipertensión pulmonar (PSAP estimada en ${this.state.psap} mmHg)`;
             } else {
                 p4 += `. La insuficiencia tricuspídea${velStr}${itFlujStr} determina una probabilidad ecocardiográfica de hipertensión pulmonar ${htpResult.probability.toLowerCase()}, con PSAP estimada de ${this.state.psap} mmHg`;
                 // If filling pressures are elevated (grade II/III diastolic dysfunction),
@@ -2733,6 +3126,9 @@ class UIController {
                 p4 += `. Se constata insuficiencia tricuspídea ${itGradoVal}${itQuantStr}${itFlujStr}`;
             }
         }
+        if (!itNoVal && itGradoVal !== 'no' && jetIT.advertencia) {
+            p4 += `. ${jetIT.advertencia.replace(/\.$/, '')}`;
+        }
         paragraphs.push(p4 + '.');
 
         // ── P5: Pericardium (always close) ──
@@ -2741,17 +3137,22 @@ class UIController {
             const peGrade = peSize >= 20 ? 'severo' : peSize >= 10 ? 'moderado' : 'leve';
             const peLocEl = document.getElementById('pe_ubicacion');
             const peLoc   = peLocEl ? peLocEl.options[peLocEl.selectedIndex]?.text?.toLowerCase() : '';
-            const compromise = ['pe_colapso_ad', 'pe_colapso_vd', 'pe_variacion_flujo', 'pe_vci_dilatada']
-                .some(id => document.getElementById(id)?.checked);
+            const alarmMap = {
+                pe_colapso_ad:      'colapso sistólico de la aurícula derecha',
+                pe_colapso_vd:      'colapso diastólico del ventrículo derecho',
+                pe_variacion_flujo: 'variación respiratoria del flujo mitral mayor al 25%',
+                pe_vci_dilatada:    'vena cava inferior dilatada sin colapso inspiratorio (plétora)',
+            };
+            const alarms = Object.keys(alarmMap).filter(id => document.getElementById(id)?.checked);
             let peStr = `Se constata derrame pericárdico ${peGrade}`;
             if (peLoc && peLoc !== 'no especificado' && peLoc !== '-') peStr += ` de distribución ${peLoc}`;
             if (peSize > 0) peStr += `, con separación máxima de ${peSize} mm`;
-            peStr += compromise
-                ? ', con signos de compromiso hemodinámico'
+            peStr += alarms.length
+                ? `, con signos ecocardiográficos de compromiso hemodinámico: ${alarms.map(id => alarmMap[id]).join(', ')}`
                 : ', sin signos de compromiso hemodinámico';
             paragraphs.push(peStr + '.');
         } else {
-            paragraphs.push('Pericardio libre.');
+            paragraphs.push('El pericardio se encuentra libre, sin derrame ni engrosamientos.');
         }
 
         return `IMPRESIÓN DIAGNÓSTICA:\n${paragraphs.join('\n\n')}`;
@@ -2831,6 +3232,9 @@ class UIController {
             document.getElementById('ant_dm')?.checked          && 'Diabetes Mellitus',
             document.getElementById('ant_irc')?.checked         && 'Insuficiencia Renal Crónica',
             document.getElementById('ant_valvulopatia')?.checked && 'Valvulopatía Conocida',
+            document.getElementById('ant_atc')?.checked         && 'Angioplastia Coronaria (ATC/Stent)',
+            document.getElementById('ant_rva')?.checked         && 'Recambio Valvular Aórtico',
+            document.getElementById('ant_rvm')?.checked         && 'Recambio Valvular Mitral',
         ].filter(Boolean);
         const antLibre = document.getElementById('ant_libre')?.value?.trim() || null;
         return {
@@ -3213,14 +3617,24 @@ class UIController {
                 return el ? (el.options[el.selectedIndex]?.text || '-') : '-';
             })(),
 
-            // 16. Informe narrativo completo (para el dashboard) (1)
+            // 16. Informe completo (para el dashboard) (1)
+            // Se guarda el texto tal como está en pantalla — incluidas las ediciones
+            // manuales y el modo elegido. Sólo si no hay informe generado se reconstruye.
             (() => {
+                const enPantalla = document.getElementById('resultado')?.value || '';
+                if (enPantalla.trim()) return enPantalla;
                 try {
                     return this._buildNarrativeConclusion ? this._buildNarrativeConclusion() : '-';
                 } catch (e) {
                     return '-';
                 }
             })(),
+
+            // 17. Antecedentes adicionales y observaciones (4) — al final de la fila
+            document.getElementById('ant_atc')?.checked ? 'Si' : 'No',
+            document.getElementById('ant_rva')?.checked ? 'Si' : 'No',
+            document.getElementById('ant_rvm')?.checked ? 'Si' : 'No',
+            document.getElementById('ant_libre')?.value?.trim() || '-',
         ];
         return row;
     }

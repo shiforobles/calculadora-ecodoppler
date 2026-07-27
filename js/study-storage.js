@@ -40,6 +40,9 @@ class StudyStorage {
         'PE Distribución',
         // Informe narrativo completo (1) — usado por el dashboard
         'Informe',
+        // Antecedentes adicionales y observaciones (4)
+        // Se agregan AL FINAL para no correr las columnas de las planillas ya cargadas.
+        'ATC/Stent', 'Recambio Ao', 'Recambio Mitral', 'Observaciones',
     ];
 
     static getAll() {

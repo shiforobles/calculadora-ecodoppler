@@ -53,7 +53,7 @@
             <div class="grid">
                 <div class="form-group">
                     <label for="paciente_id">HC / ID Paciente</label>
-                    <input type="text" id="paciente_id" placeholder="Ej: JP-1234">
+                    <input type="text" id="paciente_id" name="paciente_id" placeholder="Ej: JP-1234" autocomplete="off">
                 </div>
                 <div class="form-group">
                     <label for="edad">Edad (años)</label>
@@ -146,6 +146,21 @@
                     <input type="checkbox" id="ant_valvulopatia">
                     <label for="ant_valvulopatia">Valvulopatía Conocida</label>
                 </div>
+                <!-- Angioplastia coronaria previa -->
+                <div class="checkbox-group">
+                    <input type="checkbox" id="ant_atc">
+                    <label for="ant_atc">Angioplastia (ATC/Stent)</label>
+                </div>
+                <!-- Recambio valvular aórtico -->
+                <div class="checkbox-group">
+                    <input type="checkbox" id="ant_rva">
+                    <label for="ant_rva">Recambio Valvular Aórtico</label>
+                </div>
+                <!-- Recambio valvular mitral -->
+                <div class="checkbox-group">
+                    <input type="checkbox" id="ant_rvm">
+                    <label for="ant_rvm">Recambio Valvular Mitral</label>
+                </div>
             </div>
             <div class="form-group" style="margin-top: 0.75rem;">
                 <label for="ant_libre">Motivo de consulta / Observaciones clínicas</label>
@@ -156,21 +171,16 @@
         <!-- Presets de carga rápida -->
         <section class="card preset-section">
             <h2 class="section-title">Carga Rápida — Presets</h2>
-            <div class="preset-buttons">
-                <button type="button" class="preset-btn preset-btn-green" onclick="applyPreset('adolescente')" title="Adolescente sana, fisiológico puro">Adolescente</button>
-                <button type="button" class="preset-btn preset-btn-green" onclick="applyPreset('joven')" title="Adulto joven sin patología estructural">Joven</button>
-                <button type="button" class="preset-btn preset-btn-green" onclick="applyPreset('adulto')" title="Adulto 50 años sin hallazgos estructurales">Adulto</button>
-                <div class="preset-sep"></div>
-                <button type="button" class="preset-btn preset-btn-yellow" onclick="applyPreset('esclerosis_bivalvular')" title="Esclerosis bivalvular con IM leve e IT leve">Esclerosis</button>
-                <button type="button" class="preset-btn preset-btn-yellow" onclick="applyPreset('hta_remodelado')" title="HTA con remodelado concéntrico y DD Grado I">HTA Remodelado</button>
-                <button type="button" class="preset-btn preset-btn-yellow" onclick="applyPreset('hta_hvi')" title="HTA con hipertrofia ventricular izquierda concéntrica">HTA + HVI</button>
-                <button type="button" class="preset-btn preset-btn-yellow" onclick="applyPreset('im_iao_leve')" title="IM leve + IAo leve + AI levemente dilatada + DD Grado I">IM + IAo leve</button>
-                <div class="preset-sep"></div>
-                <button type="button" class="preset-btn preset-btn-red" onclick="applyPreset('mcd_moderada')" title="Miocardiopatía dilatada FEy 40%, IM funcional moderada">MCDi 40%</button>
-                <button type="button" class="preset-btn preset-btn-red" onclick="applyPreset('mcd_severa')" title="Miocardiopatía dilatada severa FEy 28%, biventricular">MCDi 30%</button>
-                <button type="button" class="preset-btn preset-btn-red" onclick="applyPreset('iam_anterior')" title="Post-IAM anterior con trastorno segmentario">Post-IAM</button>
-                <button type="button" class="preset-btn preset-btn-red" onclick="applyPreset('falla_vd')" title="Dilatación de cavidades derechas con falla del VD">Falla VD</button>
+            <div style="display:flex; gap:.5rem; align-items:center; flex-wrap:wrap;">
+                <select id="preset_selector" style="flex:1; min-width:200px; padding:.45rem .6rem; border:1px solid var(--color-border); border-radius:6px; font-family:inherit; font-size:.9rem;">
+                    <option value="">Elegir preset…</option>
+                </select>
+                <button type="button" id="btn_aplicar_preset" class="preset-btn preset-btn-green">Aplicar</button>
+                <button type="button" id="btn_admin_presets" class="preset-btn" title="Guardar, crear, restaurar o respaldar presets">⚙️ Administrar</button>
             </div>
+            <p style="margin:.5rem 0 0; font-size:.78rem; opacity:.7;">
+                El preset completa el estudio y respeta los datos del paciente que ya cargaste.
+            </p>
         </section>
 
         <!-- VI y Motilidad Parietal -->
@@ -693,6 +703,31 @@
                                 <span class="criterion-badge" id="badge_im_area_jet">—</span>
                             </div>
                         </div>
+                        <div class="iao-input-group">
+                            <label for="im_jet_direccion">Dirección del Jet</label>
+                            <div class="criterion-input-row">
+                                <select id="im_jet_direccion">
+                                    <option value="" selected>Sin especificar</option>
+                                    <option value="central">Central</option>
+                                    <option value="exc_anterior">Excéntrico anterior</option>
+                                    <option value="exc_posterior">Excéntrico posterior</option>
+                                    <option value="exc_septal">Excéntrico septal</option>
+                                    <option value="exc_lateral">Excéntrico lateral</option>
+                                    <option value="coanda">Adherido a pared (Coanda)</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="iao-input-group">
+                            <label for="im_jet_numero">N° de Jets</label>
+                            <div class="criterion-input-row">
+                                <select id="im_jet_numero">
+                                    <option value="" selected>Sin especificar</option>
+                                    <option value="unico">Único</option>
+                                    <option value="dos">Dos jets</option>
+                                    <option value="multiples">Múltiples</option>
+                                </select>
+                            </div>
+                        </div>
                     </div>
 
                     <!-- Qualitative Params -->
@@ -746,7 +781,7 @@
                     </div>
                     <div class="form-group">
                         <label for="prot_numero">Número/Modelo (Opc.)</label>
-                        <input type="text" id="prot_numero" placeholder="Ej: Desconocido o 21 mm">
+                        <input type="text" id="prot_numero" name="prot_numero" placeholder="Ej: Desconocido o 21 mm" autocomplete="off">
                     </div>
                     <div class="form-group">
                         <label for="prot_insuficiencia">Insuficiencia</label>
@@ -1005,6 +1040,31 @@
                                 <span class="criterion-badge" id="badge_iao_jet_alcance">—</span>
                             </div>
                         </div>
+
+                        <!-- Dirección / número de jets -->
+                        <div class="iao-input-group">
+                            <label for="iao_jet_direccion">Dirección del Jet</label>
+                            <div class="criterion-input-row">
+                                <select id="iao_jet_direccion">
+                                    <option value="" selected>Sin especificar</option>
+                                    <option value="central">Central</option>
+                                    <option value="exc_mitral">Excéntrico hacia valva mitral anterior</option>
+                                    <option value="exc_septal">Excéntrico hacia septum</option>
+                                    <option value="coanda">Adherido a pared (Coanda)</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="iao-input-group">
+                            <label for="iao_jet_numero">N° de Jets</label>
+                            <div class="criterion-input-row">
+                                <select id="iao_jet_numero">
+                                    <option value="" selected>Sin especificar</option>
+                                    <option value="unico">Único</option>
+                                    <option value="dos">Dos jets</option>
+                                    <option value="multiples">Múltiples</option>
+                                </select>
+                            </div>
+                        </div>
                     </div>
 
                     <!-- Parametros Cualitativos -->
@@ -1208,6 +1268,29 @@
                                     <option value="reverso">Reverso Sistólico</option>
                                 </select>
                                 <span class="criterion-badge" id="badge_it_flujo_hep">—</span>
+                            </div>
+                        </div>
+                        <div class="iao-input-group">
+                            <label for="it_jet_direccion">Dirección del Jet</label>
+                            <div class="criterion-input-row">
+                                <select id="it_jet_direccion">
+                                    <option value="" selected>Sin especificar</option>
+                                    <option value="central">Central</option>
+                                    <option value="exc_septal">Excéntrico septal</option>
+                                    <option value="exc_lateral">Excéntrico lateral</option>
+                                    <option value="coanda">Adherido a pared (Coanda)</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="iao-input-group">
+                            <label for="it_jet_numero">N° de Jets</label>
+                            <div class="criterion-input-row">
+                                <select id="it_jet_numero">
+                                    <option value="" selected>Sin especificar</option>
+                                    <option value="unico">Único</option>
+                                    <option value="dos">Dos jets</option>
+                                    <option value="multiples">Múltiples</option>
+                                </select>
                             </div>
                         </div>
                     </div>
@@ -1490,7 +1573,8 @@
     <script src="js/motility-controller.js?v=16.1"></script>
     <script src="js/motility-svg.js?v=16.0"></script>
     <script src="js/gemini-ai.js?v=18.2"></script>
-    <script src="js/ui-controller.js?v=19.14"></script>
+    <script src="js/presets.js?v=1.0"></script>
+    <script src="js/ui-controller.js?v=19.15"></script>
     <script src="js/ui-extensions.js?v=16.0"></script>
     <script src="js/ui-lanus.js?v=16.0"></script>
     <script src="js/ui-aorta-display.js?v=16.0"></script>
