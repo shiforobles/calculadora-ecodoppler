@@ -330,16 +330,33 @@ class MotilityController {
         const totalAbnormal = abnormal.hypokinetic.length + abnormal.akinetic.length + abnormal.dyskinetic.length;
         if (totalAbnormal === 0) return "";
 
-        // Dyssynchrony patterns: use descriptive text, not segments
+        // Patrones de disincronía y compromiso difuso: describir en bloque.
+        // Enumerar los 16-17 segmentos no aporta nada cuando la alteración es global.
         if (this.pattern !== 'none') {
             const currentPattern = MotilityModel.PATTERNS[this.pattern];
-            if (currentPattern && currentPattern.category === 'dyssynchrony') {
+            const esDifusoGlobal = currentPattern && currentPattern.isDiffuse && totalAbnormal >= 12;
+            if (currentPattern && (currentPattern.category === 'dyssynchrony' || esDifusoGlobal)) {
                 let description = this.generateMotilityReport();
                 description = description.replace(/\s*\(WMSI:.*?\)\.?\s*$/, '').trim();
                 description = description.replace(/^Se observa(n)? trastornos segmentarios de la motilidad parietal:?\s*/i, '');
                 description = description.replace(/^Se observa(n)?\s*/i, '');
+                if (!description.endsWith('.')) description += '.';
                 return description.charAt(0).toUpperCase() + description.slice(1);
             }
+        }
+
+        // Sin patrón elegido pero con los tres territorios y casi todo el ventrículo
+        // comprometido: describir en bloque en lugar de listar segmento por segmento.
+        const territorios = new Set([
+            ...abnormal.hypokinetic, ...abnormal.akinetic, ...abnormal.dyskinetic,
+        ].map(id => MotilityModel.SEGMENTS[id].artery));
+        if (territorios.size === 3 && totalAbnormal >= 12) {
+            const sev = [];
+            if (abnormal.dyskinetic.length > 0)  sev.push('disquinesia');
+            if (abnormal.akinetic.length > 0)    sev.push('aquinesia');
+            if (abnormal.hypokinetic.length > 0) sev.push('hipoquinesia');
+            const texto = sev.length > 1 ? `${sev.join(' y ')} globales` : `${sev[0]} global`;
+            return `${texto.charAt(0).toUpperCase() + texto.slice(1)}, sin respetar un territorio coronario específico.`;
         }
 
         const parts = [];
@@ -434,6 +451,18 @@ class MotilityController {
         );
 
         const wmsi = this.calculateWMSI();
+
+        // COMPROMISO GLOBAL — los tres territorios afectados y la mayor parte del
+        // ventrículo comprometido. Enumerar territorio por territorio sugeriría una
+        // distribución coronaria que en realidad no existe.
+        if (affectedTerritories.length === 3 && totalAbnormal >= 12) {
+            const sev = [];
+            if (abnormal.dyskinetic.length > 0) sev.push('disquinesia');
+            if (abnormal.akinetic.length > 0)   sev.push('aquinesia');
+            if (abnormal.hypokinetic.length > 0) sev.push('hipoquinesia');
+            const texto = sev.length > 1 ? `${sev.join(' y ')} globales` : `${sev[0]} global`;
+            return `${texto.charAt(0).toUpperCase() + texto.slice(1)}, sin respetar un territorio coronario específico.`;
+        }
 
         // SINGLE TERRITORY
         if (affectedTerritories.length === 1) {
