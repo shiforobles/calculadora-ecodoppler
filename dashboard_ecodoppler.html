@@ -450,23 +450,17 @@ function csvToObjects(text){
 async function fetchSheet(){
   const status=document.getElementById('sync-status');
   try{
-    if(status){status.textContent='⟳ Sincronizando...';status.className='sync-status syncing';}
+    actualizarContador('sync');
     const url=SHEET_CSV_URL+'&_t='+Date.now(); // evita caché
     const res=await fetch(url);
     if(!res.ok) throw new Error('HTTP '+res.status);
     const text=await res.text();
     SHEET_ROWS=csvToObjects(text);
-    if(status){
-      status.textContent='✓ '+SHEET_ROWS.length+' estudios en vivo';
-      status.className='sync-status ok';
-    }
+    actualizarContador();
     return true;
   }catch(err){
     console.warn('No se pudo leer Google Sheets:',err);
-    if(status){
-      status.textContent='⚠ Sin conexión a Sheets (usando datos guardados)';
-      status.className='sync-status err';
-    }
+    actualizarContador('err');
     return false;
   }
 }
@@ -976,6 +970,20 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape')closeModal()});
    Vive al lado del de Doppler, no lo reemplaza: los render* de
    siempre quedan intactos y acá se agregan los propios.
    ══════════════════════════════════════════════════════════════ */
+// El contador de arriba refleja el modo activo, no siempre el de Doppler.
+function actualizarContador(estado){
+  const st = document.getElementById('sync-status');
+  if(!st) return;
+  if(estado==='sync'){ st.textContent='⟳ Sincronizando...'; st.className='sync-status syncing'; return; }
+  if(estado==='err'){ st.textContent='⚠ Sin conexión a Sheets (usando datos guardados)'; st.className='sync-status err'; return; }
+  const enEstres = (typeof MODO!=='undefined' && MODO==='estres');
+  if(enEstres && !getUrlEstres()){ st.textContent='⚠ Pestaña Estrés sin conectar'; st.className='sync-status err'; return; }
+  const n = enEstres ? ESTRES_ROWS.length : SHEET_ROWS.length;
+  const palabra = (n === 1) ? ' estudio' : ' estudios';
+  st.textContent = '✓ ' + n + palabra + (enEstres ? ' de estrés' : ' en vivo');
+  st.className = 'sync-status ok';
+}
+
 let MODO = 'doppler';
 let ESTRES_ROWS = [];
 const URL_ESTRES_KEY = 'dashboard_url_estres';
@@ -992,14 +1000,17 @@ function guardarUrlEstres(){
 
 async function fetchEstres(){
   const base = getUrlEstres();
-  if(!base){ ESTRES_ROWS=[]; return false; }
+  if(!base){ ESTRES_ROWS=[]; actualizarContador(); return false; }
   try{
+    actualizarContador('sync');
     const res = await fetch(base + '&_t=' + Date.now());
     if(!res.ok) throw new Error('HTTP ' + res.status);
     ESTRES_ROWS = csvToObjects(await res.text());
+    actualizarContador();
     return true;
   }catch(e){
     ESTRES_ROWS = [];
+    actualizarContador('err');
     toast('No se pudo leer la pestaña Estrés: ' + e.message);
     return false;
   }
@@ -1014,6 +1025,7 @@ function setModo(m){
   const falta = (m==='estres' && !getUrlEstres());
   document.getElementById('estres-sin-url').style.display = falta ? '' : 'none';
   if(m==='estres' && getUrlEstres() && !ESTRES_ROWS.length){ fetchEstres().then(()=>renderAll()); return; }
+  actualizarContador();
   renderAll();
 }
 
