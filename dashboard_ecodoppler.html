@@ -193,6 +193,11 @@ tbody tr:hover{background:var(--panel2)}
   .col-4,.col-6,.col-8{grid-column:span 12}
   h1{font-size:2rem}
 }
+
+.modo-sel{display:inline-flex;gap:0;border:1px solid rgba(255,255,255,.14);border-radius:10px;overflow:hidden;margin-right:.5rem}
+.modo-btn{background:transparent;border:none;color:#8a96b3;padding:.5rem .9rem;font-size:.85rem;font-weight:600;cursor:pointer;transition:all .15s}
+.modo-btn:hover{color:#e8edf7;background:rgba(255,255,255,.05)}
+.modo-btn.active{background:var(--teal,#2dd4bf);color:#0b1020}
 </style>
 </head>
 <body>
@@ -201,10 +206,14 @@ tbody tr:hover{background:var(--panel2)}
     <div class="header-row">
       <div>
         <div class="eyebrow">Panel Ecocardiográfico</div>
-        <h1>Base de Datos <em>Eco Doppler</em></h1>
+        <h1>Base de Datos <em id="titulo-modo">Eco Doppler</em></h1>
         <p class="sub">Dr. Lucas Robles · Cardiología · Análisis interactivo de estudios</p>
       </div>
       <div class="actions">
+        <div class="modo-sel">
+          <button class="modo-btn active" data-modo="doppler" onclick="setModo('doppler')">🫀 Ecocardiograma</button>
+          <button class="modo-btn" data-modo="estres" onclick="setModo('estres')">🏃 Eco estrés</button>
+        </div>
         <span class="sync-status" id="sync-status">⟳ Cargando...</span>
         <button class="btn" id="btn-refresh" onclick="init()">🔄 Actualizar</button>
         <button class="btn" onclick="document.getElementById('file-input').click()">📁 Importar Excel/CSV</button>
@@ -216,6 +225,7 @@ tbody tr:hover{background:var(--panel2)}
 
   <div class="kpi-grid" id="kpi-grid"></div>
 
+  <div id="vista-doppler">
   <div class="panel-grid">
     <div class="panel col-4">
       <h2>Geometría del VI</h2>
@@ -259,6 +269,53 @@ tbody tr:hover{background:var(--panel2)}
       <div class="chart-box"><canvas id="chart-comorb"></canvas></div>
     </div>
   </div>
+
+  </div><!-- /vista-doppler -->
+
+  <div id="vista-estres" style="display:none">
+    <div id="estres-sin-url" class="panel col-12" style="margin-bottom:1.25rem;display:none">
+      <h2>Conectar la pestaña de eco estrés</h2>
+      <p class="hint">Publicá la pestaña <strong>Estrés</strong> del Sheet como CSV y pegá la URL acá. Queda guardada en este navegador.</p>
+      <div class="table-controls">
+        <div class="search-box" style="flex:1"><input type="text" id="estres-url" placeholder="https://docs.google.com/spreadsheets/d/e/.../pub?gid=...&single=true&output=csv"></div>
+        <button class="btn" onclick="guardarUrlEstres()">Conectar</button>
+      </div>
+    </div>
+
+    <div class="panel-grid">
+      <div class="panel col-6">
+        <h2>Resultado del estudio</h2>
+        <p class="hint">Distribución por categoría</p>
+        <div class="chart-box"><canvas id="chart-e-resultado"></canvas></div>
+      </div>
+      <div class="panel col-6">
+        <h2>Territorio comprometido</h2>
+        <p class="hint">Sólo estudios con isquemia inducible</p>
+        <div class="chart-box"><canvas id="chart-e-territorio"></canvas></div>
+      </div>
+    </div>
+
+    <div class="panel-grid">
+      <div class="panel col-4">
+        <h2>Suficiencia del test</h2>
+        <p class="hint">≥85% de la FC máxima teórica</p>
+        <div class="chart-box"><canvas id="chart-e-suficiencia"></canvas></div>
+      </div>
+      <div class="panel col-8">
+        <h2>Capacidad funcional y carga alcanzada</h2>
+        <p class="hint">Distribución de METs y de doble producto</p>
+        <div class="chart-box"><canvas id="chart-e-mets"></canvas></div>
+      </div>
+    </div>
+
+    <div class="panel-grid">
+      <div class="panel col-12">
+        <h2>Estudios no concluyentes en el tiempo</h2>
+        <p class="hint">Porcentaje por mes — si sube, algo cambió en la técnica o en los pacientes</p>
+        <div class="chart-box"><canvas id="chart-e-noconcl"></canvas></div>
+      </div>
+    </div>
+  </div><!-- /vista-estres -->
 
   <div class="panel col-12" style="margin-bottom:1.25rem">
     <h2>Estudios — Listado interactivo</h2>
@@ -794,6 +851,7 @@ function passDate(s){
   return true;
 }
 function renderTable(){
+  if(MODO==='estres') return renderTableEstres();
   const q=document.getElementById('search').value.toLowerCase();
   let rows=STUDIES.filter(passFilter).filter(passDate).filter(s=>{
     if(!q)return true;
@@ -912,7 +970,211 @@ document.querySelectorAll('th[data-sort]').forEach(th=>{
 document.addEventListener('keydown',e=>{if(e.key==='Escape')closeModal()});
 
 /* ============ INIT ============ */
-function renderAll(){mergeStudies();renderKPIs();renderCharts();renderMotility();renderTable();}
+
+/* ══════════════════════════════════════════════════════════════
+   MODO ECO ESTRÉS
+   Vive al lado del de Doppler, no lo reemplaza: los render* de
+   siempre quedan intactos y acá se agregan los propios.
+   ══════════════════════════════════════════════════════════════ */
+let MODO = 'doppler';
+let ESTRES_ROWS = [];
+const URL_ESTRES_KEY = 'dashboard_url_estres';
+
+function getUrlEstres(){ return localStorage.getItem(URL_ESTRES_KEY) || ''; }
+
+function guardarUrlEstres(){
+  const u = document.getElementById('estres-url').value.trim();
+  if(!u.includes('output=csv')){ toast('La URL tiene que terminar en output=csv'); return; }
+  localStorage.setItem(URL_ESTRES_KEY, u);
+  document.getElementById('estres-sin-url').style.display='none';
+  fetchEstres().then(()=>renderAll());
+}
+
+async function fetchEstres(){
+  const base = getUrlEstres();
+  if(!base){ ESTRES_ROWS=[]; return false; }
+  try{
+    const res = await fetch(base + '&_t=' + Date.now());
+    if(!res.ok) throw new Error('HTTP ' + res.status);
+    ESTRES_ROWS = csvToObjects(await res.text());
+    return true;
+  }catch(e){
+    ESTRES_ROWS = [];
+    toast('No se pudo leer la pestaña Estrés: ' + e.message);
+    return false;
+  }
+}
+
+function setModo(m){
+  MODO = m;
+  document.querySelectorAll('.modo-btn').forEach(b=>b.classList.toggle('active', b.dataset.modo===m));
+  document.getElementById('vista-doppler').style.display = (m==='doppler') ? '' : 'none';
+  document.getElementById('vista-estres').style.display  = (m==='estres')  ? '' : 'none';
+  document.getElementById('titulo-modo').textContent = (m==='estres') ? 'Eco Estrés' : 'Eco Doppler';
+  const falta = (m==='estres' && !getUrlEstres());
+  document.getElementById('estres-sin-url').style.display = falta ? '' : 'none';
+  if(m==='estres' && getUrlEstres() && !ESTRES_ROWS.length){ fetchEstres().then(()=>renderAll()); return; }
+  renderAll();
+}
+
+/* ── KPIs de estrés ── */
+function renderKPIsEstres(){
+  const R = ESTRES_ROWS, n = R.length;
+  const pct = x => n ? Math.round(x/n*100) : 0;
+  const cat = c => R.filter(r=>txt(r['Resultado'])===c).length;
+  const positivos = R.filter(r=>txt(r['Resultado']).startsWith('positivo')||txt(r['Resultado'])==='multiterritorial').length;
+  const noConcl = cat('no concluyente');
+  const mets = R.map(r=>num(r['METs'])).filter(x=>x!==null);
+  const avgMets = mets.length ? (mets.reduce((a,b)=>a+b,0)/mets.length).toFixed(1) : '—';
+  const suf = R.filter(r=>{const p=num(r['% FCMT']); return p!==null && p>=85;}).length;
+
+  const kpis=[
+    {label:'Estudios de estrés',value:n,sub:'en la pestaña Estrés',icon:'🏃',accent:'var(--teal)'},
+    {label:'Positivos',value:positivos,sub:pct(positivos)+'% del total',icon:'⚠️',accent:'var(--rose)'},
+    {label:'No concluyentes',value:noConcl,sub:pct(noConcl)+'% del total',icon:'❓',accent:'var(--amber)'},
+    {label:'Tests suficientes',value:suf,sub:pct(suf)+'% llegó al 85%',icon:'🎯',accent:'var(--blue)'},
+    {label:'METs promedio',value:avgMets,sub:`n=${mets.length}`,icon:'📈',accent:'var(--violet)'},
+    {label:'Discordantes',value:cat('discordante'),sub:'ECG+ / eco−',icon:'⚡',accent:'var(--orange)'},
+  ];
+  document.getElementById('kpi-grid').innerHTML = kpis.map(k=>`
+    <div class="kpi" style="--accent:${k.accent}">
+      <div class="kpi-icon">${k.icon}</div>
+      <div class="kpi-label">${k.label}</div>
+      <div class="kpi-value">${k.value}</div>
+      <div class="kpi-sub">${k.sub}</div>
+    </div>`).join('');
+}
+
+/* ── Gráficos de estrés ── */
+const COLOR_RESULTADO = {
+  'negativo':'#34d399', 'positivo DA':'#f87171', 'positivo CD':'#fb923c',
+  'positivo Cx':'#fbbf24', 'positivo apical':'#f0abfc', 'multiterritorial':'#dc2626',
+  'secuela':'#8a96b3', 'dilatada':'#a78bfa', 'no concluyente':'#64748b', 'discordante':'#38bdf8'
+};
+
+function renderChartsEstres(){
+  Object.values(charts).forEach(c=>c&&c.destroy());
+  const R = ESTRES_ROWS;
+  const cuenta = (campo, filtro) => {
+    const c={};
+    R.forEach(r=>{ if(filtro && !filtro(r)) return; const v=txt(r[campo]); if(v) c[v]=(c[v]||0)+1; });
+    return c;
+  };
+
+  // 1 · Resultado
+  const res = cuenta('Resultado');
+  charts.eRes = new Chart(document.getElementById('chart-e-resultado'),{
+    type:'doughnut',
+    data:{labels:Object.keys(res),datasets:[{data:Object.values(res),
+      backgroundColor:Object.keys(res).map(k=>COLOR_RESULTADO[k]||'#3b82f6'),borderWidth:2,borderColor:'#141b30'}]},
+    options:{plugins:{legend:{position:'bottom',labels:{padding:10,font:{size:11}}}},cutout:'58%',_showPct:true}
+  });
+
+  // 2 · Territorio, sólo en los que hubo isquemia
+  const terr = cuenta('Territorio', r=>{const t=txt(r['Territorio']); return t && t!=='-';});
+  charts.eTerr = new Chart(document.getElementById('chart-e-territorio'),{
+    type:'bar',
+    data:{labels:Object.keys(terr),datasets:[{data:Object.values(terr),backgroundColor:PAL,borderRadius:6}]},
+    options:{plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{precision:0}}}}
+  });
+
+  // 3 · Suficiencia
+  let suf=0, insuf=0;
+  R.forEach(r=>{const p=num(r['% FCMT']); if(p===null) return; (p>=85?suf++:insuf++);});
+  charts.eSuf = new Chart(document.getElementById('chart-e-suficiencia'),{
+    type:'doughnut',
+    data:{labels:['Suficiente (≥85%)','Insuficiente'],datasets:[{data:[suf,insuf],
+      backgroundColor:['#34d399','#fbbf24'],borderWidth:2,borderColor:'#141b30'}]},
+    options:{plugins:{legend:{position:'bottom',labels:{padding:10,font:{size:11}}}},cutout:'58%',_showPct:true}
+  });
+
+  // 4 · METs y doble producto
+  const binsMets=['<5','5-6.9','7-9.9','≥10'];
+  const cMets=[0,0,0,0];
+  R.forEach(r=>{const m=num(r['METs']); if(m===null)return;
+    cMets[m<5?0:m<7?1:m<10?2:3]++;});
+  const binsDP=['<20k','20-25k','25-30k','≥30k'];
+  const cDP=[0,0,0,0];
+  R.forEach(r=>{const d=num(r['DP máximo']); if(d===null)return;
+    cDP[d<20000?0:d<25000?1:d<30000?2:3]++;});
+  charts.eMets = new Chart(document.getElementById('chart-e-mets'),{
+    type:'bar',
+    data:{labels:binsMets.map((b,i)=>b+' METs / '+binsDP[i]),
+      datasets:[
+        {label:'METs',data:cMets,backgroundColor:'#38bdf8',borderRadius:6},
+        {label:'Doble producto',data:cDP,backgroundColor:'#a78bfa',borderRadius:6}
+      ]},
+    options:{plugins:{legend:{position:'bottom',labels:{padding:10,font:{size:11}}}},
+      scales:{y:{beginAtZero:true,ticks:{precision:0}}}}
+  });
+
+  // 5 · No concluyentes en el tiempo, por mes
+  const porMes={};
+  R.forEach(r=>{
+    const d=parseDate(r['Fecha']); if(!d) return;
+    const k=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
+    if(!porMes[k]) porMes[k]={total:0,nc:0};
+    porMes[k].total++;
+    if(txt(r['Resultado'])==='no concluyente') porMes[k].nc++;
+  });
+  const meses=Object.keys(porMes).sort();
+  charts.eNC = new Chart(document.getElementById('chart-e-noconcl'),{
+    type:'line',
+    data:{labels:meses,datasets:[{label:'% no concluyentes',
+      data:meses.map(m=>Math.round(porMes[m].nc/porMes[m].total*100)),
+      borderColor:'#fbbf24',backgroundColor:'rgba(251,191,36,.15)',fill:true,tension:.3,pointRadius:4}]},
+    options:{plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,max:100,ticks:{callback:v=>v+'%'}}}}
+  });
+}
+
+
+function renderTableEstres(){
+  const q=document.getElementById('search').value.toLowerCase();
+  const rows=ESTRES_ROWS.filter(r=>!q||JSON.stringify(r).toLowerCase().includes(q))
+    .filter(r=>{const d=document.getElementById('date-search'); return !d||!d.value||dateMatchesText(txt(r['Fecha']),d.value.toLowerCase());});
+  document.getElementById('count-label').textContent=`${rows.length} estudios de estrés`;
+  const badge = r => {
+    const v=txt(r['Resultado']);
+    const c=COLOR_RESULTADO[v]||'#8a96b3';
+    return `<span style="background:${c}22;color:${c};padding:.15rem .5rem;border-radius:99px;font-size:.75rem;font-weight:600">${v||'—'}</span>`;
+  };
+  document.getElementById('tbody').innerHTML = rows.map(r=>{
+    const i=ESTRES_ROWS.indexOf(r);
+    return `<tr onclick="openModalEstres(${i})">
+      <td>${txt(r['Fecha'])}</td>
+      <td class="name-cell">${txt(r['HC'])||'—'}</td>
+      <td>${txt(r['Edad'])}</td>
+      <td>${txt(r['Sexo'])}</td>
+      <td>${badge(r)}</td>
+      <td style="font-size:.8rem">${txt(r['Territorio'])||'—'}</td>
+      <td>${txt(r['% FCMT'])?txt(r['% FCMT'])+'%':'—'}</td>
+      <td>${txt(r['METs'])||'—'}</td>
+    </tr>`;
+  }).join('') || '<tr><td colspan="8" style="text-align:center;padding:2rem;color:#8a96b3">Sin estudios para mostrar</td></tr>';
+}
+
+function openModalEstres(i){
+  const r = ESTRES_ROWS[i];
+  if(!r) return;
+  document.getElementById('m-title').textContent = 'HC ' + (txt(r['HC'])||'Estudio');
+  document.getElementById('m-meta').textContent =
+    `${txt(r['Fecha'])} · ${txt(r['Edad'])} años · ${txt(r['Sexo'])==='M'?'Masculino':'Femenino'} · ${txt(r['Protocolo'])}`;
+  const grid=[
+    ['Resultado',txt(r['Resultado'])],['Categorización',txt(r['Categorización'])],
+    ['% FCMT',txt(r['% FCMT'])+'%'],['METs',txt(r['METs'])],
+    ['WMSI post',txt(r['WMSI post'])],['Territorio',txt(r['Territorio'])||'—']
+  ];
+  document.getElementById('m-grid').innerHTML = grid.map(([l,v])=>`
+    <div class="rg-item"><div class="rg-label">${l}</div><div class="rg-value">${v}</div></div>`).join('');
+  modalReport = txt(r['Informe']) || '(este estudio no tiene informe guardado)';
+  document.getElementById('m-report').textContent = modalReport;
+  document.getElementById('modal-bg').classList.add('show');
+}
+
+function renderAll(){
+  if(MODO==='estres'){ renderKPIsEstres(); renderChartsEstres(); renderTable(); return; }
+  mergeStudies();renderKPIs();renderCharts();renderMotility();renderTable();
+}
 
 async function init(){
   // 1. Mostrar primero lo que ya tenemos (instantáneo)
