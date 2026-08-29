@@ -240,6 +240,84 @@ const MotilityModel = {
         }
     },
 
+    // ─────────────────────────────────────────────────────────────────────────
+    // ANATOMÍA PARA EL MOTOR DE REDACCIÓN (Motor A)
+    //
+    // Modelo de 16 segmentos. El 17 (apical cap) se mantiene visible en el
+    // bull's-eye pero queda FUERA del WMSI y de la redacción.
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /** Segmentos que entran en WMSI y redacción */
+    ANALYZED_SEGMENTS: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16],
+
+    /** Anillos por nivel */
+    LEVELS: {
+        basal:  [1, 2, 3, 4, 5, 6],
+        medio:  [7, 8, 9, 10, 11, 12],
+        apical: [13, 14, 15, 16],
+    },
+
+    /** Nivel + pared de cada segmento, en la nomenclatura de los informes */
+    SEGMENT_ANATOMY: {
+        1:  { level: 'basal',  wall: 'anterior' },
+        2:  { level: 'basal',  wall: 'anteroseptal' },
+        3:  { level: 'basal',  wall: 'inferoseptal' },
+        4:  { level: 'basal',  wall: 'inferior' },
+        5:  { level: 'basal',  wall: 'inferolateral' },
+        6:  { level: 'basal',  wall: 'anterolateral' },
+        7:  { level: 'medio',  wall: 'anterior' },
+        8:  { level: 'medio',  wall: 'anteroseptal' },
+        9:  { level: 'medio',  wall: 'inferoseptal' },
+        10: { level: 'medio',  wall: 'inferior' },
+        11: { level: 'medio',  wall: 'inferolateral' },
+        12: { level: 'medio',  wall: 'anterolateral' },
+        // A nivel apical el ventrículo pasa de 6 a 4 paredes: el septum apical (14)
+        // cierra tanto la columna anteroseptal como la inferoseptal, y el lateral
+        // apical (16) cierra la anterolateral y la inferolateral.
+        13: { level: 'apical', wall: 'anterior' },
+        14: { level: 'apical', wall: 'septal' },
+        15: { level: 'apical', wall: 'inferior' },
+        16: { level: 'apical', wall: 'lateral' },
+    },
+
+    /** Columnas longitudinales: pared completa de base a ápex */
+    WALL_COLUMNS: {
+        anterior:      [1, 7, 13],
+        anteroseptal:  [2, 8, 14],
+        inferoseptal:  [3, 9, 14],
+        inferior:      [4, 10, 15],
+        inferolateral: [5, 11, 16],
+        anterolateral: [6, 12, 16],
+    },
+
+    /**
+     * Vecinos anatómicos de un segmento: radiales (mismo anillo, paredes
+     * contiguas) y longitudinales (misma pared, nivel contiguo).
+     * Se usa para decidir si dos grados distintos forman una lesión continua.
+     */
+    getNeighbors(segmentId) {
+        if (this._adjacency) return this._adjacency[segmentId] || [];
+
+        const adj = {};
+        this.ANALYZED_SEGMENTS.forEach(id => { adj[id] = new Set(); });
+        const link = (a, b) => { adj[a].add(b); adj[b].add(a); };
+
+        // Radiales: cada anillo es un círculo cerrado
+        Object.values(this.LEVELS).forEach(ring => {
+            ring.forEach((seg, i) => link(seg, ring[(i + 1) % ring.length]));
+        });
+
+        // Longitudinales: basal → medio → apical dentro de cada columna
+        Object.values(this.WALL_COLUMNS).forEach(([basal, medio, apical]) => {
+            link(basal, medio);
+            link(medio, apical);
+        });
+
+        this._adjacency = {};
+        Object.keys(adj).forEach(id => { this._adjacency[id] = [...adj[id]].sort((a, b) => a - b); });
+        return this._adjacency[segmentId] || [];
+    },
+
     // Get segments for a specific view
     getSegmentsForView(viewName) {
         return Object.entries(this.SEGMENTS)

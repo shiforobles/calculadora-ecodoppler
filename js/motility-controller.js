@@ -49,9 +49,19 @@ class MotilityController {
     }
 
     // Calculate Wall Motion Score Index
+    //
+    // Delega en WMSIEngine: segmentos 1-16 (el 17 nunca entra) y denominador de
+    // segmentos evaluables. El cálculo anterior dividía por 17 fijo e incluía el
+    // ápex, lo que diluía cualquier alteración (1.94 informado donde el real es 2.00).
     calculateWMSI() {
-        const sum = Object.values(this.state).reduce((a, b) => a + b, 0);
-        return (sum / 17).toFixed(2);
+        if (typeof WMSIEngine !== 'undefined') {
+            const r = WMSIEngine.calculate(this.state);
+            return r.wmsi === null ? '—' : r.text;
+        }
+        // Fallback defensivo si el motor no llegó a cargar
+        const segs = MotilityModel.ANALYZED_SEGMENTS;
+        const sum = segs.reduce((acc, id) => acc + (this.state[id] || 1), 0);
+        return (sum / segs.length).toFixed(2);
     }
 
     // Get abnormal segments grouped by state
@@ -120,21 +130,20 @@ class MotilityController {
     }
 
     // Estimate LVEF based on WMSI (clinical pocket rule)
-    estimateLVEF() {
+    /**
+     * Interpretación cualitativa del WMSI.
+     *
+     * Reemplaza a la "FEVI estimada" que devolvía rangos como "45-55%". El WMSI mide
+     * extensión de alteración regional, no volumen eyectado: mostrar un porcentaje al
+     * lado de la FEy de Simpson sugiere una equivalencia que no existe y se presta a
+     * informar un valor que nunca se midió.
+     */
+    interpretWMSI() {
         const wmsi = parseFloat(this.calculateWMSI());
-
-        // Clinical correlation (not a formula, just a reference)
-        if (wmsi === 1.0) {
-            return { min: 55, max: 65, text: "55-65%", category: "normal" };
-        } else if (wmsi <= 1.2) {
-            return { min: 45, max: 55, text: "45-55%", category: "levemente reducida" };
-        } else if (wmsi <= 1.5) {
-            return { min: 35, max: 45, text: "35-45%", category: "moderadamente reducida" };
-        } else if (wmsi <= 2.0) {
-            return { min: 25, max: 30, text: "25-30%", category: "severamente reducida" };
-        } else {
-            return { min: 0, max: 25, text: "<25%", category: "muy deprimida" };
+        if (typeof WMSIEngine !== 'undefined') {
+            return WMSIEngine.interpret(isNaN(wmsi) ? null : wmsi);
         }
+        return { label: '', severity: 'none' };
     }
 
     // Helper: Extract wall name from segment name (e.g., "Basal Anterior" -> "Anterior")
@@ -600,7 +609,7 @@ class MotilityController {
         const totalAbnormal = abnormal.hypokinetic.length + abnormal.akinetic.length + abnormal.dyskinetic.length;
 
         if (totalAbnormal === 0) {
-            previewText.innerHTML = 'No hay alteraciones registradas.';
+            previewText.innerHTML = 'No hay alteraciones registradas.' + this._buildComparisonPanel();
             return;
         }
 
@@ -610,11 +619,13 @@ class MotilityController {
         // Add WMSI at the top
         parts.push(`<strong>WMSI:</strong> <span style="font-size: 1.1em; color: ${wmsi > 2.0 ? '#ef4444' : wmsi > 1.5 ? '#f59e0b' : '#10b981'};">${wmsi}</span>`);
 
-        // Add estimated LVEF based on WMSI (clinical correlation)
-        const lvefEstimate = this.estimateLVEF();
-        const lvefColor = lvefEstimate.category === 'normal' ? '#10b981' :
-            lvefEstimate.category === 'levemente reducida' ? '#f59e0b' : '#ef4444';
-        parts.push(`<strong>FEVI estimada:</strong> <span style="font-size: 1.0em; color: ${lvefColor};">${lvefEstimate.text}</span> <span style="font-size: 0.85em; color: #6b7280;">(referencia)</span>`);
+        // Interpretación cualitativa del WMSI (sin rangos de FEVI: ver interpretWMSI)
+        const interp = this.interpretWMSI();
+        if (interp.label) {
+            const interpColor = interp.severity === 'normal' ? '#10b981' :
+                interp.severity === 'mild' ? '#f59e0b' : '#ef4444';
+            parts.push(`<strong>Interpretación:</strong> <span style="color: ${interpColor};">${interp.label}</span>`);
+        }
 
 
         // Check for dyssynchrony pattern -> use specific description
@@ -669,7 +680,44 @@ class MotilityController {
             </div>`;
         }
 
-        previewText.innerHTML = parts.join('<br>') + extraInfo;
+        previewText.innerHTML = parts.join('<br>') + extraInfo + this._buildComparisonPanel();
+    }
+
+    /**
+     * MODO COMPARACIÓN (temporal) — muestra lado a lado la redacción del generador
+     * actual y la del Motor A, para validar el motor nuevo con casos reales antes
+     * de jubilar el viejo.
+     *
+     * El informe que se copia y se guarda sigue usando el generador ACTUAL: este
+     * panel es solo de lectura en pantalla. Se quita entero cuando el Motor A quede
+     * aprobado y conectado.
+     */
+    _buildComparisonPanel() {
+        if (typeof MotilityEngine === 'undefined') return '';
+
+        const actualDesc = (this.generateMotilityReport() || '')
+            .replace(/\s*\(WMSI:.*?\)\.?\s*$/, '')
+            .replace(/^Se observan? trastornos segmentarios de la motilidad parietal[:,]?\s*/i, '')
+            .replace(/^(con|,)\s*/i, '')
+            .trim() || '(sin texto)';
+        const actualConcl = (this.generateConclusion() || '(sin texto)').trim();
+        const nuevo = MotilityEngine.describe(this.state);
+
+        const fila = (etiqueta, texto, color) => `
+            <div style="margin-top:6px;">
+                <span style="display:inline-block;min-width:78px;font-weight:700;color:${color};font-size:.78em;letter-spacing:.02em;">${etiqueta}</span>
+                <span style="color:#374151;">${texto}</span>
+            </div>`;
+
+        return `
+            <div style="margin-top:10px;padding:8px 10px;background:#f8fafc;border:1px dashed #94a3b8;border-radius:6px;font-size:.9em;">
+                <div style="font-weight:700;color:#475569;font-size:.78em;letter-spacing:.04em;">
+                    ⚖️ COMPARACIÓN — el informe sigue usando ACTUAL
+                </div>
+                ${fila('ACTUAL', actualDesc, '#b45309')}
+                ${fila('· conclusión', actualConcl, '#b45309')}
+                ${fila('MOTOR A', nuevo, '#0369a1')}
+            </div>`;
     }
 
     // Update UI elements
