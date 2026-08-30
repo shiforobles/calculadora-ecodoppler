@@ -45,29 +45,78 @@ const MotilityEngine = {
         const groups = this._groupBySeverity(states);
         if (!groups.length) return this.NORMAL_TEXT;
 
-        const [core, ...rest] = groups;
+        // Cada grado se parte además en componentes anatómicamente conexas: dos focos
+        // separados del mismo grado son dos lesiones distintas y se describen aparte,
+        // nunca fusionadas en un nombre de pared que no está comprometida.
+        const blocks = [];
+        groups.forEach(g => {
+            const focos = this._connectedComponents(g.segments);
+            // Sólo vale la pena separarlos si cada foco tiene forma anatómica propia.
+            // Si son segmentos sueltos y dispersos, enumerarlos juntos se lee mejor
+            // que repetir el mismo grado en tres frases seguidas.
+            const separar = focos.length > 1 &&
+                focos.every(f => !this._describeSegments(f).enumerated);
+
+            if (separar) focos.forEach(segments => blocks.push({ score: g.score, segments }));
+            else         blocks.push({ score: g.score, segments: g.segments });
+        });
+
+        const [core, ...rest] = blocks;
         let text = this._capitalize(`${this.NOUNS[core.score]} ${this._describeSegments(core.segments).text}`);
 
-        rest.forEach(group => {
-            const adjacent = this._isAdjacentTo(group.segments, core.segments);
-            const desc = this._describeSegments(group.segments);
-            const noun = this.NOUNS[group.score];
+        rest.forEach(block => {
+            const adjacent = this._isAdjacentTo(block.segments, core.segments);
+            const desc = this._describeSegments(block.segments);
+            const noun = this.NOUNS[block.score];
 
             if (adjacent) {
-                // Lesión continua: una sola frase. Si el grupo secundario tiene forma
+                // Lesión continua: una sola frase. Si el bloque secundario tiene forma
                 // anatómica propia (anillo, pared, región) se usa esa; si hubo que
                 // enumerarlo, se marca explícitamente que es contiguo al núcleo.
                 const sufijo = desc.enumerated
-                    ? (group.segments.length > 1 ? ' adyacentes' : ' adyacente')
+                    ? (block.segments.length > 1 ? ' adyacentes' : ' adyacente')
                     : '';
                 text += `, con ${noun} ${desc.text}${sufijo}`;
+            } else if (block.score === core.score) {
+                // Mismo grado, otro foco: se enuncia como hallazgo aparte.
+                text += `, con ${noun} ${desc.text}`;
             } else {
-                // Sin continuidad anatómica: no se fusionan.
+                // Distinto grado y sin continuidad anatómica: no se fusionan.
                 text += ` ${this._conjunction(noun)} ${noun} ${desc.text}`;
             }
         });
 
         return text + '.';
+    },
+
+    /**
+     * Parte un conjunto de segmentos en grupos conexos por adyacencia anatómica.
+     * Devuelve los componentes ordenados por tamaño (el mayor primero).
+     */
+    _connectedComponents(segments) {
+        const pendientes = new Set(segments);
+        const componentes = [];
+
+        while (pendientes.size) {
+            const semilla = Math.min(...pendientes);
+            const grupo = [];
+            const cola = [semilla];
+            pendientes.delete(semilla);
+
+            while (cola.length) {
+                const actual = cola.pop();
+                grupo.push(actual);
+                MotilityModel.getNeighbors(actual).forEach(vecino => {
+                    if (pendientes.has(vecino)) {
+                        pendientes.delete(vecino);
+                        cola.push(vecino);
+                    }
+                });
+            }
+            componentes.push(grupo.sort((a, b) => a - b));
+        }
+
+        return componentes.sort((a, b) => b.length - a.length || a[0] - b[0]);
     },
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -94,6 +143,12 @@ const MotilityEngine = {
         if (this._sameSet(segs, M.LEVELS.medio))  return patron('circunferencial de los segmentos medios');
         // En el ápex se prefiere "difusa" antes que "circunferencial"
         if (this._sameSet(segs, M.LEVELS.apical)) return patron('difusa de los segmentos apicales');
+
+        // ── NIVEL 2b — Varios anillos completos ──
+        // Un nivel completo se nombra como anillo aunque acompañe a otro nivel y
+        // comparta grado con él; enumerar sus seis paredes no aporta nada.
+        const anillos = this._matchCompleteRings(segs);
+        if (anillos) return patron(anillos);
 
         // ── NIVEL 3 — Pared longitudinal completa ──
         const columna = this._matchWallColumn(segs);
@@ -180,35 +235,167 @@ const MotilityEngine = {
     },
 
     /**
-     * NIVEL 6 — regiones combinadas: se nombra la región resultante de las paredes
-     * involucradas y el rango de niveles, en vez de listar segmento por segmento.
+     * NIVEL 2b — el conjunto se descompone exactamente en anillos completos.
+     * Se enuncian del ápex hacia la base.
      */
-    _matchRegion(segs) {
-        // "Predominio" describe una zona, no uno o dos segmentos sueltos: con menos
-        // de tres es más exacto nombrarlos que insinuar una región.
-        if (segs.length < 3) return null;
-        const region = this._regionName(segs);
-        if (!region) return null;
-        const niveles = this._levelSpan(segs);
-        if (!niveles) return null;
-        return `de predominio ${region} ${niveles}`;
+    _matchCompleteRings(segs) {
+        const M = MotilityModel;
+        const set = new Set(segs);
+        const orden = [
+            ['apical', 'difusa de los segmentos apicales'],
+            ['medio',  'circunferencial de los segmentos medios'],
+            ['basal',  'circunferencial de los segmentos basales'],
+        ];
+
+        const completos = orden.filter(([nivel]) => M.LEVELS[nivel].every(s => set.has(s)));
+        if (completos.length < 2) return null;
+
+        // Sólo si no sobra ningún segmento fuera de esos anillos
+        const cubiertos = completos.reduce((acc, [nivel]) => acc + M.LEVELS[nivel].length, 0);
+        if (cubiertos !== segs.length) return null;
+
+        return this._joinList(completos.map(([, texto]) => texto));
     },
 
     /**
-     * Traduce el conjunto de paredes involucradas a un nombre de región.
-     * Las paredes apicales (septal / lateral) se funden con sus equivalentes
-     * de los anillos basal y medio.
+     * NIVEL 6 — varias paredes comprometidas.
+     *
+     * Reglas:
+     *  - Nunca se inventa un "predominio" ni se sesga hacia una pared: si dos paredes
+     *    están parejas se nombran ambas.
+     *  - El núcleo, cuando existe, es la pared con más niveles comprometidos.
+     *  - "En toda su extensión" exige los tres niveles de esa pared.
+     *  - El apical compartido (14 septal, 16 lateral) se informa como extensión: no
+     *    existe "anteroseptal apical" ni "inferolateral apical".
+     */
+    _matchRegion(segs) {
+        // "Predominio" describe una zona, no uno o dos segmentos sueltos.
+        if (segs.length < 3) return null;
+
+        const { walls, sharedApical } = this._analyzeWalls(segs);
+        if (walls.length < 2) return null;   // una sola pared: la resuelven los niveles 3 y 4
+
+        // Nombrar paredes exige que al menos una esté consolidada en su cuerpo
+        // (basal + medio). Si todas están apenas esbozadas —por ejemplo un compromiso
+        // medio-apical que no llega a las bases— lo honesto es describir la región,
+        // no anunciar paredes que en realidad están comprometidas a medias.
+        if (!walls.some(w => w.bodyComplete)) {
+            const region = this._regionName(segs);
+            const span = this._levelSpan(segs);
+            return (region && span) ? `de predominio ${region} ${span}` : null;
+        }
+
+        const extApical = this._sharedApicalText(sharedApical);
+        const completas = walls.filter(w => w.complete);
+        const parciales = walls.filter(w => !w.complete);
+
+        // ── Una pared claramente más comprometida: núcleo + extensiones ──
+        if (completas.length === 1 && parciales.length) {
+            const nucleo = completas[0];
+            const extensiones = parciales
+                .map(w => `a la pared ${w.wall} (${this._levelWords(w.levels)})`);
+            if (extApical) extensiones.push(extApical);
+            return `${this._wallCoreText(nucleo)}, con extensión ${this._joinList(extensiones)}`;
+        }
+
+        // ── Paredes parejas: se nombran todas, sin elegir una ──
+        const nombres = walls.map(w => w.wall);
+        let texto = `de las paredes ${this._joinList(nombres)}`;
+
+        const tieneApicalPropio = walls.some(w => w.ownApical);
+        if (!tieneApicalPropio) {
+            const niveles = this._commonLevels(walls);
+            if (extApical) {
+                if (niveles) texto += ` (${this._levelWords(niveles)})`;
+                texto += `, con extensión ${extApical}`;
+            } else {
+                const span = this._levelSpan(segs);
+                if (!span) return null;
+                texto += `, ${span}`;
+            }
+            return texto;
+        }
+
+        // Alguna pared llega al ápex con su propio nombre: los niveles no son
+        // homogéneos, así que no se califican; sólo se anexa el apical compartido.
+        if (extApical) texto += `, con extensión ${extApical}`;
+        return texto;
+    },
+
+    /**
+     * Descompone el conjunto por columnas de pared.
+     *
+     * `complete` significa que la pared está comprometida en toda su altura. Para la
+     * anterior y la inferior eso incluye su apical propio (13 y 15); para las demás,
+     * cuya cúspide es el septum o el lateral apical, basta el cuerpo basal + medio.
+     */
+    _analyzeWalls(segs) {
+        const set = new Set(segs);
+        const cols = MotilityModel.WALL_COLUMNS;
+        const APICAL_PROPIO = { anterior: 13, inferior: 15 };
+        // Orden de presentación: anterior y sus vecinas, después inferior y las suyas
+        const ORDEN = ['anterior', 'anteroseptal', 'anterolateral', 'inferior', 'inferoseptal', 'inferolateral'];
+
+        const walls = [];
+        ORDEN.forEach(wall => {
+            const [basal, medio, apical] = cols[wall];
+            const cuerpo = [basal, medio].filter(s => set.has(s));
+            const esPura = APICAL_PROPIO[wall] !== undefined;
+            const ownApical = esPura && set.has(apical);
+
+            // Una columna cuyo único segmento presente es el apical COMPARTIDO no está
+            // comprometida como pared: ese segmento se informa como extensión.
+            if (!cuerpo.length && !ownApical) return;
+
+            const levels = [
+                ...cuerpo.map(s => MotilityModel.SEGMENT_ANATOMY[s].level),
+                ...(ownApical ? ['apical'] : []),
+            ];
+            walls.push({
+                wall, levels, ownApical,
+                bodyComplete: cuerpo.length === 2,
+                complete: esPura
+                    ? (cuerpo.length === 2 && ownApical)
+                    : (cuerpo.length === 2 && set.has(apical)),
+            });
+        });
+
+        const sharedApical = [14, 16].filter(s => set.has(s));
+        return { walls, sharedApical };
+    },
+
+    /** Texto del núcleo cuando una pared está completa */
+    _wallCoreText(w) {
+        return (w.wall === 'anterior' || w.wall === 'inferior')
+            ? `de la pared ${w.wall} en toda su extensión`
+            : `${w.wall} basal y media`;
+    },
+
+    /** Extensión al apical de nomenclatura distinta */
+    _sharedApicalText(shared) {
+        if (!shared.length) return '';
+        const partes = shared.map(s => s === 14 ? 'al septum apical' : 'al segmento lateral apical');
+        return this._joinList(partes);
+    },
+
+    /**
+     * Nombre de la región que forman las paredes involucradas, para el caso en que
+     * ninguna esté consolidada. Los apicales de nomenclatura distinta (septal,
+     * lateral) se funden con su sector correspondiente.
+     *
+     * Sólo se combinan sectores CONTIGUOS: nunca se arma un nombre de pared a partir
+     * de zonas separadas del ventrículo.
      */
     _regionName(segs) {
         const walls = new Set(segs.map(s => MotilityModel.SEGMENT_ANATOMY[s].wall));
-
         const has = (...w) => w.some(x => walls.has(x));
+
         const anterior = walls.has('anterior');
         const inferior = walls.has('inferior');
         const septal   = has('anteroseptal', 'inferoseptal', 'septal');
         const lateral  = has('anterolateral', 'inferolateral', 'lateral');
 
-        // Regiones puras
+        // Sectores puros
         if (anterior && !inferior && !septal && !lateral) return 'anterior';
         if (inferior && !anterior && !septal && !lateral) return 'inferior';
         if (septal && !anterior && !inferior && !lateral) {
@@ -222,13 +409,30 @@ const MotilityEngine = {
             return 'lateral';
         }
 
-        // Regiones combinadas de dos sectores contiguos
+        // Dos sectores contiguos. Anterior+inferior o septal+lateral son opuestos:
+        // no forman una región y quedan para el fallback.
         if (anterior && septal && !inferior && !lateral) return 'anteroseptal';
         if (anterior && lateral && !inferior && !septal) return 'anterolateral';
         if (inferior && septal && !anterior && !lateral) return 'inferoseptal';
         if (inferior && lateral && !anterior && !septal) return 'inferolateral';
 
-        return null; // demasiado dispersa: que la resuelva el fallback
+        return null;
+    },
+
+    /** Niveles comunes a todas las paredes, o null si difieren */
+    _commonLevels(walls) {
+        const firma = w => [...new Set(w.levels)].sort().join('|');
+        const base = firma(walls[0]);
+        return walls.every(w => firma(w) === base) ? [...new Set(walls[0].levels)] : null;
+    },
+
+    /** ['basal','medio'] → "basal y media" */
+    _levelWords(levels) {
+        const orden = { basal: 0, medio: 1, apical: 2 };
+        const palabras = [...new Set(levels)]
+            .sort((a, b) => orden[a] - orden[b])
+            .map(l => this.LEVEL_FEM[l]);
+        return this._joinList(palabras);
     },
 
     /** Rango de niveles involucrados: "medio-apical", "baso-medial", "apical"… */

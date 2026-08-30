@@ -105,6 +105,31 @@ const casos = [
     { bloque: 'TESTS', n: 13, nombre: 'GLOBAL 1-16 HK',
       estados: estado({ [rango(1, 16)]: HK }),
       esperado: 'Hipoquinesia global del ventrículo izquierdo.' },
+
+    // ── NIVEL 6 — casos que fallaban (correcciones_motor_A.md) ──
+    { bloque: 'NIVEL 6', n: 1, nombre: 'BUG1a — anterior completa + anteroseptal (no inventar predominio)',
+      estados: estado({ '1,2,7,8,13,14': HK }),
+      esperado: 'Hipoquinesia de las paredes anterior y anteroseptal, con extensión al septum apical.' },
+
+    { bloque: 'NIVEL 6', n: 2, nombre: 'BUG1b — inferior completa = núcleo, inferoseptal = extensión',
+      estados: estado({ '3,4,9,10,15': HK }),
+      esperado: 'Hipoquinesia de la pared inferior en toda su extensión, con extensión a la pared inferoseptal (basal y media).' },
+
+    { bloque: 'NIVEL 6', n: 3, nombre: 'BUG1c — dos paredes parejas baso-mediales',
+      estados: estado({ '1,7,2,8': HK }),
+      esperado: 'Hipoquinesia de las paredes anterior y anteroseptal, baso-medial.' },
+
+    { bloque: 'NIVEL 6', n: 4, nombre: 'BUG2 — sin pared completa, no decir "toda su extensión"',
+      estados: estado({ '5,6,11,12,16': HK }),
+      esperado: 'Hipoquinesia de las paredes anterolateral e inferolateral (basal y media), con extensión al segmento lateral apical.' },
+
+    { bloque: 'NIVEL 6', n: 5, nombre: 'BUG3 — anillo completo como extensión (Takotsubo medio-apical)',
+      estados: estado({ [rango(7, 16)]: HK }),
+      esperado: 'Hipoquinesia difusa de los segmentos apicales y circunferencial de los segmentos medios.' },
+
+    { bloque: 'NIVEL 6', n: 6, nombre: 'BUG4 — regiones no contiguas, sin fusionar nombres',
+      estados: estado({ '1,7,13': HK, '5,11': HK }),
+      esperado: 'Hipoquinesia de la pared anterior en toda su extensión, con hipoquinesia inferolateral baso-medial.' },
 ];
 
 let ok = 0, fail = 0;
