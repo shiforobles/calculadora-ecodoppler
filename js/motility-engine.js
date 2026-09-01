@@ -28,6 +28,9 @@ const MotilityEngine = {
     /** Severidad: se redacta primero lo más severo (DK > AK > HK) */
     SEVERITY_ORDER: [4, 3, 2],
 
+    /** Desde cuántos segmentos (de 16) el compromiso se considera casi global */
+    CASI_GLOBAL_MIN: 13,
+
     LEVEL_ADJ:    { basal: 'basal',   medio: 'medio',   apical: 'apical' },
     LEVEL_FEM:    { basal: 'basal',   medio: 'media',   apical: 'apical' },
     LEVEL_PLURAL: { basal: 'basales', medio: 'medios',  apical: 'apicales' },
@@ -66,7 +69,7 @@ const MotilityEngine = {
 
         rest.forEach(block => {
             const adjacent = this._isAdjacentTo(block.segments, core.segments);
-            const desc = this._describeSegments(block.segments);
+            const desc = this._describeSegments(block.segments, { esNucleo: false });
             const noun = this.NOUNS[block.score];
 
             if (adjacent) {
@@ -128,7 +131,7 @@ const MotilityEngine = {
      * `enumerated` indica que no se encontró ningún patrón anatómico y hubo que
      * listar los segmentos uno a uno (nivel 7).
      */
-    _describeSegments(segments) {
+    _describeSegments(segments, { esNucleo = true } = {}) {
         const segs = [...segments].sort((a, b) => a - b);
         const M = MotilityModel;
         const patron = text => ({ text, enumerated: false });
@@ -149,6 +152,15 @@ const MotilityEngine = {
         // comparta grado con él; enumerar sus seis paredes no aporta nada.
         const anillos = this._matchCompleteRings(segs);
         if (anillos) return patron(anillos);
+
+        // ── NIVEL 2c — Casi todo el ventrículo ──
+        // Sin llegar a global ni a anillos completos, enumerar doce o trece segmentos
+        // no informa nada: lo que importa es que el compromiso abarca el resto.
+        if (segs.length >= this.CASI_GLOBAL_MIN) {
+            return patron(esNucleo
+                ? 'de casi la totalidad del ventrículo izquierdo'
+                : 'del resto del ventrículo izquierdo');
+        }
 
         // ── NIVEL 3 — Pared longitudinal completa ──
         const columna = this._matchWallColumn(segs);
@@ -588,6 +600,12 @@ if (typeof window !== 'undefined') {
         console.log('%cACTUAL     : ' + actualDesc, 'color:#b45309');
         if (actualConcl) console.log('%c  conclusión: ' + actualConcl, 'color:#b45309');
         console.log('%cMOTOR A    : ' + MotilityEngine.describe(states), 'color:#0369a1');
+
+        if (typeof TerritoryEngine !== 'undefined') {
+            const t = TerritoryEngine.interpret(states);
+            console.log('%cMOTOR C    : ' + (t.text || '(sin alteraciones)') +
+                `   [DA ${t.counts.DA} · CD ${t.counts.CD} · Cx ${t.counts.Cx}]`, 'color:#7c3aed');
+        }
         return undefined;
     };
 }

@@ -703,6 +703,18 @@ class MotilityController {
         const actualConcl = (this.generateConclusion() || '(sin texto)').trim();
         const nuevo = MotilityEngine.describe(this.state);
 
+        // Motor C: interpretación de territorio, separada de la descripción anatómica
+        let motorC = '';
+        if (typeof TerritoryEngine !== 'undefined') {
+            const t = TerritoryEngine.interpret(this.state);
+            if (t.text) {
+                const conteo = `DA ${t.counts.DA} · CD ${t.counts.CD} · Cx ${t.counts.Cx}`;
+                motorC = `${t.text} <span style="opacity:.6;font-size:.85em;">(${conteo})</span>`;
+            }
+        }
+        // Territorio que informa hoy el generador viejo, para contrastar
+        const territorioActual = this.getAffectedTerritory();
+
         const fila = (etiqueta, texto, color) => `
             <div style="margin-top:6px;">
                 <span style="display:inline-block;min-width:78px;font-weight:700;color:${color};font-size:.78em;letter-spacing:.02em;">${etiqueta}</span>
@@ -716,7 +728,9 @@ class MotilityController {
                 </div>
                 ${fila('ACTUAL', actualDesc, '#b45309')}
                 ${fila('· conclusión', actualConcl, '#b45309')}
+                ${fila('· territorio', territorioActual ? `territorio ${territorioActual}` : '(ninguno)', '#b45309')}
                 ${fila('MOTOR A', nuevo, '#0369a1')}
+                ${motorC ? fila('MOTOR C', motorC, '#7c3aed') : ''}
             </div>`;
     }
 

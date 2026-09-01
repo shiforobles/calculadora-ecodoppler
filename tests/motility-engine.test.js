@@ -130,6 +130,14 @@ const casos = [
     { bloque: 'NIVEL 6', n: 6, nombre: 'BUG4 — regiones no contiguas, sin fusionar nombres',
       estados: estado({ '1,7,13': HK, '5,11': HK }),
       esperado: 'Hipoquinesia de la pared anterior en toda su extensión, con hipoquinesia inferolateral baso-medial.' },
+
+    { bloque: 'NIVEL 6', n: 7, nombre: 'CASI GLOBAL — 15/16 no se enumera',
+      estados: estado({ '13': DK, '1,2,3,4,5,6,7,8,9,10,11,12,14,15,16': HK }),
+      esperado: 'Disquinesia del segmento anterior apical, con hipoquinesia del resto del ventrículo izquierdo.' },
+
+    { bloque: 'NIVEL 6', n: 8, nombre: 'CASI GLOBAL — 13/16 como núcleo',
+      estados: estado({ '1,2,3,4,5,6,7,8,9,10,11,12,13': HK }),
+      esperado: 'Hipoquinesia de casi la totalidad del ventrículo izquierdo.' },
 ];
 
 let ok = 0, fail = 0;
