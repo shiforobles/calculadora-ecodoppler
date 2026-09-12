@@ -48,28 +48,25 @@ const MotilityEngine = {
         const groups = this._groupBySeverity(states);
         if (!groups.length) return this.NORMAL_TEXT;
 
-        // Cada grado se parte además en componentes anatómicamente conexas: dos focos
-        // separados del mismo grado son dos lesiones distintas y se describen aparte,
-        // nunca fusionadas en un nombre de pared que no está comprometida.
-        const blocks = [];
-        groups.forEach(g => {
+        // Un bloque por grado. Dentro de cada grado, la lesión se parte en focos
+        // anatómicamente conexos: dos focos separados son lesiones distintas y se
+        // describen aparte, nunca fusionadas en un nombre de pared que no está
+        // comprometida. Pero el grado se nombra UNA sola vez para todos ellos.
+        const blocks = groups.map(g => {
             const focos = this._connectedComponents(g.segments);
             // Sólo vale la pena separarlos si cada foco tiene forma anatómica propia.
-            // Si son segmentos sueltos y dispersos, enumerarlos juntos se lee mejor
-            // que repetir el mismo grado en tres frases seguidas.
+            // Si son segmentos sueltos y dispersos, enumerarlos juntos se lee mejor.
             const separar = focos.length > 1 &&
                 focos.every(f => !this._describeSegments(f).enumerated);
-
-            if (separar) focos.forEach(segments => blocks.push({ score: g.score, segments }));
-            else         blocks.push({ score: g.score, segments: g.segments });
+            return { score: g.score, segments: g.segments, focos: separar ? focos : [g.segments] };
         });
 
         const [core, ...rest] = blocks;
-        let text = this._capitalize(`${this.NOUNS[core.score]} ${this._describeSegments(core.segments).text}`);
+        let text = this._capitalize(`${this.NOUNS[core.score]} ${this._describeBlock(core, true).text}`);
 
         rest.forEach(block => {
             const adjacent = this._isAdjacentTo(block.segments, core.segments);
-            const desc = this._describeSegments(block.segments, { esNucleo: false });
+            const desc = this._describeBlock(block, false);
             const noun = this.NOUNS[block.score];
 
             if (adjacent) {
@@ -80,9 +77,6 @@ const MotilityEngine = {
                     ? (block.segments.length > 1 ? ' adyacentes' : ' adyacente')
                     : '';
                 text += `, con ${noun} ${desc.text}${sufijo}`;
-            } else if (block.score === core.score) {
-                // Mismo grado, otro foco: se enuncia como hallazgo aparte.
-                text += `, con ${noun} ${desc.text}`;
             } else {
                 // Distinto grado y sin continuidad anatómica: no se fusionan.
                 text += ` ${this._conjunction(noun)} ${noun} ${desc.text}`;
@@ -90,6 +84,43 @@ const MotilityEngine = {
         });
 
         return text + '.';
+    },
+
+    /** Descripción de todos los focos de un mismo grado, sin repetir el grado */
+    _describeBlock(block, esNucleo) {
+        const partes = block.focos.map((foco, i) =>
+            this._describeSegments(foco, { esNucleo: esNucleo && i === 0 }));
+        return {
+            text: this._fusionarDescripciones(partes.map(p => p.text)),
+            enumerated: partes.every(p => p.enumerated),
+        };
+    },
+
+    /**
+     * Une las descripciones de varios focos del mismo grado. Si todas terminan igual
+     * —dos paredes baso-mediales, por ejemplo— el final se dice una sola vez:
+     * "anteroseptal y anterolateral baso-medial" en lugar de repetir "baso-medial".
+     */
+    _fusionarDescripciones(descripciones) {
+        if (descripciones.length === 1) return descripciones[0];
+
+        const palabras = descripciones.map(d => d.split(' '));
+        const sufijo = [];
+        let i = 1;
+        while (palabras.every(p => p.length > i && p[p.length - i] === palabras[0][palabras[0].length - i])) {
+            sufijo.unshift(palabras[0][palabras[0].length - i]);
+            i++;
+        }
+
+        if (sufijo.length) {
+            const prefijos = palabras.map(p => p.slice(0, p.length - sufijo.length).join(' '));
+            // Sólo se fusiona con prefijos simples: un nombre de pared suelto. Si alguno
+            // ya trae comas o conjunciones propias, encadenarlos produce frases ambiguas
+            // ("de las paredes inferior e inferolateral, y anterior baso-medial").
+            const simples = prefijos.every(p => p && !/[,]|\s/.test(p));
+            if (simples) return `${this._joinList(prefijos)} ${sufijo.join(' ')}`;
+        }
+        return this._joinList(descripciones);
     },
 
     /**

@@ -127,9 +127,11 @@ const casos = [
       estados: estado({ [rango(7, 16)]: HK }),
       esperado: 'Hipoquinesia difusa de los segmentos apicales y circunferencial de los segmentos medios.' },
 
+    // Sigue sin fusionar nombres de paredes no contiguas (no inventa "anterolateral"),
+    // pero el grado se nombra una sola vez porque ambos focos lo comparten.
     { bloque: 'NIVEL 6', n: 6, nombre: 'BUG4 — regiones no contiguas, sin fusionar nombres',
       estados: estado({ '1,7,13': HK, '5,11': HK }),
-      esperado: 'Hipoquinesia de la pared anterior en toda su extensión, con hipoquinesia inferolateral baso-medial.' },
+      esperado: 'Hipoquinesia de la pared anterior en toda su extensión e inferolateral baso-medial.' },
 
     { bloque: 'NIVEL 6', n: 7, nombre: 'CASI GLOBAL — 15/16 no se enumera',
       estados: estado({ '13': DK, '1,2,3,4,5,6,7,8,9,10,11,12,14,15,16': HK }),
@@ -138,6 +140,30 @@ const casos = [
     { bloque: 'NIVEL 6', n: 8, nombre: 'CASI GLOBAL — 13/16 como núcleo',
       estados: estado({ '1,2,3,4,5,6,7,8,9,10,11,12,13': HK }),
       esperado: 'Hipoquinesia de casi la totalidad del ventrículo izquierdo.' },
+
+    // ── MISMO GRADO: el grado se nombra una sola vez ──
+    { bloque: 'MISMO GRADO', n: 1, nombre: '2,8 + 6,12 HK — sufijo común se dice una vez',
+      estados: estado({ '2,8': HK, '6,12': HK }),
+      esperado: 'Hipoquinesia anteroseptal y anterolateral baso-medial.' },
+
+    { bloque: 'MISMO GRADO', n: 2, nombre: '1,7,13 + 5,11 HK — focos distintos, sin repetir el grado',
+      estados: estado({ '1,7,13': HK, '5,11': HK }),
+      esperado: 'Hipoquinesia de la pared anterior en toda su extensión e inferolateral baso-medial.' },
+
+    // 4,10 y 5,11 son anatómicamente contiguos: forman un solo foco de dos paredes.
+    // Al no ser prefijos simples no se fusiona el sufijo, pero el grado se dice una vez.
+    { bloque: 'MISMO GRADO', n: 3, nombre: 'Dos focos con estructura distinta',
+      estados: estado({ '1,7': HK, '4,10': HK, '5,11': HK }),
+      esperado: 'Hipoquinesia de las paredes inferior e inferolateral, baso-medial y anterior baso-medial.' },
+
+    // Los grados distintos siguen nombrando cada uno
+    { bloque: 'MISMO GRADO', n: 4, nombre: 'Grados mixtos contiguos — sin cambios',
+      estados: estado({ '13,14': AK, '7,8': HK }),
+      esperado: 'Aquinesia anterior y septal apical, con hipoquinesia de los segmentos anterior y anteroseptal medios adyacentes.' },
+
+    { bloque: 'MISMO GRADO', n: 5, nombre: 'Grados mixtos no contiguos — sin cambios',
+      estados: estado({ '13': AK, '4': HK }),
+      esperado: 'Aquinesia del segmento anterior apical e hipoquinesia del segmento inferior basal.' },
 ];
 
 let ok = 0, fail = 0;
