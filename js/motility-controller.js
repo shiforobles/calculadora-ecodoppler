@@ -174,7 +174,7 @@ class MotilityController {
     }
 
     // Generate motility report section - NEW VERSION (Grouped by Complete/Partial Walls)
-    generateMotilityReport() {
+    _legacyGenerateMotilityReport() {
         const abnormal = this.getAbnormalSegments();
         const totalAbnormal = abnormal.hypokinetic.length + abnormal.akinetic.length + abnormal.dyskinetic.length;
         const wmsi = this.calculateWMSI();
@@ -333,8 +333,75 @@ class MotilityController {
         }
     }
 
-    // Generate explicit segment list (like in preview "ojo de buey")
+    // ═════════════════════════════════════════════════════════════════════════
+    // SALIDA DE TEXTO — delega en los motores
+    //
+    // Los tres generadores de abajo (generateMotilityReport, generateSegmentListText
+    // y generateConclusion) pasaron a ser formateadores: la redacción la produce el
+    // Motor A y la interpretación de territorio el Motor C.
+    //
+    // Las implementaciones viejas quedan más abajo como _legacy*, sin uso, por si hay
+    // que volver atrás. Arrastraban dos defectos que este cambio resuelve: perdían la
+    // severidad (una aquinesia terminaba informada como hipoquinesia cuando compartía
+    // pared con un segmento hipoquinético) e incluían el segmento 17 como "apex" en
+    // las enumeraciones.
+    // ═════════════════════════════════════════════════════════════════════════
+
+    /**
+     * Punto único de acceso a los motores para el informe.
+     * @returns {{alterada: boolean, descripcion: string, descripcionMinuscula: string,
+     *            territorio: string, wmsi: string}}
+     */
+    getMotilityTexts() {
+        const hayMotores = typeof MotilityEngine !== 'undefined';
+        const alterada = MotilityModel.ANALYZED_SEGMENTS.some(id => this.state[id] > 1);
+
+        if (!hayMotores) {
+            return { alterada, descripcion: '', descripcionMinuscula: '', territorio: '', wmsi: this.calculateWMSI() };
+        }
+
+        const descripcion = MotilityEngine.describe(this.state).replace(/\.$/, '');
+        let territorio = '';
+        if (alterada && typeof TerritoryEngine !== 'undefined') {
+            const t = TerritoryEngine.interpret(this.state);
+            // Dentro de la frase del ventrículo se usa la forma corta: el "distribución
+            // compatible con..." es para cuando el dato va suelto.
+            territorio = t.pattern || t.territory || '';
+        }
+
+        return {
+            alterada,
+            descripcion,
+            descripcionMinuscula: descripcion.charAt(0).toLowerCase() + descripcion.slice(1),
+            territorio,
+            wmsi: this.calculateWMSI(),
+        };
+    }
+
+    /** Descripción de motilidad (Motor A) con el WMSI */
+    generateMotilityReport() {
+        const t = this.getMotilityTexts();
+        if (!t.descripcion) return '';
+        return `${t.descripcion} (WMSI: ${t.wmsi}).\n`;
+    }
+
+    /** Frase de motilidad sin puntuación final, para encabezados */
     generateSegmentListText() {
+        const t = this.getMotilityTexts();
+        return t.alterada ? `${t.descripcion}.` : '';
+    }
+
+    /** Motilidad + territorio, para la conclusión */
+    generateConclusion() {
+        const t = this.getMotilityTexts();
+        if (!t.alterada) return '';
+        return t.territorio ? `${t.descripcion}, ${t.territorio}.` : `${t.descripcion}.`;
+    }
+
+    // ───────────────────── DEPRECADO — sin uso, conservado para referencia ─────
+
+    // Generate explicit segment list (like in preview "ojo de buey")
+    _legacyGenerateSegmentListText() {
         const abnormal = this.getAbnormalSegments();
         const totalAbnormal = abnormal.hypokinetic.length + abnormal.akinetic.length + abnormal.dyskinetic.length;
         if (totalAbnormal === 0) return "";
@@ -345,7 +412,7 @@ class MotilityController {
             const currentPattern = MotilityModel.PATTERNS[this.pattern];
             const esDifusoGlobal = currentPattern && currentPattern.isDiffuse && totalAbnormal >= 12;
             if (currentPattern && (currentPattern.category === 'dyssynchrony' || esDifusoGlobal)) {
-                let description = this.generateMotilityReport();
+                let description = this._legacyGenerateMotilityReport();
                 description = description.replace(/\s*\(WMSI:.*?\)\.?\s*$/, '').trim();
                 description = description.replace(/^Se observa(n)? trastornos segmentarios de la motilidad parietal:?\s*/i, '');
                 description = description.replace(/^Se observa(n)?\s*/i, '');
@@ -386,7 +453,7 @@ class MotilityController {
     }
 
     // Generate conclusion (smart format based on territories)
-    generateConclusion() {
+    _legacyGenerateConclusion() {
         const abnormal = this.getAbnormalSegments();
         const totalAbnormal = abnormal.hypokinetic.length + abnormal.akinetic.length + abnormal.dyskinetic.length;
 
@@ -609,7 +676,7 @@ class MotilityController {
         const totalAbnormal = abnormal.hypokinetic.length + abnormal.akinetic.length + abnormal.dyskinetic.length;
 
         if (totalAbnormal === 0) {
-            previewText.innerHTML = 'No hay alteraciones registradas.' + this._buildComparisonPanel();
+            previewText.innerHTML = 'No hay alteraciones registradas.';
             return;
         }
 
@@ -680,58 +747,7 @@ class MotilityController {
             </div>`;
         }
 
-        previewText.innerHTML = parts.join('<br>') + extraInfo + this._buildComparisonPanel();
-    }
-
-    /**
-     * MODO COMPARACIÓN (temporal) — muestra lado a lado la redacción del generador
-     * actual y la del Motor A, para validar el motor nuevo con casos reales antes
-     * de jubilar el viejo.
-     *
-     * El informe que se copia y se guarda sigue usando el generador ACTUAL: este
-     * panel es solo de lectura en pantalla. Se quita entero cuando el Motor A quede
-     * aprobado y conectado.
-     */
-    _buildComparisonPanel() {
-        if (typeof MotilityEngine === 'undefined') return '';
-
-        const actualDesc = (this.generateMotilityReport() || '')
-            .replace(/\s*\(WMSI:.*?\)\.?\s*$/, '')
-            .replace(/^Se observan? trastornos segmentarios de la motilidad parietal[:,]?\s*/i, '')
-            .replace(/^(con|,)\s*/i, '')
-            .trim() || '(sin texto)';
-        const actualConcl = (this.generateConclusion() || '(sin texto)').trim();
-        const nuevo = MotilityEngine.describe(this.state);
-
-        // Motor C: interpretación de territorio, separada de la descripción anatómica
-        let motorC = '';
-        if (typeof TerritoryEngine !== 'undefined') {
-            const t = TerritoryEngine.interpret(this.state);
-            if (t.text) {
-                const conteo = `DA ${t.counts.DA} · CD ${t.counts.CD} · Cx ${t.counts.Cx}`;
-                motorC = `${t.text} <span style="opacity:.6;font-size:.85em;">(${conteo})</span>`;
-            }
-        }
-        // Territorio que informa hoy el generador viejo, para contrastar
-        const territorioActual = this.getAffectedTerritory();
-
-        const fila = (etiqueta, texto, color) => `
-            <div style="margin-top:6px;">
-                <span style="display:inline-block;min-width:78px;font-weight:700;color:${color};font-size:.78em;letter-spacing:.02em;">${etiqueta}</span>
-                <span style="color:#374151;">${texto}</span>
-            </div>`;
-
-        return `
-            <div style="margin-top:10px;padding:8px 10px;background:#f8fafc;border:1px dashed #94a3b8;border-radius:6px;font-size:.9em;">
-                <div style="font-weight:700;color:#475569;font-size:.78em;letter-spacing:.04em;">
-                    ⚖️ COMPARACIÓN — el informe sigue usando ACTUAL
-                </div>
-                ${fila('ACTUAL', actualDesc, '#b45309')}
-                ${fila('· conclusión', actualConcl, '#b45309')}
-                ${fila('· territorio', territorioActual ? `territorio ${territorioActual}` : '(ninguno)', '#b45309')}
-                ${fila('MOTOR A', nuevo, '#0369a1')}
-                ${motorC ? fila('MOTOR C', motorC, '#7c3aed') : ''}
-            </div>`;
+        previewText.innerHTML = parts.join('<br>') + extraInfo;
     }
 
     // Update UI elements

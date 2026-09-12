@@ -1035,49 +1035,14 @@ class UIController {
             }
             report += `${lvLine}.\n`;
 
-            // Systolic function
-            report += `Función Sistólica: FEy ${fevi}% (Simpson biplano).\n`;
-
-            // Motility parietal (if enabled)
-            // Motility parietal (if enabled)
+            // Systolic function. El WMSI queda acá, como dato objetivo junto a la FEy;
+            // la descripción de la motilidad se informa una sola vez, en la conclusión.
+            report += `Función Sistólica: FEy ${fevi}% (Simpson biplano)`;
             if (this.motility) {
-                const motGlobal = document.getElementById('motilidad_global').value;
-                const hasPacemaker = document.getElementById('ant_marcapasos').checked;
-                const hasCRM = document.getElementById('ant_crm').checked;
-
-                if (motGlobal === 'conservada') {
-                    // If pacemaker or CRM is present, suppress "conservada" text
-                    if (!hasPacemaker && !hasCRM) {
-                        report += `Motilidad parietal global y segmentaria conservada.`;
-                    }
-                } else {
-                    // Check if there's actual content from the controller
-                    const motilityContent = this.motility.generateMotilityReport();
-                    if (motilityContent && motilityContent.trim() !== "") {
-                        // Ensure we don't have multiple line breaks. Remove trailing \n.
-                        report += motilityContent.replace(/\n+$/, '');
-                    } else {
-                        // Fallback if user selected 'alterada' but didn't mark segments
-                        // Only show "conservada" if no pacemaker and no CRM
-                        if (!hasPacemaker && !hasCRM) {
-                            report += `Motilidad parietal global y segmentaria conservada.`;
-                        }
-                    }
-                }
-
-                // Inject Pacemaker Motility findings
-                if (hasPacemaker) {
-                    report += ` Se observa movimiento asincrónico del septum interventricular (SIV) secundario a estimulación por marcapasos.`;
-                }
-
-                // Inject CRM Motility findings
-                if (hasCRM) {
-                    report += ` Se observa movimiento asincrónico del septum interventricular (SIV) vinculado a post-operatorio de CRM.`;
-                }
-
-                // Add a single line break at the end of the LV section
-                report += `\n`;
+                const wmsi = this.motility.calculateWMSI();
+                if (wmsi && wmsi !== '—') report += `. WMSI ${wmsi}`;
             }
+            report += `.\n`;
 
             // Diastolic function — Doppler measurements
             const ondaE = document.getElementById('onda_e').value;
@@ -1493,35 +1458,32 @@ class UIController {
                 }
             }
 
-            // Motility conclusion (integrate here)
+            // Motilidad (Motor A) + territorio (Motor C), integrados en la frase del VI.
+            // Es el único lugar del informe donde se describe la motilidad.
             if (this.motility) {
-                const motilityConclusion = this.motility.generateConclusion();
-                if (motilityConclusion && motilityConclusion.trim() !== '') {
-                    // Remove trailing period, lowercase first letter, preserve DA/CD/Cx/WMSI
-                    let motilityText = motilityConclusion.trim();
-                    // Remove trailing newline if present, then trailing period
-                    motilityText = motilityText.replace(/\n$/, '').replace(/\.$/, '').trim();
-
-                    // Lowercase only the first character
-                    motilityText = motilityText.charAt(0).toLowerCase() + motilityText.slice(1);
-
-                    // Ensure DA, CD, Cx, and WMSI are uppercase
-                    motilityText = motilityText.replace(/\bda\b/gi, 'DA')
-                        .replace(/\bcd\b/gi, 'CD')
-                        .replace(/\bcx\b/gi, 'Cx')
-                        .replace(/\bwmsi\b/gi, 'WMSI');
-
-                    // Use "e" instead of "y" before words starting with "i" or "hi" (but not "hie" like hiena)
-                    const firstWord = motilityText.split(' ')[0].toLowerCase();
-                    if (firstWord.startsWith('i') || (firstWord.startsWith('hi') && !firstWord.startsWith('hie'))) {
-                        viConclusion += ` e ${motilityText}`;
-                    } else {
-                        viConclusion += ` y ${motilityText}`;
-                    }
+                const mot = this.motility.getMotilityTexts();
+                if (mot.alterada && mot.descripcionMinuscula) {
+                    const primera = mot.descripcionMinuscula.split(' ')[0];
+                    // "y" → "e" delante de i- / hi- (hipoquinesia, inferior…)
+                    const conj = (primera.startsWith('i') || (primera.startsWith('hi') && !primera.startsWith('hie')))
+                        ? 'e' : 'y';
+                    viConclusion += ` ${conj} ${mot.descripcionMinuscula}`;
+                    if (mot.territorio) viConclusion += `, ${mot.territorio}`;
                 }
             }
 
             viConclusion += `. `;
+
+            // Asincronía septal por marcapasos o post-CRM: se informa acá porque la
+            // sección del VI ya no lleva descripción de motilidad.
+            const hasPacemakerConcl = document.getElementById('ant_marcapasos')?.checked;
+            const hasCRMConcl       = document.getElementById('ant_crm')?.checked;
+            if (hasPacemakerConcl || hasCRMConcl) {
+                const causa = hasPacemakerConcl && hasCRMConcl
+                    ? 'estimulación por marcapasos y post-operatorio de CRM'
+                    : hasPacemakerConcl ? 'estimulación por marcapasos' : 'post-operatorio de CRM';
+                viConclusion += `Movimiento asincrónico del septum interventricular secundario a ${causa}. `;
+            }
 
             // Systolic function (ASE/EACVI Guidelines v14.9.2) — use parsed number
             if (sexo === 'M') {
@@ -2405,17 +2367,9 @@ class UIController {
         }
         if (viParts.length) h += `${pad('VI:')}${viParts.join(' | ')}\n`;
 
-        // ── Motility summary line (when altered) ──
-        if (this.motility) {
-            const motGlobal = v('motilidad_global');
-            if (motGlobal && motGlobal !== 'conservada') {
-                const motConcl = this.motility.generateSegmentListText ? this.motility.generateSegmentListText() : this.motility.generateConclusion();
-                if (motConcl && motConcl.trim()) {
-                    const motLine = motConcl.trim().replace(/\.$/, '');
-                    h += `         ${motLine.charAt(0).toUpperCase() + motLine.slice(1)}.\n`;
-                }
-            }
-        }
+        // La motilidad ya no se describe acá: se informa una sola vez, integrada en la
+        // frase del ventrículo izquierdo de la impresión diagnóstica. En el encabezado
+        // queda sólo el WMSI, que es un dato de medición.
 
         // ── Doppler line ──
         const ritmoVal = v('ritmo');
@@ -2561,19 +2515,18 @@ class UIController {
         const hasPacemaker = document.getElementById('ant_marcapasos')?.checked;
         const hasCRM       = document.getElementById('ant_crm')?.checked;
 
+        // Motilidad (Motor A) y territorio (Motor C), integrados en la frase del
+        // ventrículo: dimensiones → motilidad → territorio → función sistólica.
         if (this.motility) {
-            const motGlobal = document.getElementById('motilidad_global').value;
-            if (motGlobal !== 'conservada') {
-                const motConclusion = this.motility.generateConclusion();
-                if (motConclusion && motConclusion.trim()) {
-                    const motConcl = motConclusion.trim().replace(/\.$/, '');
-                    const motConcLower = motConcl.charAt(0).toLowerCase() + motConcl.slice(1);
-                    p1 += `, con ${motConcLower}`;
-                }
+            const mot = this.motility.getMotilityTexts();
+            if (mot.alterada) {
+                p1 += `, con ${mot.descripcionMinuscula}`;
+                // El territorio es una inferencia y va aparte de la descripción
+                if (mot.territorio) p1 += `, ${mot.territorio}`;
             } else if (condEl.value === 'bcri') {
                 p1 += `, con movimiento septal paradójico en relación a BCRI`;
             } else if (!hasPacemaker && !hasCRM) {
-                p1 += `, con motilidad segmentaria indemne`;
+                p1 += `, con ${mot.descripcionMinuscula || 'motilidad parietal global y segmentaria conservada'}`;
             }
         }
 
@@ -2589,7 +2542,9 @@ class UIController {
 
         if (fevi) {
             const normalLimit = sexo === 'M' ? 52 : 54;
-            if      (fevi >= normalLimit) p1 += ` y función sistólica global preservada (FEy ${fevi}%)`;
+            // Coma antes de la conjunción: la cláusula de motilidad que la precede ya
+            // trae sus propias "y", y sin la pausa la frase se vuelve ilegible.
+            if      (fevi >= normalLimit) p1 += `, y función sistólica global preservada (FEy ${fevi}%)`;
             else if (fevi >= 41)          p1 += `. La función sistólica global se encuentra levemente deprimida (FEy ${fevi}%)`;
             else if (fevi >= 30)          p1 += `. La función sistólica global se encuentra moderadamente deprimida (FEy ${fevi}%)`;
             else                          p1 += `. La función sistólica global se encuentra severamente deprimida (FEy ${fevi}%)`;
