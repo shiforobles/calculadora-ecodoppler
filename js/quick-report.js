@@ -93,7 +93,7 @@ const QuickReport = {
         // SC por Mosteller
         if (p.peso && p.talla) {
             const sc = Math.sqrt((p.talla * p.peso) / 3600);
-            h += `Peso ${p.peso} kg | Talla ${p.talla} cm | SC ${sc.toFixed(2)} m2\n`;
+            h += `Peso ${p.peso} kg | Talla ${p.talla} cm | SC ${sc.toFixed(2)} m²\n`;
         }
         return h.trimEnd();
     },

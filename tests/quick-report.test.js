@@ -162,7 +162,7 @@ console.log('═'.repeat(78));
         'ECOCARDIOGRAMA DOPPLER CARDÍACO',
         '='.repeat(80),
         'Estudio realizado en cama del paciente.',
-        'Peso 80 kg | Talla 178 cm | SC 1.99 m2',
+        'Peso 80 kg | Talla 178 cm | SC 1.99 m²',
     ].join('\n');
     const obtenido = Quick.generate({
         paciente: { nombre: 'X', edad: 70, sexo: 'M', peso: 80, talla: 178, fecha: '2026-09-15' },

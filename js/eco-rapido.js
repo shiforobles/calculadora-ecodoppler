@@ -60,8 +60,8 @@
     });
 
     const inputs = {
-        p_nombre: 'paciente.nombre', p_edad: 'paciente.edad', p_peso: 'paciente.peso',
-        p_talla: 'paciente.talla', p_fecha: 'paciente.fecha',
+        // Nombre/HC sólo sirve para ubicarse entre pacientes: no va al informe
+        p_nombre: 'paciente.nombre', p_peso: 'paciente.peso', p_talla: 'paciente.talla',
         fey: 'vi.fey', trombo_texto: 'extras.trombo_texto',
     };
     Object.entries(inputs).forEach(([id, ruta]) => {
@@ -200,8 +200,6 @@
         toggleBullseye(false);
         if (motility) motility.reset();
 
-        $('p_fecha').value = new Date().toISOString().slice(0, 10);
-        datos.paciente.fecha = $('p_fecha').value;
 
         editadoAMano = false;
         regenerar();
