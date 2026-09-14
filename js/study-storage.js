@@ -43,8 +43,6 @@ class StudyStorage {
         // Antecedentes adicionales y observaciones (4)
         // Se agregan AL FINAL para no correr las columnas de las planillas ya cargadas.
         'ATC/Stent', 'Recambio Ao', 'Recambio Mitral', 'Observaciones',
-        // Distingue el estudio completo del focalizado en cama (1)
-        'Tipo Estudio',
     ];
 
     static getAll() {

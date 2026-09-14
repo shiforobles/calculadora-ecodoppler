@@ -3741,9 +3741,6 @@ class UIController {
             document.getElementById('ant_rva')?.checked ? 'Si' : 'No',
             document.getElementById('ant_rvm')?.checked ? 'Si' : 'No',
             document.getElementById('ant_libre')?.value?.trim() || '-',
-
-            // 18. Tipo de estudio (1) — lo distingue del focalizado en cama
-            'Completo',
         ];
         return row;
     }

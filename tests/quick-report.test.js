@@ -156,6 +156,47 @@ console.log('═'.repeat(78));
 console.log('INFORME FOCALIZADO — casos de prueba');
 console.log('═'.repeat(78));
 
+// ── Encabezado: exactamente estas líneas, sin rótulos de tipo de estudio ──
+{
+    const esperado = [
+        'ECOCARDIOGRAMA DOPPLER CARDÍACO',
+        '='.repeat(80),
+        'Estudio realizado en cama del paciente.',
+        'Peso 80 kg | Talla 178 cm | SC 1.99 m2',
+    ].join('\n');
+    const obtenido = Quick.generate({
+        paciente: { nombre: 'X', edad: 70, sexo: 'M', peso: 80, talla: 178, fecha: '2026-09-15' },
+    }).split('\n\n')[0];
+    const pasa = obtenido === esperado && !/focalizada|cualitativa/i.test(obtenido);
+    pasa ? ok++ : fail++;
+    console.log(`\n${pasa ? '✅' : '❌'} Encabezado exacto`);
+    console.log(obtenido.split('\n').map(l => '   ' + l).join('\n'));
+    if (!pasa) console.log('   esperado:\n' + esperado.split('\n').map(l => '   ' + l).join('\n'));
+}
+
+// ── Todo en su opción normal (estado de partida de la pantalla) ──
+casos.unshift({
+    nombre: 'Estado de partida: todo normal, FEy cargada',
+    datos: {
+        ritmo: 'sinusal',
+        vi: { tamano: 'normal', espesores: 'normales', motilidad: 'conservada', fey: 60 },
+        diastolica: 'normal', ai: 'normal',
+        derechas: { vd_tamano: 'normal', vd_funcion: 'conservada', ad: 'normal', htp: 'baja' },
+        mitral: { morfologia: 'normal', insuficiencia: 'no', estenosis: 'no' },
+        aortica: { morfologia: 'normal', insuficiencia: 'no', estenosis: 'no' },
+        tricuspide: { insuficiencia: 'no' },
+        vci: 'normal', pericardio: 'libre',
+        extras: { pleural: 'no', trombo: 'no', cateter: 'no' },
+    },
+    esperado: [
+        'El ventrículo izquierdo es de dimensiones conservadas, con espesores parietales conservados, motilidad parietal conservada y función sistólica conservada (FEy 60%).',
+        'Desde el punto de vista hemodinámico, la función diastólica es normal, con presiones de llenado dentro de límites fisiológicos; la aurícula izquierda es de dimensiones conservadas.',
+        'El aparato valvular mitral es morfológicamente normal, sin estenosis ni insuficiencia significativas. La válvula aórtica es trivalva, sin estenosis ni insuficiencia significativas.',
+        'Las cavidades derechas son de dimensiones y función conservadas. Se estima baja probabilidad ecocardiográfica de hipertensión pulmonar. La vena cava inferior es de calibre normal, con colapso inspiratorio conservado.',
+        'Pericardio libre.',
+    ],
+});
+
 casos.forEach(c => {
     if (c.multi) {
         console.log(`\n▸ ${c.nombre}`);

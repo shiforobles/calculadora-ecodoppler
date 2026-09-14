@@ -149,89 +149,71 @@
         }
     });
 
-    $('btn_limpiar').addEventListener('click', () => {
-        if (!confirm('¿Empezar un estudio nuevo? Se borra todo lo cargado.')) return;
-        document.querySelectorAll('button.opt').forEach(b => b.setAttribute('aria-pressed', 'false'));
-        document.querySelectorAll('input').forEach(i => { i.value = ''; });
-        Object.keys(datos).forEach(k => {
-            datos[k] = (typeof datos[k] === 'object' && datos[k] !== null) ? {} : undefined;
+    /**
+     * Estado de partida: cada estructura preseleccionada en su opción normal. En sala
+     * la mayoría de los hallazgos son normales, así que el operador sólo toca lo que
+     * está alterado. La FEy queda vacía: es el único dato que siempre se mide.
+     */
+    const DEFAULTS = {
+        'ritmo':                  'sinusal',
+        'vi.tamano':              'normal',
+        'vi.espesores':           'normales',
+        'vi.motilidad':           'conservada',
+        'diastolica':             'normal',
+        'ai':                     'normal',
+        'derechas.vd_tamano':     'normal',
+        'derechas.vd_funcion':    'conservada',
+        'derechas.ad':            'normal',
+        'derechas.htp':           'baja',
+        'mitral.morfologia':      'normal',
+        'mitral.insuficiencia':   'no',
+        'mitral.estenosis':       'no',
+        'aortica.morfologia':     'normal',
+        'aortica.insuficiencia':  'no',
+        'aortica.estenosis':      'no',
+        'tricuspide.insuficiencia': 'no',
+        'vci':                    'normal',
+        'pericardio':             'libre',
+        'extras.pleural':         'no',
+        'extras.trombo':          'no',
+        'extras.cateter':         'no',
+    };
+
+    /** Vuelve todo al estado normal de partida (arranque y botón Limpiar) */
+    function estadoNormal() {
+        Object.keys(datos).forEach(k => { datos[k] = undefined; });
+        Object.assign(datos, {
+            paciente: {}, vi: {}, derechas: {}, mitral: {}, aortica: {}, tricuspide: {}, extras: {},
         });
-        ['ritmo', 'diastolica', 'ai', 'vci', 'pericardio'].forEach(k => { datos[k] = undefined; });
+
+        document.querySelectorAll('input').forEach(i => { i.value = ''; });
+        document.querySelectorAll('.opts').forEach(grupo => {
+            const valor = DEFAULTS[grupo.dataset.campo];
+            grupo.querySelectorAll('button.opt').forEach(b => {
+                b.setAttribute('aria-pressed', b.dataset.val === valor ? 'true' : 'false');
+            });
+            if (valor !== undefined) setCampo(grupo.dataset.campo, valor);
+        });
+
         $('fey_grado').textContent = '';
         $('trombo_texto').style.display = 'none';
         toggleBullseye(false);
         if (motility) motility.reset();
-        editadoAMano = false;
-        $('informe').value = '';
+
         $('p_fecha').value = new Date().toISOString().slice(0, 10);
         datos.paciente.fecha = $('p_fecha').value;
+
+        editadoAMano = false;
+        regenerar();
+    }
+
+    $('btn_limpiar').addEventListener('click', () => {
+        if (!confirm('¿Empezar un estudio nuevo? Todo vuelve a normal.')) return;
+        estadoNormal();
         toast('Estudio nuevo');
     });
 
-    // ── Guardado en la planilla ──────────────────────────────────────────────
-
-    $('btn_guardar').addEventListener('click', async () => {
-        if (typeof GoogleSync === 'undefined' || !GoogleSync.isConfigured()) {
-            toast('⚙️ Configurá Google Sheets desde el estudio completo');
-            return;
-        }
-        const btn = $('btn_guardar');
-        btn.disabled = true;
-        try {
-            await GoogleSync.send(construirFila());
-            toast('✅ Guardado como estudio focalizado');
-        } catch (err) {
-            toast(`⚠️ Error al guardar: ${err.message}`);
-        } finally {
-            btn.disabled = false;
-        }
-    });
-
-    /**
-     * Arma la fila con la misma estructura que el estudio completo, para que ambos
-     * convivan en la misma planilla. Se llena por NOMBRE de columna y no por posición,
-     * así un cambio futuro en HEADERS no desalinea los datos. Lo no medido queda en
-     * "-": en un focalizado la mayoría de las columnas numéricas no existen.
-     */
-    function construirFila() {
-        const H = StudyStorage.HEADERS;
-        const fila = new Array(H.length).fill('-');
-        const poner = (col, val) => {
-            const i = H.indexOf(col);
-            if (i >= 0 && val !== undefined && val !== null && val !== '') fila[i] = val;
-        };
-
-        const p = datos.paciente;
-        poner('Fecha', p.fecha || new Date().toISOString().slice(0, 10));
-        poner('HC', p.nombre);
-        poner('Edad', p.edad);
-        poner('Sexo', p.sexo === 'M' ? 'Masculino' : p.sexo === 'F' ? 'Femenino' : undefined);
-        poner('Peso', p.peso);
-        poner('Altura', p.talla);
-        if (p.peso && p.talla) poner('SC', Math.sqrt((p.talla * p.peso) / 3600).toFixed(2));
-        poner('Ritmo', datos.ritmo);
-        poner('FEy', datos.vi.fey);
-        poner('Motilidad Global', datos.vi.motilidad);
-        poner('Diástole', datos.diastolica);
-        poner('IM Grado', datos.mitral.insuficiencia);
-        poner('EM Grado', datos.mitral.estenosis);
-        poner('IAo Grado', datos.aortica.insuficiencia);
-        poner('EAo Grado', datos.aortica.estenosis);
-        poner('IT Grado', datos.tricuspide.insuficiencia);
-        poner('VD Estado', datos.derechas.vd_tamano);
-        poner('AD Estado', datos.derechas.ad);
-        poner('Informe', $('informe').value);
-        poner('Tipo Estudio', 'Focalizado');
-
-        if (datos.vi.segmentos && typeof MotilityEngine !== 'undefined') {
-            poner('Motilidad Detalle', MotilityEngine.describe(datos.vi.segmentos));
-        }
-        return fila;
-    }
-
     // ── Arranque ─────────────────────────────────────────────────────────────
 
-    $('p_fecha').value = new Date().toISOString().slice(0, 10);
-    datos.paciente.fecha = $('p_fecha').value;
-    regenerar();
+    estadoNormal();
 })();

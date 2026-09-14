@@ -18,8 +18,8 @@
 
 const QuickReport = {
 
-    ENCABEZADO: 'ECOCARDIOGRAMA DOPPLER CARDÍACO — Evaluación focalizada',
-    SUBTITULO:  'Estudio realizado en cama del paciente. Evaluación cualitativa.',
+    ENCABEZADO: 'ECOCARDIOGRAMA DOPPLER CARDÍACO',
+    SUBTITULO:  'Estudio realizado en cama del paciente.',
 
     // ── Diccionarios de grados ───────────────────────────────────────────────
 
@@ -86,20 +86,14 @@ const QuickReport = {
 
     _encabezado(d) {
         const p = d.paciente || {};
+        // Encabezado fijo, tal cual se pidió: sin línea de filiación y sin rótulos
+        // de tipo de estudio. Sólo se agrega la antropometría si está cargada.
         let h = `${this.ENCABEZADO}\n${'='.repeat(80)}\n${this.SUBTITULO}\n`;
 
-        const filiacion = [
-            p.nombre && `Paciente: ${p.nombre}`,
-            p.edad && `${p.edad} años`,
-            p.sexo && (p.sexo === 'M' ? 'Masculino' : 'Femenino'),
-            p.fecha && `Fecha: ${p.fecha}`,
-        ].filter(Boolean);
-        if (filiacion.length) h += `${filiacion.join(' | ')}\n`;
-
-        // La superficie corporal se informa sólo si se cargaron peso y talla
+        // SC por Mosteller
         if (p.peso && p.talla) {
             const sc = Math.sqrt((p.talla * p.peso) / 3600);
-            h += `Peso ${p.peso} kg | Talla ${p.talla} cm | SC ${sc.toFixed(2)} m²\n`;
+            h += `Peso ${p.peso} kg | Talla ${p.talla} cm | SC ${sc.toFixed(2)} m2\n`;
         }
         return h.trimEnd();
     },
