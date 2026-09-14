@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Eco Focalizado — Evaluación en cama</title>
+<style>
+  :root{
+    --bg:#f1f5f9; --card:#fff; --border:#cbd5e1; --text:#0f172a; --muted:#64748b;
+    --accent:#0369a1; --accent-soft:#e0f2fe; --warn:#b45309; --ok:#16a34a;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font:15px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+       background:var(--bg);color:var(--text);padding:.75rem;}
+  header{display:flex;align-items:center;justify-content:space-between;gap:.75rem;flex-wrap:wrap;
+         background:linear-gradient(135deg,#0c4a6e,#0369a1);color:#fff;
+         padding:.7rem 1rem;border-radius:10px;margin-bottom:.75rem;}
+  header h1{margin:0;font-size:1.05rem;font-weight:700;}
+  header .sub{font-size:.76rem;opacity:.85;}
+  header a{color:#fff;background:rgba(255,255,255,.18);text-decoration:none;
+           padding:.4rem .7rem;border-radius:7px;font-size:.8rem;font-weight:600;white-space:nowrap;}
+
+  .layout{display:grid;grid-template-columns:1fr 420px;gap:.75rem;align-items:start;}
+  @media (max-width:1000px){ .layout{grid-template-columns:1fr;} }
+
+  .card{background:var(--card);border:1px solid var(--border);border-radius:10px;
+        padding:.6rem .75rem;margin-bottom:.6rem;}
+  .card h2{margin:0 0 .45rem;font-size:.78rem;text-transform:uppercase;letter-spacing:.04em;
+           color:var(--accent);font-weight:700;}
+
+  .row{display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;margin-bottom:.45rem;}
+  .row:last-child{margin-bottom:0}
+  .row > label{flex:0 0 120px;font-size:.82rem;color:var(--muted);font-weight:600;}
+  .opts{display:flex;gap:.3rem;flex-wrap:wrap;flex:1;}
+
+  button.opt{background:#fff;border:1.5px solid var(--border);border-radius:8px;
+             padding:.5rem .7rem;font-size:.84rem;font-family:inherit;cursor:pointer;
+             color:var(--text);min-height:40px;transition:.12s;}
+  button.opt:hover{border-color:var(--accent);background:var(--accent-soft);}
+  button.opt[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);
+                                  color:#fff;font-weight:600;}
+
+  input[type=text],input[type=number],input[type=date]{
+    padding:.45rem .55rem;border:1.5px solid var(--border);border-radius:8px;
+    font-family:inherit;font-size:.86rem;min-height:40px;}
+  #fey{width:90px;font-size:1.05rem;font-weight:700;text-align:center;}
+  #fey_grado{font-size:.8rem;font-weight:600;}
+
+  .datos-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:.4rem;}
+  .datos-grid input{width:100%;}
+
+  #panel_informe{position:sticky;top:.75rem;}
+  #informe{width:100%;min-height:420px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+           font-size:.78rem;line-height:1.5;padding:.6rem;border:1px solid var(--border);
+           border-radius:8px;resize:vertical;background:#fff;}
+  .acciones{display:flex;gap:.4rem;margin-top:.5rem;flex-wrap:wrap;}
+  .acciones button{flex:1;min-width:110px;padding:.6rem;border-radius:8px;border:none;
+                   font-family:inherit;font-size:.85rem;font-weight:600;cursor:pointer;min-height:44px;}
+  #btn_copiar{background:var(--accent);color:#fff;}
+  #btn_guardar{background:var(--ok);color:#fff;}
+  #btn_limpiar{background:#e2e8f0;color:var(--text);}
+
+  #bullseye_box{display:none;margin-top:.5rem;padding:.5rem;background:#f8fafc;
+                border:1px dashed var(--accent);border-radius:8px;}
+  #bullseye_box.visible{display:block}
+  #motility-svg-container svg{max-width:270px;display:block;margin:0 auto;}
+  .mot-leyenda{font-size:.72rem;color:var(--muted);text-align:center;margin-top:.3rem;}
+
+  .toast{position:fixed;bottom:1rem;left:50%;transform:translateX(-50%);
+         background:#0f172a;color:#fff;padding:.6rem 1rem;border-radius:8px;
+         font-size:.85rem;opacity:0;transition:.25s;pointer-events:none;z-index:99;}
+  .toast.show{opacity:1;}
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>🫀 Eco Focalizado</h1>
+    <div class="sub">Evaluación cualitativa en cama del paciente</div>
+  </div>
+  <a href="index.html">← Estudio completo</a>
+</header>
+
+<div class="layout">
+  <div>
+    <section class="card">
+      <h2>Datos</h2>
+      <div class="datos-grid">
+        <input type="text" id="p_nombre" placeholder="Nombre / HC">
+        <input type="number" id="p_edad" placeholder="Edad">
+        <input type="number" id="p_peso" placeholder="Peso kg">
+        <input type="number" id="p_talla" placeholder="Talla cm">
+        <input type="date" id="p_fecha">
+      </div>
+      <div class="row" style="margin-top:.45rem;">
+        <label>Sexo</label>
+        <div class="opts" data-campo="paciente.sexo">
+          <button class="opt" data-val="M">Masculino</button>
+          <button class="opt" data-val="F">Femenino</button>
+        </div>
+      </div>
+      <div class="row">
+        <label>Ritmo</label>
+        <div class="opts" data-campo="ritmo">
+          <button class="opt" data-val="sinusal">Sinusal</button>
+          <button class="opt" data-val="fa">FA</button>
+          <button class="opt" data-val="otro">Otro</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Ventrículo izquierdo</h2>
+      <div class="row">
+        <label>Tamaño</label>
+        <div class="opts" data-campo="vi.tamano">
+          <button class="opt" data-val="normal">Normal</button>
+          <button class="opt" data-val="leve">Dilatación leve</button>
+          <button class="opt" data-val="moderada">Moderada</button>
+          <button class="opt" data-val="severa">Severa</button>
+        </div>
+      </div>
+      <div class="row">
+        <label>Espesores</label>
+        <div class="opts" data-campo="vi.espesores">
+          <button class="opt" data-val="normales">Normales</button>
+          <button class="opt" data-val="leve">HVI leve</button>
+          <button class="opt" data-val="moderada">Moderada</button>
+          <button class="opt" data-val="severa">Severa</button>
+        </div>
+      </div>
+      <div class="row">
+        <label>FEy (%)</label>
+        <input type="number" id="fey" min="5" max="85" placeholder="—">
+        <span id="fey_grado"></span>
+      </div>
+      <div class="row">
+        <label>Motilidad</label>
+        <div class="opts" data-campo="vi.motilidad">
+          <button class="opt" data-val="conservada">Conservada</button>
+          <button class="opt" data-val="global">Hipoquinesia global</button>
+          <button class="opt" data-val="segmentaria">Alterada segmentaria</button>
+        </div>
+      </div>
+      <div id="bullseye_box">
+        <div id="motility-svg-container"></div>
+        <div class="mot-leyenda">Tocá cada segmento para cambiar su grado · <span id="wmsi_txt"></span></div>
+      </div>
+      <div class="row">
+        <label>Diastólica</label>
+        <div class="opts" data-campo="diastolica">
+          <button class="opt" data-val="normal">Normal</button>
+          <button class="opt" data-val="I">Grado I</button>
+          <button class="opt" data-val="II">Grado II</button>
+          <button class="opt" data-val="III">Grado III</button>
+          <button class="opt" data-val="indeterminada">Indeterminada</button>
+          <button class="opt" data-val="no_valorable">No valorable</button>
+        </div>
+      </div>
+      <div class="row">
+        <label>Aurícula izq.</label>
+        <div class="opts" data-campo="ai">
+          <button class="opt" data-val="normal">Normal</button>
+          <button class="opt" data-val="leve">Dilatación leve</button>
+          <button class="opt" data-val="moderada">Moderada</button>
+          <button class="opt" data-val="severa">Severa</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Cavidades derechas</h2>
+      <div class="row">
+        <label>VD tamaño</label>
+        <div class="opts" data-campo="derechas.vd_tamano">
+          <button class="opt" data-val="normal">Normal</button>
+          <button class="opt" data-val="leve">Dilatación leve</button>
+          <button class="opt" data-val="moderada">Moderada</button>
+          <button class="opt" data-val="severa">Severa</button>
+        </div>
+      </div>
+      <div class="row">
+        <label>VD función</label>
+        <div class="opts" data-campo="derechas.vd_funcion">
+          <button class="opt" data-val="conservada">Conservada</button>
+          <button class="opt" data-val="leve">Deterioro leve</button>
+          <button class="opt" data-val="moderado">Moderado</button>
+          <button class="opt" data-val="severo">Severo</button>
+        </div>
+      </div>
+      <div class="row">
+        <label>Aurícula der.</label>
+        <div class="opts" data-campo="derechas.ad">
+          <button class="opt" data-val="normal">Normal</button>
+          <button class="opt" data-val="leve">Dilatación leve</button>
+          <button class="opt" data-val="moderada">Moderada</button>
+          <button class="opt" data-val="severa">Severa</button>
+        </div>
+      </div>
+      <div class="row">
+        <label>HTP</label>
+        <div class="opts" data-campo="derechas.htp">
+          <button class="opt" data-val="baja">Baja prob.</button>
+          <button class="opt" data-val="intermedia">Intermedia</button>
+          <button class="opt" data-val="alta">Alta</button>
+          <button class="opt" data-val="no_valorable">No valorable</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Válvula mitral</h2>
+      <div class="row">
+        <label>Morfología</label>
+        <div class="opts" data-campo="mitral.morfologia">
+          <button class="opt" data-val="normal">Normal</button>
+          <button class="opt" data-val="esclerosis">Esclerosis</button>
+          <button class="opt" data-val="mac">MAC</button>
+          <button class="opt" data-val="engrosamiento">Engrosamiento</button>
+          <button class="opt" data-val="prolapso">Prolapso</button>
+          <button class="opt" data-val="reumatica">Reumática</button>
+          <button class="opt" data-val="protesis">Prótesis</button>
+        </div>
+      </div>
+      <div class="row">
+        <label>Insuficiencia</label>
+        <div class="opts" data-campo="mitral.insuficiencia">
+          <button class="opt" data-val="no">No</button>
+          <button class="opt" data-val="trace">Trivial</button>
+          <button class="opt" data-val="leve">Leve</button>
+          <button class="opt" data-val="leve-moderada">Leve-mod</button>
+          <button class="opt" data-val="moderada">Moderada</button>
+          <button class="opt" data-val="moderada-severa">Mod-severa</button>
+          <button class="opt" data-val="severa">Severa</button>
+        </div>
+      </div>
+      <div class="row">
+        <label>Estenosis</label>
+        <div class="opts" data-campo="mitral.estenosis">
+          <button class="opt" data-val="no">No</button>
+          <button class="opt" data-val="leve">Leve</button>
+          <button class="opt" data-val="moderada">Moderada</button>
+          <button class="opt" data-val="severa">Severa</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Válvula aórtica</h2>
+      <div class="row">
+        <label>Morfología</label>
+        <div class="opts" data-campo="aortica.morfologia">
+          <button class="opt" data-val="normal">Trivalva normal</button>
+          <button class="opt" data-val="esclerosis">Esclerosis</button>
+          <button class="opt" data-val="calcificada">Calcificada</button>
+          <button class="opt" data-val="bicuspide">Bicúspide</button>
+          <button class="opt" data-val="protesis">Prótesis</button>
+        </div>
+      </div>
+      <div class="row">
+        <label>Insuficiencia</label>
+        <div class="opts" data-campo="aortica.insuficiencia">
+          <button class="opt" data-val="no">No</button>
+          <button class="opt" data-val="trace">Trivial</button>
+          <button class="opt" data-val="leve">Leve</button>
+          <button class="opt" data-val="leve-moderada">Leve-mod</button>
+          <button class="opt" data-val="moderada">Moderada</button>
+          <button class="opt" data-val="moderada-severa">Mod-severa</button>
+          <button class="opt" data-val="severa">Severa</button>
+        </div>
+      </div>
+      <div class="row">
+        <label>Estenosis</label>
+        <div class="opts" data-campo="aortica.estenosis">
+          <button class="opt" data-val="no">No</button>
+          <button class="opt" data-val="leve">Leve</button>
+          <button class="opt" data-val="moderada">Moderada</button>
+          <button class="opt" data-val="severa">Severa</button>
+          <button class="opt" data-val="muy-severa">Muy severa</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Tricúspide · VCI · Pericardio</h2>
+      <div class="row">
+        <label>IT</label>
+        <div class="opts" data-campo="tricuspide.insuficiencia">
+          <button class="opt" data-val="no">No</button>
+          <button class="opt" data-val="trace">Trivial</button>
+          <button class="opt" data-val="leve">Leve</button>
+          <button class="opt" data-val="moderada">Moderada</button>
+          <button class="opt" data-val="severa">Severa</button>
+          <button class="opt" data-val="masiva">Masiva</button>
+        </div>
+      </div>
+      <div class="row">
+        <label>VCI</label>
+        <div class="opts" data-campo="vci">
+          <button class="opt" data-val="normal">Normal</button>
+          <button class="opt" data-val="dilatada_colapso">Dilatada c/ colapso</button>
+          <button class="opt" data-val="dilatada_sin_colapso">Dilatada s/ colapso</button>
+          <button class="opt" data-val="colapsada">Colapsada</button>
+        </div>
+      </div>
+      <div class="row">
+        <label>Pericardio</label>
+        <div class="opts" data-campo="pericardio">
+          <button class="opt" data-val="libre">Libre</button>
+          <button class="opt" data-val="leve">Derrame leve</button>
+          <button class="opt" data-val="moderado">Moderado</button>
+          <button class="opt" data-val="severo">Severo</button>
+          <button class="opt" data-val="compromiso">C/ compromiso</button>
+          <button class="opt" data-val="engrosamiento">Engrosamiento</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Hallazgos asociados</h2>
+      <div class="row">
+        <label>Derrame pleural</label>
+        <div class="opts" data-campo="extras.pleural">
+          <button class="opt" data-val="no">No</button>
+          <button class="opt" data-val="derecho">Derecho</button>
+          <button class="opt" data-val="izquierdo">Izquierdo</button>
+          <button class="opt" data-val="bilateral">Bilateral</button>
+        </div>
+      </div>
+      <div class="row">
+        <label>Trombo / masa</label>
+        <div class="opts" data-campo="extras.trombo">
+          <button class="opt" data-val="no">No</button>
+          <button class="opt" data-val="si">Sí</button>
+        </div>
+        <input type="text" id="trombo_texto" placeholder="Descripción" style="flex:1;min-width:150px;display:none;">
+      </div>
+      <div class="row">
+        <label>Catéter/electrodo</label>
+        <div class="opts" data-campo="extras.cateter">
+          <button class="opt" data-val="no">No</button>
+          <button class="opt" data-val="si">Sí</button>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <div id="panel_informe">
+    <section class="card">
+      <h2>Informe</h2>
+      <textarea id="informe" spellcheck="false" placeholder="El informe se arma solo a medida que cargás los hallazgos."></textarea>
+      <div class="acciones">
+        <button id="btn_copiar">📋 Copiar</button>
+        <button id="btn_guardar">☁️ Guardar</button>
+        <button id="btn_limpiar">🗑️ Limpiar</button>
+      </div>
+    </section>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- Motores reutilizados de la app principal -->
+<script src="js/hemodynamics.js?v=17.9"></script>
+<script src="js/motility-model.js?v=17.0"></script>
+<script src="js/motility-engine.js?v=1.1"></script>
+<script src="js/wmsi-engine.js?v=1.0"></script>
+<script src="js/territory-engine.js?v=1.0"></script>
+<script src="js/motility-controller.js?v=17.0"></script>
+<script src="js/motility-svg.js?v=16.0"></script>
+<script src="js/quick-report.js?v=1.0"></script>
+<script src="js/study-storage.js?v=1.2"></script>
+<script src="js/google-sync.js?v=1.1"></script>
+<script src="js/eco-rapido.js?v=1.0"></script>
+
+</body>
+</html>
