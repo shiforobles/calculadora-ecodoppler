@@ -44,6 +44,12 @@ class UIController {
         if (btnModeNarrativo) btnModeNarrativo.addEventListener('click', () => this.setReportMode('narrativo'));
         if (btnModeIA) btnModeIA.addEventListener('click', () => this.generateAIReport());
 
+        // El aviso de discrepancia del TSVI se refresca al editar el diámetro medido
+        document.querySelectorAll('.tsvi-esperado').forEach(cont => {
+            document.getElementById(cont.dataset.tsviRef)
+                ?.addEventListener('input', () => this.updateExpectedLVOT());
+        });
+
         // Presets: desplegable + administración
         this.renderPresetSelector();
         const selPreset = document.getElementById('preset_selector');
@@ -412,6 +418,7 @@ class UIController {
             this.evaluarProtesis();
             if (this.updatePAATBadge) this.updatePAATBadge();
             if (this.updateAorticDisplay) this.updateAorticDisplay();
+            this.updateExpectedLVOT();
             this.validateInputs();
         }, 150);
     }
@@ -669,10 +676,84 @@ class UIController {
 
         // Update display
         document.getElementById('masa_info').innerHTML =
-            `<span class="calc-label">Masa VI Indexada:</span>
-             <span class="calc-value">${this.state.lvMassIndex.toFixed(0)} g/m²</span>
-             <span class="calc-label">|</span>
-             <span class="calc-value">${this.state.geometry}${dilationText}${phenotypeAlert}</span>`;
+            this._buildGeometryDisplay(sex, dilationText, phenotypeAlert);
+    }
+
+    /**
+     * TSVI esperado según antropometría, junto a cada campo de diámetro del TSVI.
+     *
+     * Es una referencia orientativa para controlar la medición: no autocompleta el
+     * campo, no entra en el cálculo del AVA y no va al informe. Si el valor medido
+     * difiere más de 2 mm del esperado, se marca para revisar el plano y el punto de
+     * medición — es una señal de control, no un error.
+     */
+    updateExpectedLVOT() {
+        const contenedores = document.querySelectorAll('.tsvi-esperado');
+        if (!contenedores.length) return;
+
+        const altura = parseFloat(document.getElementById('altura')?.value);
+        const peso   = parseFloat(document.getElementById('peso')?.value);
+        const sexo   = document.getElementById('sexo')?.value;
+        const ref    = this.calc.estimateExpectedLVOT?.(altura, peso, sexo);
+
+        contenedores.forEach(cont => {
+            // Sin datos antropométricos no se muestra nada, sin mensajes de error
+            if (!ref) { cont.innerHTML = ''; return; }
+
+            const medido = parseFloat(document.getElementById(cont.dataset.tsviRef)?.value);
+            const difiere = medido && Math.abs(medido - ref.esperado) > 2;
+
+            cont.innerHTML = `
+                <div style="font-size:.75rem; opacity:.75; margin-top:.2rem;">
+                    TSVI esperado: <strong>${ref.esperado.toFixed(1)} mm</strong>
+                    <span style="opacity:.8;">(rango ${ref.min.toFixed(1)}–${ref.max.toFixed(1)})</span>
+                </div>
+                ${difiere ? `<div style="font-size:.75rem; color:var(--color-warning, #b45309); margin-top:.15rem;">
+                    ⚠ Difiere &gt;2 mm del esperado — revisar plano, zoom y punto de medición
+                </div>` : ''}`;
+        });
+    }
+
+    /**
+     * Display de geometría: los dos parámetros que determinan la clasificación, cada
+     * uno marcado como normal o alterado, y el resultado al final.
+     *
+     * La clasificación sale de una matriz de 2x2 (GPR × masa indexada) y mostrar sólo
+     * el resultado obliga a recalcular mentalmente de dónde salió. Con los dos valores
+     * a la vista se lee de un vistazo cuál de los dos está alterado.
+     *
+     * Sólo presentación: no toca la lógica de clasificación ni el informe.
+     */
+    _buildGeometryDisplay(sex, dilationText, phenotypeAlert) {
+        const LIMITE_GPR  = 0.42;
+        const limiteMasa  = sex === 'M' ? 115 : 95;   // g/m², ASE/EACVI
+
+        const gpr  = this.state.rwt;
+        const masa = this.state.lvMassIndex;
+        const gprAlterado  = gpr > LIMITE_GPR;
+        const masaAlterada = masa > limiteMasa;
+
+        const OK    = 'var(--color-success, #16a34a)';
+        const ALERT = 'var(--color-error, #dc2626)';
+        const chip = (etiqueta, valor, alterado, referencia) => `
+            <span title="${referencia}" style="white-space:nowrap;">
+                <span class="calc-label">${etiqueta}</span>
+                <strong style="color:${alterado ? ALERT : OK};">${valor}</strong>
+                <span style="color:${alterado ? ALERT : OK};">${alterado ? '⚠' : '✓'}</span>
+            </span>`;
+
+        return `
+            <div style="display:flex; flex-wrap:wrap; align-items:center; gap:.5rem .75rem;">
+                ${chip('GPR', gpr.toFixed(2), gprAlterado, `Grosor parietal relativo — normal ≤ ${LIMITE_GPR}`)}
+                <span style="opacity:.4;">·</span>
+                ${chip('Masa', `${masa.toFixed(0)} g/m²`, masaAlterada,
+                       `Masa VI indexada — normal ≤ 115 g/m² (varón) / ≤ 95 g/m² (mujer)`)}
+                <span style="opacity:.4;">→</span>
+                <strong class="calc-value">${this.state.geometry}</strong>${dilationText}${phenotypeAlert}
+                <span style="flex-basis:100%; font-size:.72rem; opacity:.6;">
+                    GPR normal ≤ ${LIMITE_GPR} · Masa normal ≤ ${limiteMasa} g/m² (${sex === 'M' ? 'varón' : 'mujer'})
+                </span>
+            </div>`;
     }
 
     /**

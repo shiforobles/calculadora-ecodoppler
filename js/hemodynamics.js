@@ -356,6 +356,59 @@ class HemodynamicsCalculator {
         if (psap <= 70) return "Moderada";
         return "Severa";
     }
+
+    /**
+     * Diámetro esperado del TSVI según antropometría.
+     *
+     * Para qué sirve: el diámetro del TSVI entra AL CUADRADO en la ecuación de
+     * continuidad, así que un error de 1-2 mm alcanza para reclasificar la severidad
+     * de una estenosis aórtica. Además el TSVI es elíptico y el diámetro 2D
+     * anteroposterior lo subestima de forma sistemática. Este valor es una red de
+     * seguridad para la medición, no un reemplazo.
+     *
+     * Fórmulas (se promedian):
+     *  1. Leye et al., JASE 2009;22:445-451 — TSVI (mm) = 5,7 × SC + 12,1
+     *     SC por Mosteller, que es la que usa la publicación.
+     *  2. Gaspardone et al., Can J Cardiol 2023;39:1986-1988 — para varones:
+     *     TSVI (mm) = 6,42 + 0,06 × talla_cm + 0,54 × √peso_kg
+     *
+     * En MUJERES sólo se aplica Leye: no se pudo confirmar el coeficiente de
+     * Gaspardone para sexo femenino contra la publicación original, y en software
+     * médico no se incluyen fórmulas sin fuente primaria verificada. Si se consigue
+     * el coeficiente, agregarlo acá y promediar igual que en varones.
+     *
+     * Tampoco se implementa la fórmula de Merlo (0,09 × talla + 7,0): la fuente que
+     * la difunde admite que no está derivada ni validada en la bibliografía citada.
+     *
+     * NOTA CLÍNICA: interpretar con cautela en anatomía congénita, válvula bicúspide,
+     * cirugía aórtica previa y extremos antropométricos. Una discrepancia > 2 mm es
+     * señal de control, no prueba de error.
+     *
+     * @returns {{esperado: number, min: number, max: number, formulas: string[]}|null}
+     */
+    estimateExpectedLVOT(heightCm, weightKg, sex) {
+        if (!heightCm || !weightKg || !sex) return null;
+
+        // Mosteller — la SC con la que se derivó Leye
+        const bsaMosteller = Math.sqrt((heightCm * weightKg) / 3600);
+
+        const leye = 5.7 * bsaMosteller + 12.1;
+        const estimaciones = [leye];
+        const formulas = ['Leye'];
+
+        if (sex === 'M') {
+            estimaciones.push(6.42 + 0.06 * heightCm + 0.54 * Math.sqrt(weightKg));
+            formulas.push('Gaspardone');
+        }
+
+        const esperado = estimaciones.reduce((a, b) => a + b, 0) / estimaciones.length;
+        return {
+            esperado: parseFloat(esperado.toFixed(1)),
+            min: parseFloat((esperado - 2).toFixed(1)),
+            max: parseFloat((esperado + 2).toFixed(1)),
+            formulas,
+        };
+    }
 }
 
 // Export for use in other modules or global scope
