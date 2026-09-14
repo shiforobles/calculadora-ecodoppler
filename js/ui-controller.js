@@ -943,6 +943,9 @@ class UIController {
         if (!trVel || trVel <= 0) {
             document.getElementById('psap_info').innerHTML =
                 '<span class="calc-label">PSAP Estimada:</span><span class="calc-value">-</span>';
+            // Sin velocidad de IT no hay PSAP: si no se borra, el informe hereda la del
+            // estudio anterior y afirma una presión que en este paciente no se midió.
+            this.state.psap = 0;
             return;
         }
 
@@ -1597,7 +1600,10 @@ class UIController {
                 const diastolicDesc = this.state.diastolicResult.description;
 
                 // Simplify for conclusions
-                if (diastolicDesc.includes('FA:') || diastolicDesc.includes('FA +')) {
+                if (this._diastolicaSinDatos()) {
+                    // "Esperando datos Doppler..." es un texto de pantalla, no una conclusión
+                    report += `${conclusionNum}. Función diastólica no valorable por datos insuficientes.\n`;
+                } else if (diastolicDesc.includes('FA:') || diastolicDesc.includes('FA +')) {
                     report += `${conclusionNum}. ${diastolicDesc}\n`;
                 } else if (diastolicDesc.includes('Normal')) {
                     report += `${conclusionNum}. Función Diastólica Normal. Presiones de llenado VI normales.\n`;
@@ -2014,6 +2020,13 @@ class UIController {
             el.dispatchEvent(new Event(el.tagName === 'SELECT' ? 'change' : 'input', { bubbles: true }));
         };
 
+        // Todo el estudio anterior vuelve a su estado de carga de página antes de
+        // aplicar el preset. Sin esto sobrevivían los checkboxes (derrame, ASIA) y los
+        // parámetros sueltos (VC, ORE, Vmax…), invisibles hasta que el estudio nuevo
+        // activaba la sección, y aparecían en el informe de otro paciente.
+        this._resetStudyFields();
+        if (this.motility) this.motility.reset();
+
         // Campos que arrastran del estudio anterior y deben volver a su base
         ['ant_hta','ant_isquemia','ant_crm','ant_epoc','ant_fa','ant_marcapasos','ant_dm','ant_irc',
          'ant_valvulopatia','ant_atc','ant_rva','ant_rvm'].forEach(id => set(id, false));
@@ -2038,6 +2051,57 @@ class UIController {
 
         this.calculateAll();
         this.showToast(`Preset "${preset.label || name.replace(/_/g, ' ')}" aplicado`);
+    }
+
+    /**
+     * ¿La diastólica quedó indeterminada porque faltan mediciones (E, A o e')?
+     * Es distinto de "indeterminada por criterios contrapuestos", donde los datos
+     * están pero discrepan entre sí. El cálculo marca la falta de datos con el texto
+     * de pantalla "Esperando datos Doppler...".
+     */
+    _diastolicaSinDatos() {
+        const dr = this.state.diastolicResult;
+        return !!dr && dr.grade === 'Indeterminado' && /^Esperando datos/i.test(dr.description || '');
+    }
+
+    /**
+     * Devuelve todos los campos del estudio a su valor de carga de página, sin tocar
+     * los datos del paciente. A diferencia de resetAll no recarga la página, así el
+     * preset puede aplicarse a continuación.
+     *
+     * Se restaura el valor POR DEFECTO del HTML (defaultValue / defaultChecked /
+     * defaultSelected) y no un vacío, porque varios selects arrancan con una opción
+     * que no es la primera.
+     */
+    _resetStudyFields() {
+        const conservar = new Set([
+            ...(window.CAMPOS_PACIENTE || []),
+            'paciente_id', 'resultado', 'preset_selector',
+        ]);
+
+        document.querySelectorAll('input, select, textarea').forEach(el => {
+            if (!el.id || conservar.has(el.id) || el.type === 'file') return;
+
+            let cambio = false;
+            if (el.type === 'checkbox' || el.type === 'radio') {
+                if (el.checked !== el.defaultChecked) { el.checked = el.defaultChecked; cambio = true; }
+            } else if (el.tagName === 'SELECT') {
+                const idx = [...el.options].findIndex(o => o.defaultSelected);
+                const destino = idx >= 0 ? idx : 0;
+                if (el.selectedIndex !== destino) { el.selectedIndex = destino; cambio = true; }
+            } else if (el.value !== el.defaultValue) {
+                el.value = el.defaultValue;
+                cambio = true;
+            }
+
+            // Sólo se notifica lo que cambió: así los módulos que escuchan (secciones
+            // que se muestran u ocultan, badges de severidad) quedan sincronizados.
+            if (cambio) {
+                const evento = (el.tagName === 'SELECT' || el.type === 'checkbox' || el.type === 'radio')
+                    ? 'change' : 'input';
+                el.dispatchEvent(new Event(evento, { bubbles: true }));
+            }
+        });
     }
 
     /**
@@ -2692,6 +2756,9 @@ class UIController {
                     p2 += `se identifica disfunción diastólica grado II, con relajación miocárdica alterada${_rStrBase} y presiones de llenado del VI elevadas${_pStr}`;
                 else if (dr.grade === 'III')
                     p2 += `se identifica disfunción diastólica grado III, con patrón de llenado restrictivo${_rStrEA} y presiones de llenado del VI marcadamente elevadas${_pStr}`;
+                else if (dr.grade === 'Indeterminado' && this._diastolicaSinDatos())
+                    // Faltan mediciones: no es lo mismo que criterios que discrepan
+                    p2 += `la función diastólica no resulta valorable por datos insuficientes${_indStr}`;
                 else if (dr.grade === 'Indeterminado')
                     p2 += `la evaluación diastólica resulta indeterminada por criterios contrapuestos${_indStr}`;
                 else
@@ -3158,7 +3225,10 @@ class UIController {
         } else {
             if (itGradoVal && itGradoVal !== 'no' && velIt > 0) {
                 p4 += `. Se registra insuficiencia tricuspídea${itQuantStr}${itFlujStr} (Vmax IT ${velIt} m/s), sin hipertensión pulmonar significativa estimable`;
-            } else if (sigIT && itQuantParts.length > 0) {
+            } else if (itGradoVal && itGradoVal !== 'no') {
+                // Grado cargado sin velocidad regurgitante: se informa la insuficiencia,
+                // sin estimar presión pulmonar. Antes sólo aparecía si había cuantificación,
+                // y una IT graduada a ojo desaparecía del informe.
                 p4 += `. Se constata insuficiencia tricuspídea ${itGradoVal}${itQuantStr}${itFlujStr}`;
             }
         }
