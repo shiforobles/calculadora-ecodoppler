@@ -179,6 +179,8 @@
         'extras.cateter':         'no',
     };
 
+    const FEY_INICIAL = 60;
+
     /** Vuelve todo al estado normal de partida (arranque y botón Limpiar) */
     function estadoNormal() {
         Object.keys(datos).forEach(k => { datos[k] = undefined; });
@@ -195,7 +197,12 @@
             if (valor !== undefined) setCampo(grupo.dataset.campo, valor);
         });
 
-        $('fey_grado').textContent = '';
+        // La FEy arranca en 60, el valor normal más frecuente: sólo se cambia si está
+        // alterada. Sigue siendo un número editable, no un botón.
+        $('fey').value = FEY_INICIAL;
+        datos.vi.fey = FEY_INICIAL;
+        mostrarGradoFey(FEY_INICIAL);
+
         $('trombo_texto').style.display = 'none';
         toggleBullseye(false);
         if (motility) motility.reset();

@@ -35,10 +35,10 @@ const casos = [
             vci: 'dilatada_sin_colapso', pericardio: 'libre',
         },
         esperado: [
-            'El ventrículo izquierdo se encuentra moderadamente dilatado, con espesores parietales conservados, hipoquinesia global y deterioro moderado de la función sistólica (FEy 35%).',
+            'El ventrículo izquierdo se encuentra moderadamente dilatado, con espesores parietales conservados, hipoquinesia global, y deterioro moderado de la función sistólica (FEy 35%).',
             'Desde el punto de vista hemodinámico, se evidencia disfunción diastólica grado II, con presiones de llenado elevadas, asociado a dilatación moderada de la aurícula izquierda.',
             'El aparato valvular mitral es morfológicamente normal, con insuficiencia mitral moderada de mecanismo funcional por dilatación de cavidades. La válvula aórtica es trivalva, sin estenosis ni insuficiencia significativas.',
-            'Las cavidades derechas muestran dilatación leve del ventrículo derecho, con función sistólica conservada. Se constata insuficiencia tricuspídea leve, con probabilidad ecocardiográfica intermedia de hipertensión pulmonar. La vena cava inferior se encuentra dilatada sin colapso inspiratorio, sugestivo de presiones de llenado derechas elevadas.',
+            'Las cavidades derechas muestran dilatación leve del ventrículo derecho, con función sistólica conservada. Se constata insuficiencia tricuspídea leve, con probabilidad ecocardiográfica intermedia de hipertensión pulmonar (PSAP estimada 36-50 mmHg). La vena cava inferior se encuentra dilatada sin colapso inspiratorio, sugestivo de presiones de llenado derechas elevadas.',
             'Pericardio libre.',
         ],
     },
@@ -189,10 +189,10 @@ casos.unshift({
         extras: { pleural: 'no', trombo: 'no', cateter: 'no' },
     },
     esperado: [
-        'El ventrículo izquierdo es de dimensiones conservadas, con espesores parietales conservados, motilidad parietal conservada y función sistólica conservada (FEy 60%).',
+        'El ventrículo izquierdo es de dimensiones conservadas, con espesores parietales conservados, motilidad parietal conservada, y función sistólica conservada (FEy 60%).',
         'Desde el punto de vista hemodinámico, la función diastólica es normal, con presiones de llenado dentro de límites fisiológicos; la aurícula izquierda es de dimensiones conservadas.',
         'El aparato valvular mitral es morfológicamente normal, sin estenosis ni insuficiencia significativas. La válvula aórtica es trivalva, sin estenosis ni insuficiencia significativas.',
-        'Las cavidades derechas son de dimensiones y función conservadas. Se estima baja probabilidad ecocardiográfica de hipertensión pulmonar. La vena cava inferior es de calibre normal, con colapso inspiratorio conservado.',
+        'Las cavidades derechas son de dimensiones y función conservadas. Se estima baja probabilidad ecocardiográfica de hipertensión pulmonar (PSAP estimada ≤35 mmHg). La vena cava inferior es de calibre normal, con colapso inspiratorio conservado.',
         'Pericardio libre.',
     ],
 });
@@ -205,6 +205,60 @@ casos.forEach(c => {
         evaluar(c.nombre, c.datos, c);
     }
 });
+
+// ── Rango de PSAP según probabilidad de HTP ──
+{
+    const RANGOS = {
+        baja:         'con baja probabilidad ecocardiográfica de hipertensión pulmonar (PSAP estimada ≤35 mmHg)',
+        intermedia:   'con probabilidad ecocardiográfica intermedia de hipertensión pulmonar (PSAP estimada 36-50 mmHg)',
+        alta:         'con alta probabilidad ecocardiográfica de hipertensión pulmonar (PSAP estimada >50 mmHg)',
+        no_valorable: 'sin poder estimar la probabilidad de hipertensión pulmonar',
+    };
+    console.log('\n▸ Rango de PSAP por probabilidad de HTP');
+    ['no', 'leve', 'moderada'].forEach(it => {
+        Object.entries(RANGOS).forEach(([htp, frase]) => {
+            const texto = Quick.generate({ derechas: { htp }, tricuspide: { insuficiencia: it } });
+            let pasa = texto.includes(frase.replace(/^con /, it === 'no' && htp !== 'no_valorable' ? '' : 'con '));
+            // "no valorable" nunca lleva rango
+            if (htp === 'no_valorable' && /PSAP/.test(texto)) pasa = false;
+            pasa ? ok++ : fail++;
+            const linea = texto.split('\n\n').pop();
+            console.log(`${pasa ? '✅' : '❌'}   IT ${it.padEnd(8)} · HTP ${htp.padEnd(12)} → ${linea}`);
+        });
+    });
+}
+
+// ── Nunca un valor puntual de PSAP: cualquier "mmHg" debe ser uno de los tres rangos ──
+{
+    const PERMITIDOS = ['≤35', '36-50', '>50'];
+    const htps = ['baja', 'intermedia', 'alta', 'no_valorable', undefined];
+    const its  = ['no', 'trace', 'leve', 'moderada', 'severa', 'masiva', undefined];
+    let violaciones = [];
+    htps.forEach(htp => its.forEach(it => {
+        const texto = Quick.generate({
+            vi: { tamano: 'moderada', fey: 40 },
+            derechas: { htp, vd_tamano: 'leve', vd_funcion: 'leve' },
+            tricuspide: { insuficiencia: it }, vci: 'dilatada_sin_colapso',
+        });
+        const valores = [...texto.matchAll(/(\S+)\s*mmHg/g)].map(m => m[1]);
+        valores.filter(v => !PERMITIDOS.includes(v)).forEach(v => violaciones.push(`${v} (HTP ${htp}, IT ${it})`));
+    }));
+    const pasa = violaciones.length === 0;
+    pasa ? ok++ : fail++;
+    console.log(`\n${pasa ? '✅' : '❌'} Ningún valor puntual de PSAP en ${htps.length * its.length} combinaciones`);
+    if (!pasa) violaciones.forEach(v => console.log('   aparece: ' + v));
+}
+
+// ── Coma antes de la función sistólica, también con motilidad segmentaria ──
+{
+    const texto = Quick.generate({
+        vi: { tamano: 'normal', fey: 45, motilidad: 'segmentaria', segmentos: segmentos({ '1,2,7,8,13,14': 2 }) },
+    });
+    const pasa = texto.includes('con extensión al septum apical, territorio DA, y deterioro leve de la función sistólica (FEy 45%)');
+    pasa ? ok++ : fail++;
+    console.log(`\n${pasa ? '✅' : '❌'} Coma antes de la función sistólica (motilidad segmentaria)`);
+    console.log('   ' + cuerpo(texto)[0]);
+}
 
 console.log(`\n${'═'.repeat(78)}`);
 console.log(`RESULTADO: ${ok} correctos, ${fail} fallidos`);

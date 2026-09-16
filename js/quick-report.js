@@ -132,11 +132,20 @@ const QuickReport = {
 
         // FEy — el único número del informe
         const fey = this._funcionSistolica(vi.fey);
-        if (fey) partes.push(fey);
 
         // Sin ningún hallazgo del ventrículo no hay párrafo que escribir
-        if (!partes.length) return sinTamano ? '' : frase + '.';
-        frase += sinTamano ? ` ${this._unir(partes)}` : `, con ${this._unir(partes)}`;
+        if (!partes.length && !fey) return sinTamano ? '' : frase + '.';
+
+        // La función sistólica cierra la frase precedida de ", y": igual que en la app
+        // principal, porque la cláusula de motilidad suele traer sus propias comas y
+        // conjunciones ("...con extensión al septum apical, territorio DA, y deterioro…").
+        // Los hallazgos previos van separados por comas y la conjunción queda sólo para
+        // el final; si no, se encadenan dos "y" ("...conservados y motilidad…, y función…").
+        let cuerpo;
+        if (fey) cuerpo = partes.length ? `${partes.join(', ')}, y ${fey}` : fey;
+        else     cuerpo = this._unir(partes);
+
+        frase += sinTamano ? ` ${cuerpo}` : `, con ${cuerpo}`;
         return frase + '.';
     },
 
@@ -313,18 +322,20 @@ const QuickReport = {
 
         // Insuficiencia tricuspídea + probabilidad de hipertensión pulmonar
         const it = (d.tricuspide || {}).insuficiencia;
+        // La PSAP no se midió: se informa el RANGO que corresponde a cada probabilidad,
+        // nunca un valor puntual que sugiera una medición.
         const HTP = {
-            baja:         'con baja probabilidad ecocardiográfica de hipertensión pulmonar',
-            intermedia:   'con probabilidad ecocardiográfica intermedia de hipertensión pulmonar',
-            alta:         'con alta probabilidad ecocardiográfica de hipertensión pulmonar',
-            no_valorable: 'sin flujo de insuficiencia tricuspídea que permita estimar la presión pulmonar',
+            baja:         'con baja probabilidad ecocardiográfica de hipertensión pulmonar (PSAP estimada ≤35 mmHg)',
+            intermedia:   'con probabilidad ecocardiográfica intermedia de hipertensión pulmonar (PSAP estimada 36-50 mmHg)',
+            alta:         'con alta probabilidad ecocardiográfica de hipertensión pulmonar (PSAP estimada >50 mmHg)',
+            no_valorable: 'sin poder estimar la probabilidad de hipertensión pulmonar',
         };
         if (it && it !== 'no') {
             let s = `Se constata insuficiencia tricuspídea ${this.REGURGITACION[it]}`;
-            if (HTP[r.htp] && r.htp !== 'no_valorable') s += `, ${HTP[r.htp]}`;
+            if (HTP[r.htp]) s += `, ${HTP[r.htp]}`;
             frases.push(s);
         } else if (r.htp === 'no_valorable') {
-            frases.push('No se observa flujo de insuficiencia tricuspídea que permita estimar la presión pulmonar');
+            frases.push(`No se observa flujo de insuficiencia tricuspídea, ${HTP.no_valorable}`);
         } else if (HTP[r.htp]) {
             frases.push(`Se estima ${HTP[r.htp].replace(/^con /, '')}`);
         }
