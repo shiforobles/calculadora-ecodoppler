@@ -63,6 +63,13 @@
                 border:1px dashed var(--accent);border-radius:8px;}
   #bullseye_box.visible{display:block}
   #motility-svg-container svg{max-width:270px;display:block;margin:0 auto;}
+  .vista-filtro{display:flex;align-items:center;justify-content:center;gap:.35rem;
+                flex-wrap:wrap;margin-bottom:.5rem;font-size:.78rem;color:var(--muted);}
+  .btn-vista{min-height:36px;padding:.35rem .7rem;border:1.5px solid var(--border);
+             border-radius:8px;background:#fff;color:var(--text);font-family:inherit;
+             font-size:.8rem;font-weight:600;cursor:pointer;}
+  .btn-vista:hover{border-color:var(--accent);background:var(--accent-soft);}
+  .btn-vista[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:#fff;}
   .mot-leyenda{font-size:.72rem;color:var(--muted);text-align:center;margin-top:.3rem;}
 
   .toast{position:fixed;bottom:1rem;left:50%;transform:translateX(-50%);
@@ -134,6 +141,12 @@
         </div>
       </div>
       <div id="bullseye_box">
+        <div class="vista-filtro" role="group" aria-label="Resaltar segmentos por vista">
+          <span>Vista:</span>
+          <button type="button" class="btn-vista" data-vista="A4C" aria-pressed="false">A4C</button>
+          <button type="button" class="btn-vista" data-vista="A2C" aria-pressed="false">A2C</button>
+          <button type="button" class="btn-vista" data-vista="A3C" aria-pressed="false">A3C</button>
+        </div>
         <div id="motility-svg-container"></div>
         <div class="mot-leyenda">Tocá cada segmento para cambiar su grado · <span id="wmsi_txt"></span></div>
       </div>
@@ -352,12 +365,12 @@
 
 <!-- Motores reutilizados de la app principal -->
 <script src="js/hemodynamics.js?v=17.9"></script>
-<script src="js/motility-model.js?v=17.0"></script>
+<script src="js/motility-model.js?v=17.1"></script>
 <script src="js/motility-engine.js?v=1.1"></script>
 <script src="js/wmsi-engine.js?v=1.0"></script>
-<script src="js/territory-engine.js?v=1.0"></script>
+<script src="js/territory-engine.js?v=1.1"></script>
 <script src="js/motility-controller.js?v=17.0"></script>
-<script src="js/motility-svg.js?v=16.0"></script>
+<script src="js/motility-svg.js?v=16.1"></script>
 <script src="js/quick-report.js?v=1.0"></script>
 <script src="js/eco-rapido.js?v=1.0"></script>
 

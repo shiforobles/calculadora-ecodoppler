@@ -7,29 +7,29 @@ const MotilityModel = {
     // 17-Segment AHA/ASE Model
     SEGMENTS: {
         // BASAL (1-6)
-        1: { name: "Basal Anterior", shortName: "1-BsAnt", views: ["A4C", "PSAX"], artery: "DA" },
-        2: { name: "Basal Anteroseptal", shortName: "2-BsAntSep", views: ["A4C", "PSAX"], artery: "DA" },
-        3: { name: "Basal Inferoseptal", shortName: "3-BsInfSep", views: ["A3C", "PSAX"], artery: "CD" },
+        1: { name: "Basal Anterior", shortName: "1-BsAnt", views: ["A2C", "PSAX"], artery: "DA" },
+        2: { name: "Basal Anteroseptal", shortName: "2-BsAntSep", views: ["A3C", "PSAX"], artery: "DA" },
+        3: { name: "Basal Inferoseptal", shortName: "3-BsInfSep", views: ["A4C", "PSAX"], artery: "CD" },
         4: { name: "Basal Inferior", shortName: "4-BsInf", views: ["A2C", "PSAX"], artery: "CD" },
-        5: { name: "Basal Inferolateral", shortName: "5-BsInfLat", views: ["A2C", "PSAX"], artery: "Cx" },
-        6: { name: "Basal Anterolateral", shortName: "6-BsAntLat", views: ["A3C", "PSAX"], artery: "Cx" },
+        5: { name: "Basal Inferolateral", shortName: "5-BsInfLat", views: ["A3C", "PSAX"], artery: "Cx" },
+        6: { name: "Basal Anterolateral", shortName: "6-BsAntLat", views: ["A4C", "PSAX"], artery: "Cx" },
 
         // MEDIO (7-12)
-        7: { name: "Medio Anterior", shortName: "7-MdAnt", views: ["A4C", "PSAX"], artery: "DA" },
-        8: { name: "Medio Anteroseptal", shortName: "8-MdAntSep", views: ["A4C", "PSAX"], artery: "DA" },
-        9: { name: "Medio Inferoseptal", shortName: "9-MdInfSep", views: ["A3C", "PSAX"], artery: "CD" },
+        7: { name: "Medio Anterior", shortName: "7-MdAnt", views: ["A2C", "PSAX"], artery: "DA" },
+        8: { name: "Medio Anteroseptal", shortName: "8-MdAntSep", views: ["A3C", "PSAX"], artery: "DA" },
+        9: { name: "Medio Inferoseptal", shortName: "9-MdInfSep", views: ["A4C", "PSAX"], artery: "CD" },
         10: { name: "Medio Inferior", shortName: "10-MdInf", views: ["A2C", "PSAX"], artery: "CD" },
-        11: { name: "Medio Inferolateral", shortName: "11-MdInfLat", views: ["A2C", "PSAX"], artery: "Cx" },
-        12: { name: "Medio Anterolateral", shortName: "12-MdAntLat", views: ["A3C", "PSAX"], artery: "Cx" },
+        11: { name: "Medio Inferolateral", shortName: "11-MdInfLat", views: ["A3C", "PSAX"], artery: "Cx" },
+        12: { name: "Medio Anterolateral", shortName: "12-MdAntLat", views: ["A4C", "PSAX"], artery: "Cx" },
 
         // APICAL (13-16)
-        13: { name: "Apical Anterior", shortName: "13-ApAnt", views: ["A4C"], artery: "DA" },
-        14: { name: "Apical Septal", shortName: "14-ApSep", views: ["A4C"], artery: "DA" },
+        13: { name: "Apical Anterior", shortName: "13-ApAnt", views: ["A2C"], artery: "DA" },
+        14: { name: "Apical Septal", shortName: "14-ApSep", views: ["A4C", "A3C"], artery: "DA" },
         15: { name: "Apical Inferior", shortName: "15-ApInf", views: ["A2C"], artery: "CD" },
-        16: { name: "Apical Lateral", shortName: "16-ApLat", views: ["A2C"], artery: "Cx" },
+        16: { name: "Apical Lateral", shortName: "16-ApLat", views: ["A4C", "A3C"], artery: "Cx" },
 
         // APEX (17)
-        17: { name: "Apex", shortName: "17-Apex", views: ["A4C", "A2C", "A3C"], artery: "DA" }
+        17: { name: "Apex", shortName: "17-Apex", views: [], artery: "DA" }
     },
 
     // Motility States
@@ -247,6 +247,21 @@ const MotilityModel = {
     // bull's-eye pero queda FUERA del WMSI y de la redacción.
     // ─────────────────────────────────────────────────────────────────────────
 
+    /**
+     * Segmentos visibles en cada vista apical (ASE).
+     *
+     * El mapeo anterior era incorrecto —ubicaba la pared anterior en A4C— y no lo usaba
+     * nadie. Éste es el bueno y es la fuente única para el filtro por vista.
+     *
+     * El septum apical (14) y el lateral apical (16) figuran en dos vistas cada uno:
+     * es correcto, se ven desde ambas.
+     */
+    VIEWS: {
+        A4C: [3, 9, 14, 6, 12, 16],   // inferoseptal/septal + anterolateral/lateral
+        A2C: [4, 10, 15, 1, 7, 13],   // inferior + anterior
+        A3C: [5, 11, 16, 2, 8, 14],   // inferolateral/lateral + anteroseptal/septal
+    },
+
     /** Segmentos que entran en WMSI y redacción */
     ANALYZED_SEGMENTS: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16],
 
@@ -320,6 +335,9 @@ const MotilityModel = {
 
     // Get segments for a specific view
     getSegmentsForView(viewName) {
+        const ids = this.VIEWS[viewName];
+        if (ids) return ids.map(id => ({ id, ...this.SEGMENTS[id] }));
+        // PSAX y cualquier otra vista siguen resolviéndose por el campo de cada segmento
         return Object.entries(this.SEGMENTS)
             .filter(([_, seg]) => seg.views.includes(viewName))
             .map(([id, seg]) => ({ id: parseInt(id), ...seg }));

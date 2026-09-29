@@ -16,7 +16,7 @@
         rel="stylesheet">
 
     <!-- Styles -->
-    <link rel="stylesheet" href="styles.css?v=18.2">
+    <link rel="stylesheet" href="styles.css?v=18.3">
 </head>
 
 <body>
@@ -455,6 +455,12 @@
                             <option value="aneurysm_inferior">Aneurisma Inferior</option>
                         </optgroup>
                     </select>
+                </div>
+                <div class="vista-filtro" role="group" aria-label="Resaltar segmentos por vista">
+                    <span class="calc-label">Vista:</span>
+                    <button type="button" class="btn-vista" data-vista="A4C" aria-pressed="false">A4C</button>
+                    <button type="button" class="btn-vista" data-vista="A2C" aria-pressed="false">A2C</button>
+                    <button type="button" class="btn-vista" data-vista="A3C" aria-pressed="false">A3C</button>
                 </div>
                 <button type="button" class="btn-reset" id="btn-reset-motility">🔄 Resetear Todo</button>
             </div>
@@ -1576,12 +1582,12 @@
     <script src="js/mini-calculators.js?v=16.0"></script>
     <script src="js/quality-control.js?v=16.0"></script>
     <!-- Motility System -->
-    <script src="js/motility-model.js?v=17.0"></script>
+    <script src="js/motility-model.js?v=17.1"></script>
     <script src="js/motility-engine.js?v=1.0"></script>
     <script src="js/wmsi-engine.js?v=1.0"></script>
-    <script src="js/territory-engine.js?v=1.0"></script>
+    <script src="js/territory-engine.js?v=1.1"></script>
     <script src="js/motility-controller.js?v=17.0"></script>
-    <script src="js/motility-svg.js?v=16.0"></script>
+    <script src="js/motility-svg.js?v=16.1"></script>
     <script src="js/gemini-ai.js?v=18.2"></script>
     <script src="js/presets.js?v=1.0"></script>
     <script src="js/ui-controller.js?v=19.15"></script>

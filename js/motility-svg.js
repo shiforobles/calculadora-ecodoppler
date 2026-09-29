@@ -8,6 +8,10 @@ class MotilitySVG {
         this.controller = controller;
         this.svgNS = "http://www.w3.org/2000/svg";
 
+        // Vista apical activa en el filtro (null = sin filtro)
+        this.vistaActiva = null;
+        this.COLOR_APEX = "#e2e8f0";
+
         // Configuration
         this.cx = 200;
         this.cy = 200;
@@ -25,6 +29,7 @@ class MotilitySVG {
 
     initializeView() {
         this.renderBullseye();
+        this.bindViewButtons();
     }
 
     renderBullseye() {
@@ -125,13 +130,15 @@ class MotilitySVG {
             apex.setAttribute("id", "seg_17");
             apex.setAttribute("data-segment-id", "17");
 
-            const state17 = this.controller.getSegmentState(17);
-            apex.setAttribute("fill", MotilityModel.STATES[state17].color);
-
-            apex.onclick = () => this.controller.toggleSegment(17);
+            // El apical cap queda en gris y no se puede tocar: está fuera del WMSI
+            // (que usa 16 segmentos) y fuera de la redacción. Se mantiene a la vista
+            // por su valor anatómico, pero no representa un estado de motilidad.
+            apex.setAttribute("fill", this.COLOR_APEX);
+            apex.setAttribute("stroke", "#94a3b8");
+            apex.setAttribute("style", "cursor: default;");
 
             const title17 = document.createElementNS(this.svgNS, "title");
-            title17.textContent = `17: ${MotilityModel.SEGMENTS[17].name}`;
+            title17.textContent = 'Apical cap — no incluido en el análisis de motilidad/WMSI';
             apex.appendChild(title17);
 
             svg.appendChild(apex);
@@ -143,6 +150,9 @@ class MotilitySVG {
             textApex.setAttribute("class", "segment-number-bullseye");
             textApex.textContent = "17";
             svg.appendChild(textApex);
+
+            // El resaltado sobrevive a un re-render
+            this.aplicarResaltado();
 
             // Apex Artery Label
             const textApexArtery = document.createElementNS(this.svgNS, "text");
@@ -190,6 +200,7 @@ class MotilitySVG {
             this.renderBullseye();
             return;
         }
+        if (parseInt(segmentId) === 17) return;   // el apical cap no cambia de color
 
         const state = this.controller.getSegmentState(segmentId);
         const color = MotilityModel.STATES[state].color;
@@ -198,6 +209,65 @@ class MotilitySVG {
         if (element) {
             element.setAttribute('fill', color);
         }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // FILTRO POR VISTA
+    //
+    // Resalta los segmentos que se ven en una vista apical y atenúa el resto. Es
+    // puramente visual: no marca nada como patológico ni toca el estado. Sirve para
+    // saber qué toca evaluar en el plano que se está mirando.
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /** Activa una vista, o la desactiva si ya estaba activa. @returns {string|null} */
+    setVista(vista) {
+        this.vistaActiva = (this.vistaActiva === vista) ? null : vista;
+        this.aplicarResaltado();
+        this.sincronizarBotones();
+        return this.vistaActiva;
+    }
+
+    aplicarResaltado() {
+        const visibles = this.vistaActiva ? MotilityModel.VIEWS[this.vistaActiva] : null;
+
+        MotilityModel.ANALYZED_SEGMENTS.forEach(id => {
+            const el = document.getElementById(`seg_${id}`);
+            if (!el) return;
+
+            if (!visibles) {                       // sin filtro: todo vuelve a su aspecto normal
+                el.setAttribute('opacity', '1');
+                el.setAttribute('stroke', '#ffffff');
+                el.setAttribute('stroke-width', '2');
+            } else if (visibles.includes(id)) {
+                el.setAttribute('opacity', '1');
+                el.setAttribute('stroke', '#0369a1');
+                el.setAttribute('stroke-width', '4');
+            } else {
+                el.setAttribute('opacity', '0.25');
+                el.setAttribute('stroke', '#ffffff');
+                el.setAttribute('stroke-width', '2');
+            }
+        });
+    }
+
+    /** Deja los botones de vista reflejando cuál está activa */
+    sincronizarBotones() {
+        document.querySelectorAll('[data-vista]').forEach(btn => {
+            btn.setAttribute('aria-pressed', btn.dataset.vista === this.vistaActiva ? 'true' : 'false');
+        });
+    }
+
+    /**
+     * Engancha los botones de vista que haya en la página. Vive acá y no en cada
+     * página para que la app principal y el eco en cama compartan el mismo filtro.
+     */
+    bindViewButtons() {
+        document.querySelectorAll('[data-vista]').forEach(btn => {
+            if (btn.dataset.vistaBound) return;
+            btn.dataset.vistaBound = '1';
+            btn.addEventListener('click', () => this.setVista(btn.dataset.vista));
+        });
+        this.sincronizarBotones();
     }
 
     handleSegmentClick(segmentId) {

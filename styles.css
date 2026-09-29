@@ -1746,3 +1746,39 @@ input.invalid {
     color: var(--color-text-primary);
     font-weight: 500;
 }
+
+/* ── Filtro por vista del bull's-eye ─────────────────────────────────────────
+   Resalta los segmentos visibles en cada vista apical. Es una ayuda visual
+   para saber qué toca evaluar en el plano que se está mirando: no marca nada
+   como patológico ni interviene en el informe. */
+.vista-filtro {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    flex-wrap: wrap;
+}
+
+.btn-vista {
+    min-height: 40px;
+    padding: 0.45rem 0.8rem;
+    border: 1.5px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    background: var(--color-bg-card);
+    color: var(--color-text-primary);
+    font-family: inherit;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.btn-vista:hover {
+    border-color: var(--color-info);
+    background: var(--color-info-bg);
+}
+
+.btn-vista[aria-pressed="true"] {
+    background: var(--color-info);
+    border-color: var(--color-info);
+    color: #fff;
+}

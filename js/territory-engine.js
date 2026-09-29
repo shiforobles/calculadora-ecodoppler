@@ -70,9 +70,11 @@ const TerritoryEngine = {
      * apical (disquinesia), no el mero compromiso apical.
      */
     CHAGAS: {
-        // Disquinesia apical. El 17 se admite acá —única excepción a su exclusión—
-        // porque el aneurisma chagásico asienta justamente en la punta.
-        APICAL: [13, 17],
+        // Disquinesia apical. Sólo el segmento 13: el apical cap (17) no es
+        // seleccionable en el bull's-eye —está fuera del WMSI y de la redacción—, así
+        // que apuntar a él sería una rama que nunca se puede cumplir. El aneurisma
+        // chagásico compromete el ápex y los apicales vecinos, y esta vía los cubre.
+        APICAL: [13],
         // Compromiso inferobasal / inferolateral basal
         INFEROBASAL: [4, 5],
         // Con la mayoría de los segmentos medios tomados ya no es un patrón chagásico
