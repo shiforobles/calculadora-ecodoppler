@@ -31,6 +31,16 @@ const MotilityEngine = {
     /** Desde cuántos segmentos (de 16) el compromiso se considera casi global */
     CASI_GLOBAL_MIN: 13,
 
+    /** Hasta cuántos segmentos sueltos vale la pena enumerar (nivel 7) */
+    ENUMERACION_MAX: 6,
+
+    /**
+     * Texto para la dispersión sin forma anatómica. Se expone porque ya resuelve la
+     * pregunta del territorio: quien arma la frase final no debe agregarle encima la
+     * atribución del Motor C, que diría lo contrario.
+     */
+    PARCHEADO_TEXT: 'de distribución parcheada, sin patrón territorial definido',
+
     LEVEL_ADJ:    { basal: 'basal',   medio: 'medio',   apical: 'apical' },
     LEVEL_FEM:    { basal: 'basal',   medio: 'media',   apical: 'apical' },
     LEVEL_PLURAL: { basal: 'basales', medio: 'medios',  apical: 'apicales' },
@@ -73,7 +83,9 @@ const MotilityEngine = {
                 // Lesión continua: una sola frase. Si el bloque secundario tiene forma
                 // anatómica propia (anillo, pared, región) se usa esa; si hubo que
                 // enumerarlo, se marca explícitamente que es contiguo al núcleo.
-                const sufijo = desc.enumerated
+                // "de distribución parcheada" ya dice que no hay forma anatómica:
+                // marcarla además como adyacente al núcleo no se puede leer.
+                const sufijo = (desc.enumerated && !desc.capped)
                     ? (block.segments.length > 1 ? ' adyacentes' : ' adyacente')
                     : '';
                 text += `, con ${noun} ${desc.text}${sufijo}`;
@@ -93,6 +105,7 @@ const MotilityEngine = {
         return {
             text: this._fusionarDescripciones(partes.map(p => p.text)),
             enumerated: partes.every(p => p.enumerated),
+            capped: partes.some(p => p.capped),
         };
     },
 
@@ -210,6 +223,13 @@ const MotilityEngine = {
         if (region) return patron(region);
 
         // ── NIVEL 7 — Fallback: enumerar ──
+        //
+        // Con muchos segmentos dispersos la lista deja de informar: ocho nombres de
+        // pared seguidos no se leen, y lo que importa en ese caso es precisamente
+        // que la alteración no sigue ningún patrón. Arriba del techo se dice eso.
+        if (segs.length > this.ENUMERACION_MAX) {
+            return { text: this.PARCHEADO_TEXT, enumerated: true, capped: true };
+        }
         return { text: this._enumerate(segs), enumerated: true };
     },
 
@@ -323,9 +343,7 @@ const MotilityEngine = {
         // medio-apical que no llega a las bases— lo honesto es describir la región,
         // no anunciar paredes que en realidad están comprometidas a medias.
         if (!walls.some(w => w.bodyComplete)) {
-            const region = this._regionName(segs);
-            const span = this._levelSpan(segs);
-            return (region && span) ? `de predominio ${region} ${span}` : null;
+            return this._regionText(segs);
         }
 
         const extApical = this._sharedApicalText(sharedApical);
@@ -429,6 +447,54 @@ const MotilityEngine = {
      * Sólo se combinan sectores CONTIGUOS: nunca se arma un nombre de pared a partir
      * de zonas separadas del ventrículo.
      */
+    /**
+     * Segmentos que respaldan cada nombre de región.
+     *
+     * Las seis primeras son columnas de pared. "septal" y "lateral" no son columnas:
+     * nombran el sector completo, que es justo lo que se quiere decir cuando las dos
+     * columnas de ese lado están tomadas, y nadie las lee como un segmento puntual.
+     */
+    REGION_SEGMENTS: {
+        anterior:      [1, 7, 13],
+        anteroseptal:  [2, 8, 14],
+        inferoseptal:  [3, 9, 14],
+        inferior:      [4, 10, 15],
+        inferolateral: [5, 11, 16],
+        anterolateral: [6, 12, 16],
+        septal:        [2, 3, 8, 9, 14],
+        lateral:       [5, 6, 11, 12, 16],
+    },
+
+    /**
+     * "de predominio <región> <alcance>", sólo si las dos piezas son verdaderas de
+     * la región que se nombra.
+     *
+     * Antes el nombre se armaba fundiendo dos sectores contiguos y el alcance se
+     * medía sobre TODO el conjunto marcado, pero se escribía como si fuera de la
+     * pared nombrada. La frase terminaba afirmando segmentos que estaban normales:
+     * "de predominio anteroseptal en toda su extensión" con un solo segmento
+     * anteroseptal marcado —o con ninguno, cuando el nombre salía de fundir el
+     * sector septal con el inferior—.
+     *
+     * Ahora se exige que la región tenga segmentos marcados y que su alcance propio
+     * coincida con el del conjunto. La coincidencia importa porque esta frase es la
+     * única descripción de la lesión: si la región abarca menos que el conjunto,
+     * quedarían hallazgos sin mencionar. Cuando no se cumple, el nivel se abstiene
+     * y la lesión se enumera segmento por segmento.
+     */
+    _regionText(segs) {
+        const region = this._regionName(segs);
+        if (!region) return null;
+
+        const propios = (this.REGION_SEGMENTS[region] || []).filter(s => segs.includes(s));
+        if (!propios.length) return null;
+
+        const span = this._levelSpan(propios);
+        if (!span || span !== this._levelSpan(segs)) return null;
+
+        return `de predominio ${region} ${span}`;
+    },
+
     _regionName(segs) {
         const walls = new Set(segs.map(s => MotilityModel.SEGMENT_ANATOMY[s].wall));
         const has = (...w) => w.some(x => walls.has(x));

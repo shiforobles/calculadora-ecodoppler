@@ -83,6 +83,43 @@ const casos = [
 
     { bloque: 'CHAGAS', nombre: '1,2,7,8,13,14 con 13=DK (sigue territorio DA) → NO',
       estados: estado({ '1,2,7,8,14': HK, '13': DK }), esperadoPatron: null, esperado: 'territorio DA' },
+
+    // ── UMBRAL SEGÚN EL TOTAL ──
+    // Con pocos segmentos alterados, uno solo es un tercio de la información: antes
+    // se descartaba por no llegar a dos y el informe atribuía todo al vaso dominante.
+    { bloque: 'UMBRAL POR TOTAL', nombre: '1,2,9 (DA 2 / CD 1, total 3) → la CD no se descarta',
+      estados: estado({ '1,2,9': HK }), esperado: 'territorio DA con extensión a territorio CD' },
+
+    { bloque: 'UMBRAL POR TOTAL', nombre: '1,2,7,9 (DA 3 / CD 1, total 4) → la CD no se descarta',
+      estados: estado({ '1,2,7,9': HK }), esperado: 'territorio DA con extensión a territorio CD' },
+
+    // De cinco en adelante vuelve a valer el umbral: ahí un segmento suelto sí es
+    // ruido anatómico.
+    { bloque: 'UMBRAL POR TOTAL', nombre: '1,2,7,8,9 (DA 4 / CD 1, total 5) → la CD se ignora',
+      estados: estado({ '1,2,7,8,9': HK }), esperado: 'territorio DA' },
+
+    // ── DA ENVOLVENTE (wrap-around) ──
+    // La DA que dobla el ápex irriga el apical inferior. Si lo único fuera de su
+    // territorio es apical, es un solo vaso largo y no enfermedad de dos vasos.
+    { bloque: 'DA DISTAL', nombre: '8,14,15 (lo no-DA es el apical inferior)',
+      estados: estado({ '8,14,15': HK }),
+      esperado: 'compatible con territorio de la descendente anterior distal' },
+
+    { bloque: 'DA DISTAL', nombre: '13,14,15,16 (anillo apical completo)',
+      estados: estado({ '13,14,15,16': HK }),
+      esperado: 'compatible con territorio de la descendente anterior distal' },
+
+    { bloque: 'DA DISTAL', nombre: '1,2,7,8,13,14,15 (DA extensa + apical inferior)',
+      estados: estado({ '1,2,7,8,13,14,15': HK }),
+      esperado: 'compatible con territorio de la descendente anterior distal' },
+
+    // Un segmento no-DA que NO es apical descarta la regla: ahí sí hay dos vasos.
+    { bloque: 'DA DISTAL', nombre: '1,2,7,8,10 (el no-DA es inferior medio) → no aplica',
+      estados: estado({ '1,2,7,8,10': HK }), esperado: 'territorio DA' },
+
+    // Con un solo segmento de DA no hay con qué sostener que el vaso sea el culpable.
+    { bloque: 'DA DISTAL', nombre: '14,15 (DA 1 / CD 1) → no aplica',
+      estados: estado({ '14,15': HK }), esperado: 'compromiso multiterritorial' },
 ];
 
 let ok = 0, fail = 0, bloqueActual = '';

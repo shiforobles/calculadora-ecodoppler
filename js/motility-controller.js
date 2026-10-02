@@ -449,8 +449,16 @@ class MotilityController {
         }
 
         const descripcion = MotilityEngine.describe(this.state).replace(/\.$/, '');
+
+        // Cuando el Motor A informa dispersión sin forma anatómica, su frase ya dice
+        // que no hay patrón territorial. Agregarle la atribución del Motor C produce
+        // una contradicción en la misma oración ("sin patrón territorial definido,
+        // territorio DA"), y con una lesión así de dispersa la frase honesta es la
+        // del Motor A: el conteo por territorio apenas alcanza el umbral.
+        const sinPatron = descripcion.includes(MotilityEngine.PARCHEADO_TEXT);
+
         let territorio = '';
-        if (alterada && typeof TerritoryEngine !== 'undefined') {
+        if (alterada && !sinPatron && typeof TerritoryEngine !== 'undefined') {
             const t = TerritoryEngine.interpret(this.state);
             // Dentro de la frase del ventrículo se usa la forma corta: el "distribución
             // compatible con..." es para cuando el dato va suelto.

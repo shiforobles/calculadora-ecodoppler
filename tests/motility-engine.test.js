@@ -164,6 +164,49 @@ const casos = [
     { bloque: 'MISMO GRADO', n: 5, nombre: 'Grados mixtos no contiguos — sin cambios',
       estados: estado({ '13': AK, '4': HK }),
       esperado: 'Aquinesia del segmento anterior apical e hipoquinesia del segmento inferior basal.' },
+
+    // ── REGIÓN VERIFICADA ──
+    // El nivel 6 fundía dos sectores contiguos en un nombre de pared y le pegaba el
+    // alcance del conjunto entero, así que afirmaba segmentos que estaban normales.
+    // Ahora la región nombrada tiene que tener segmentos marcados Y su alcance propio
+    // tiene que ser el que se escribe; si no, se enumera.
+    { bloque: 'REGIÓN VERIFICADA', n: 1, nombre: 'Septal + inferior no es "inferoseptal" (8,14,15)',
+      estados: estado({ '8,14,15': HK }),
+      esperado: 'Hipoquinesia de los segmentos anteroseptal medio, septal apical e inferior apical.' },
+
+    { bloque: 'REGIÓN VERIFICADA', n: 2, nombre: 'Ningún segmento anteroseptal marcado (1,9,13)',
+      estados: estado({ '1,9,13': HK }),
+      esperado: 'Hipoquinesia de los segmentos anterior basal, inferoseptal medio y anterior apical.' },
+
+    { bloque: 'REGIÓN VERIFICADA', n: 3, nombre: 'Un solo anteroseptal no abarca "toda su extensión" (1,8,13)',
+      estados: estado({ '1,8,13': HK }),
+      esperado: 'Hipoquinesia de los segmentos anterior basal, anteroseptal medio y anterior apical.' },
+
+    { bloque: 'REGIÓN VERIFICADA', n: 4, nombre: 'Alcance menor que el del conjunto (1,2,9)',
+      estados: estado({ '1,2,9': HK }),
+      esperado: 'Hipoquinesia de los segmentos anterior basal, anteroseptal basal e inferoseptal medio.' },
+
+    // La región válida se conserva: de la columna anteroseptal están marcados el 8 y
+    // el 14, y su alcance propio es justamente medio-apical.
+    { bloque: 'REGIÓN VERIFICADA', n: 5, nombre: 'Región legítima intacta (7,8,13,14)',
+      estados: estado({ '7,8,13,14': HK }),
+      esperado: 'Hipoquinesia de predominio anteroseptal medio-apical.' },
+
+    // "septal" nombra el sector, no una columna: con las dos columnas septales
+    // tomadas en los tres niveles la frase es verdadera.
+    { bloque: 'REGIÓN VERIFICADA', n: 6, nombre: 'Sector septal completo (2,9,14)',
+      estados: estado({ '2,9,14': HK }),
+      esperado: 'Hipoquinesia de predominio septal en toda su extensión.' },
+
+    // ── TECHO DE LA ENUMERACIÓN ──
+    { bloque: 'TECHO ENUMERACIÓN', n: 1, nombre: 'Seis segmentos dispersos todavía se enumeran',
+      estados: estado({ '1,4,8,11,14,15': HK }),
+      esperado: 'Hipoquinesia de los segmentos anterior basal, inferior basal, anteroseptal medio, '
+              + 'inferolateral medio, septal apical e inferior apical.' },
+
+    { bloque: 'TECHO ENUMERACIÓN', n: 2, nombre: 'Siete dispersos: se describe la dispersión',
+      estados: estado({ '1,3,4,6,8,11,14': HK }),
+      esperado: 'Hipoquinesia de distribución parcheada, sin patrón territorial definido.' },
 ];
 
 let ok = 0, fail = 0;

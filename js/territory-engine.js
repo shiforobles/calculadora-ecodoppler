@@ -24,6 +24,16 @@ const TerritoryEngine = {
     MIN_RATIO_EXTENSION: 0.30,
 
     /**
+     * Hasta este total de segmentos alterados no se descarta ningún territorio.
+     *
+     * Los umbrales de arriba suponen que un territorio con un solo segmento es ruido
+     * anatómico. Eso vale cuando hay muchos segmentos comprometidos, pero con tres o
+     * cuatro ese segmento es un tercio de la información: descartarlo hace que el
+     * informe atribuya a un vaso una alteración que está fuera de su territorio.
+     */
+    TOTAL_SIN_UMBRAL: 4,
+
+    /**
      * Margen para considerar que un territorio domina de verdad. Con 6-5-5 sobre 16
      * segmentos nadie domina: eso es enfermedad difusa, no un territorio con extensión.
      */
@@ -105,7 +115,10 @@ const TerritoryEngine = {
         // Chagas se evalúa primero: tiene prioridad sobre el territorio y sobre los
         // patrones por conjunto, porque su rasgo distintivo es no respetar territorios.
         const pattern = this._matchChagas(states, altered) || this._matchPattern(altered);
-        const terr = this._territory(counts, altered.length);
+        // La DA envolvente se evalúa antes del conteo por territorio: explica con un
+        // solo vaso lo que el conteo repartiría entre dos.
+        const terr = (!pattern && this._matchDAdistal(altered, counts))
+            || this._territory(counts, altered.length);
 
         return {
             ...terr,
@@ -120,9 +133,37 @@ const TerritoryEngine = {
 
     _territoryText(terr) {
         if (!terr.territory) return '';
-        return terr.multiterritorial
+        // Algunas atribuciones ya son una frase cerrada y no admiten el prefijo de
+        // compatibilidad: "compromiso multiterritorial", "compatible con territorio…".
+        return terr.cerrada
             ? terr.territory
             : `distribución compatible con ${terr.territory}`;
+    },
+
+    /**
+     * DA envolvente (wrap-around): la descendente anterior que dobla el ápex irriga
+     * también el apical inferior, y a veces el lateral apical.
+     *
+     * Cuando el compromiso es de la DA y lo único que cae fuera de su territorio es
+     * apical, atribuirlo a dos vasos es un error de lectura: es una DA larga con
+     * compromiso distal. Por eso se evalúa por QUÉ segmento está tomado y no por
+     * cuántos, y vale para cualquier tamaño de lesión.
+     *
+     * Se exige que la DA tenga al menos dos segmentos y que no esté en minoría: con
+     * un solo segmento anterior no hay con qué sostener que el vaso sea el culpable.
+     */
+    _matchDAdistal(altered, counts) {
+        if (counts.DA < 2) return null;
+
+        const fuera = altered.filter(id => MotilityModel.SEGMENTS[id].artery !== 'DA');
+        if (!fuera.length) return null;
+        if (!fuera.every(id => MotilityModel.LEVELS.apical.includes(id))) return null;
+        if (counts.DA < fuera.length) return null;
+
+        return {
+            territory: 'compatible con territorio de la descendente anterior distal',
+            dominant: 'DA', extension: null, multiterritorial: false, cerrada: true,
+        };
     },
 
     /** Territorio dominante y, si corresponde, su extensión */
@@ -148,14 +189,18 @@ const TerritoryEngine = {
         if (!domina) {
             return {
                 territory: 'compromiso multiterritorial',
-                dominant: null, extension: null, multiterritorial: true,
+                dominant: null, extension: null, multiterritorial: true, cerrada: true,
             };
         }
 
-        // Territorios menores que califican como extensión
+        // Territorios menores que califican como extensión. Con pocos segmentos
+        // alterados no se descarta ninguno: ver TOTAL_SIN_UMBRAL.
+        const sinUmbral = total <= this.TOTAL_SIN_UMBRAL;
         const extensiones = orden.slice(1).filter(t =>
-            counts[t] >= this.MIN_SEGMENTS_EXTENSION &&
-            counts[t] / total >= this.MIN_RATIO_EXTENSION
+            sinUmbral || (
+                counts[t] >= this.MIN_SEGMENTS_EXTENSION &&
+                counts[t] / total >= this.MIN_RATIO_EXTENSION
+            )
         );
 
         if (!extensiones.length) {
