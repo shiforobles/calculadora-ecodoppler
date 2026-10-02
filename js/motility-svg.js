@@ -30,6 +30,8 @@ class MotilitySVG {
     initializeView() {
         this.renderBullseye();
         this.bindViewButtons();
+        this.bindGradeButtons();
+        this.bindGroupButtons();
     }
 
     renderBullseye() {
@@ -151,8 +153,9 @@ class MotilitySVG {
             textApex.textContent = "17";
             svg.appendChild(textApex);
 
-            // El resaltado sobrevive a un re-render
+            // El resaltado y el pincel sobreviven a un re-render
             this.aplicarResaltado();
+            this.sincronizarGrados();
 
             // Apex Artery Label
             const textApexArtery = document.createElementNS(this.svgNS, "text");
@@ -268,6 +271,41 @@ class MotilitySVG {
             btn.addEventListener('click', () => this.setVista(btn.dataset.vista));
         });
         this.sincronizarBotones();
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // PINCEL DE GRADO Y GRUPOS ANATÓMICOS
+    //
+    // Los botones se enganchan desde acá, igual que los de vista, para que la app
+    // principal y el eco en cama compartan el mismo comportamiento sin duplicarlo.
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /** Deja los botones de grado reflejando cuál está activo */
+    sincronizarGrados() {
+        document.querySelectorAll('[data-grado]').forEach(btn => {
+            const activo = parseInt(btn.dataset.grado) === this.controller.gradoActivo;
+            btn.setAttribute('aria-pressed', activo ? 'true' : 'false');
+        });
+    }
+
+    bindGradeButtons() {
+        document.querySelectorAll('[data-grado]').forEach(btn => {
+            if (btn.dataset.gradoBound) return;
+            btn.dataset.gradoBound = '1';
+            btn.addEventListener('click', () => {
+                this.controller.setGradoActivo(btn.dataset.grado);
+                this.sincronizarGrados();
+            });
+        });
+        this.sincronizarGrados();
+    }
+
+    bindGroupButtons() {
+        document.querySelectorAll('[data-grupo]').forEach(btn => {
+            if (btn.dataset.grupoBound) return;
+            btn.dataset.grupoBound = '1';
+            btn.addEventListener('click', () => this.controller.aplicarGrupo(btn.dataset.grupo));
+        });
     }
 
     handleSegmentClick(segmentId) {

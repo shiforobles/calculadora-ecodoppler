@@ -265,6 +265,48 @@ const MotilityModel = {
     /** Segmentos que entran en WMSI y redacción */
     ANALYZED_SEGMENTS: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16],
 
+    /**
+     * Grupos para marcar de a varios segmentos con un toque.
+     *
+     * Se aplican por UNIÓN y no por intersección: tocar "anterior" y después
+     * "apicales" marca la pared anterior MÁS el anillo apical. Es lo que uno dicta
+     * ("compromiso anterior y apical"), y además cada botón queda reversible por
+     * separado. La intersección obligaría a pensar la selección en dos pasos antes
+     * de tocar nada.
+     *
+     * Las paredes septal y lateral incluyen el segmento apical que les corresponde:
+     * a nivel apical el ventrículo pasa de 6 a 4 paredes, así que el septum apical
+     * (14) cierra las dos columnas septales y el lateral apical (16) las dos
+     * laterales.
+     *
+     * Los territorios NO incluyen el 17: no es seleccionable.
+     */
+    ANATOMIC_GROUPS: {
+        paredes: {
+            anterior:  [1, 7, 13],
+            septal:    [2, 3, 8, 9, 14],
+            inferior:  [4, 10, 15],
+            lateral:   [5, 6, 11, 12, 16],
+        },
+        niveles: {
+            basales:  [1, 2, 3, 4, 5, 6],
+            medios:   [7, 8, 9, 10, 11, 12],
+            apicales: [13, 14, 15, 16],
+        },
+        territorios: {
+            DA:     [1, 2, 7, 8, 13, 14],
+            CD:     [3, 4, 9, 10, 15],
+            Cx:     [5, 6, 11, 12, 16],
+            global: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16],
+        },
+    },
+
+    /** Segmentos de un grupo, por su clave "familia.nombre" (ej. "paredes.anterior") */
+    getGroupSegments(clave) {
+        const [familia, nombre] = String(clave).split('.');
+        return this.ANATOMIC_GROUPS[familia]?.[nombre] || null;
+    },
+
     /** Anillos por nivel */
     LEVELS: {
         basal:  [1, 2, 3, 4, 5, 6],

@@ -70,6 +70,28 @@
              font-size:.8rem;font-weight:600;cursor:pointer;}
   .btn-vista:hover{border-color:var(--accent);background:var(--accent-soft);}
   .btn-vista[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:#fff;}
+
+  /* Pincel de grado: cada botón lleva el color con el que pinta el bull's-eye */
+  .grado-selector{display:flex;align-items:center;justify-content:center;gap:.3rem;
+                  flex-wrap:wrap;margin-bottom:.4rem;font-size:.78rem;color:var(--muted);}
+  .btn-grado{min-height:40px;padding:.35rem .6rem;border:1.5px solid var(--border);
+             border-bottom:3px solid var(--grado-color);border-radius:8px;background:#fff;
+             color:var(--text);font-family:inherit;font-size:.78rem;font-weight:600;cursor:pointer;}
+  .btn-grado[aria-pressed="true"]{background:var(--grado-color);border-color:var(--grado-color);color:#fff;}
+  .btn-grado.grado-1{--grado-color:#10b981;}
+  .btn-grado.grado-2{--grado-color:#fbbf24;}
+  .btn-grado.grado-3{--grado-color:#ef4444;}
+  .btn-grado.grado-4{--grado-color:#a855f7;}
+  .btn-grado.grado-2[aria-pressed="true"]{color:#1f2937;}
+
+  /* Marcado por pared, anillo o territorio: suma sobre lo ya marcado */
+  .grupo-presets{display:flex;flex-direction:column;gap:.25rem;margin-bottom:.5rem;}
+  .grupo-fila{display:flex;align-items:center;justify-content:center;gap:.25rem;
+              flex-wrap:wrap;font-size:.72rem;color:var(--muted);}
+  .btn-grupo{min-height:34px;padding:.3rem .55rem;border:1.5px solid var(--border);
+             border-radius:6px;background:#fff;color:var(--text);font-family:inherit;
+             font-size:.75rem;font-weight:500;cursor:pointer;}
+  .btn-grupo:hover{border-color:var(--accent);background:var(--accent-soft);}
   .mot-leyenda{font-size:.72rem;color:var(--muted);text-align:center;margin-top:.3rem;}
 
   .toast{position:fixed;bottom:1rem;left:50%;transform:translateX(-50%);
@@ -146,6 +168,35 @@
           <button type="button" class="btn-vista" data-vista="A4C" aria-pressed="false">A4C</button>
           <button type="button" class="btn-vista" data-vista="A2C" aria-pressed="false">A2C</button>
           <button type="button" class="btn-vista" data-vista="A3C" aria-pressed="false">A3C</button>
+        </div>
+        <div class="grado-selector" role="group" aria-label="Grado a aplicar al tocar un segmento">
+          <span>Grado:</span>
+          <button type="button" class="btn-grado grado-2" data-grado="2" aria-pressed="false">Hipo</button>
+          <button type="button" class="btn-grado grado-3" data-grado="3" aria-pressed="false">Aqui</button>
+          <button type="button" class="btn-grado grado-4" data-grado="4" aria-pressed="false">Dis</button>
+          <button type="button" class="btn-grado grado-1" data-grado="1" aria-pressed="false">Normal</button>
+        </div>
+        <div class="grupo-presets">
+          <div class="grupo-fila">
+            <span>Paredes:</span>
+            <button type="button" class="btn-grupo" data-grupo="paredes.anterior">Anterior</button>
+            <button type="button" class="btn-grupo" data-grupo="paredes.septal">Septal</button>
+            <button type="button" class="btn-grupo" data-grupo="paredes.inferior">Inferior</button>
+            <button type="button" class="btn-grupo" data-grupo="paredes.lateral">Lateral</button>
+          </div>
+          <div class="grupo-fila">
+            <span>Niveles:</span>
+            <button type="button" class="btn-grupo" data-grupo="niveles.basales">Basales</button>
+            <button type="button" class="btn-grupo" data-grupo="niveles.medios">Medios</button>
+            <button type="button" class="btn-grupo" data-grupo="niveles.apicales">Apicales</button>
+          </div>
+          <div class="grupo-fila">
+            <span>Territorios:</span>
+            <button type="button" class="btn-grupo" data-grupo="territorios.DA">DA</button>
+            <button type="button" class="btn-grupo" data-grupo="territorios.CD">CD</button>
+            <button type="button" class="btn-grupo" data-grupo="territorios.Cx">Cx</button>
+            <button type="button" class="btn-grupo" data-grupo="territorios.global">Global</button>
+          </div>
         </div>
         <div id="motility-svg-container"></div>
         <div class="mot-leyenda">Tocá cada segmento para cambiar su grado · <span id="wmsi_txt"></span></div>
@@ -365,12 +416,12 @@
 
 <!-- Motores reutilizados de la app principal -->
 <script src="js/hemodynamics.js?v=17.9"></script>
-<script src="js/motility-model.js?v=17.1"></script>
+<script src="js/motility-model.js?v=17.2"></script>
 <script src="js/motility-engine.js?v=1.1"></script>
 <script src="js/wmsi-engine.js?v=1.0"></script>
 <script src="js/territory-engine.js?v=1.1"></script>
-<script src="js/motility-controller.js?v=17.0"></script>
-<script src="js/motility-svg.js?v=16.1"></script>
+<script src="js/motility-controller.js?v=17.1"></script>
+<script src="js/motility-svg.js?v=16.2"></script>
 <script src="js/quick-report.js?v=1.0"></script>
 <script src="js/eco-rapido.js?v=1.0"></script>
 

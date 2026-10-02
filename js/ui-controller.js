@@ -2047,7 +2047,21 @@ class UIController {
             if (vacio && demo[id] !== undefined) set(id, demo[id]);
         });
 
-        Object.entries(preset.campos || {}).forEach(([id, val]) => set(id, val));
+        Object.entries(preset.campos || {}).forEach(([id, val]) => {
+            if (id === 'pattern-selector') return;   // se aplica abajo, por API
+            set(id, val);
+        });
+
+        // El patrón se aplica llamando al controlador y no escribiendo el <select>:
+        // los patrones territoriales (DA/CD/Cx) salieron del selector y ahora son
+        // botones, así que asignar el valor dejaría al select vacío y el preset no
+        // marcaría ningún segmento.
+        const patron = preset.campos?.['pattern-selector'];
+        if (patron && this.motility) {
+            const sel = document.getElementById('pattern-selector');
+            if (sel && [...sel.options].some(o => o.value === patron)) sel.value = patron;
+            this.motility.setPattern(patron);
+        }
 
         this.calculateAll();
         this.showToast(`Preset "${preset.label || name.replace(/_/g, ' ')}" aplicado`);

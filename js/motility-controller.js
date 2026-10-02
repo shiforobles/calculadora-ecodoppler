@@ -4,14 +4,54 @@
  */
 
 class MotilityController {
+    /**
+     * Etapas de un eco estrés. Por ahora sólo se usa 'reposo': la estructura queda
+     * armada para que agregar las otras sea conectar un selector, sin tocar nada de
+     * lo que hoy lee el estado.
+     */
+    static FASES = ['reposo', 'dosis_baja', 'pico', 'recuperacion'];
+
+    static FASES_LABEL = {
+        reposo: 'Reposo',
+        dosis_baja: 'Dosis baja',
+        pico: 'Pico',
+        recuperacion: 'Recuperación',
+    };
+
     constructor() {
-        this.state = this.getDefaultState();
+        // Un mapa de segmentos POR FASE. `this.state` es la fase activa (ver el
+        // getter de abajo), así que todo el código que ya existía sigue leyendo y
+        // escribiendo lo mismo que antes.
+        this.faseActiva = 'reposo';
+        this.phases = { reposo: this.getDefaultState() };
+
         this.pattern = 'none';
+        // Grado que se aplica al tocar un segmento. null = ciclado clásico.
+        this.gradoActivo = null;
         this.listeners = [];
 
         // Clean up any lingering storage from previous versions to ensure it resets for new studies
         sessionStorage.removeItem('motility-state');
         sessionStorage.removeItem('motility-pattern');
+    }
+
+    /** Mapa de segmentos de la fase activa */
+    get state() { return this.phases[this.faseActiva]; }
+    set state(mapa) { this.phases[this.faseActiva] = mapa; }
+
+    /**
+     * Cambia de etapa. Una etapa nueva arranca en normal y NO hereda lo de reposo:
+     * heredar haría que un defecto fijo se informe en el pico sin haberlo mirado.
+     * Si al conectar el eco estrés se decide lo contrario, se cambia acá.
+     */
+    setFase(nombre) {
+        if (!MotilityController.FASES.includes(nombre)) return this.faseActiva;
+        if (!this.phases[nombre]) this.phases[nombre] = this.getDefaultState();
+        this.faseActiva = nombre;
+        this.notifyListeners('all');
+        this.updateUI();
+        this.updatePreview();
+        return this.faseActiva;
     }
 
     // Initialize with all segments normal
@@ -28,12 +68,60 @@ class MotilityController {
         return this.state[segmentId] || 1;
     }
 
-    // Toggle segment state (1 → 2 → 3 → 4 → 1)
+    /**
+     * Fija el grado que se aplica al tocar un segmento, o lo suelta si ya estaba.
+     * @returns {number|null} el grado que quedó activo
+     */
+    setGradoActivo(grado) {
+        const g = parseInt(grado);
+        this.gradoActivo = (this.gradoActivo === g || !MotilityModel.STATES[g]) ? null : g;
+        return this.gradoActivo;
+    }
+
+    /**
+     * Toque sobre un segmento.
+     *
+     * Con un grado activo el toque lo aplica directo, y volver a tocar un segmento
+     * que ya tiene ese grado lo devuelve a normal: así se corrige un error con el
+     * mismo gesto, sin pasar por los otros dos grados.
+     *
+     * Sin grado activo se conserva el ciclado de siempre (1 → 2 → 3 → 4 → 1), que
+     * es lo que tiene en la mano quien ya viene usando la app.
+     */
     toggleSegment(segmentId) {
         const current = this.state[segmentId];
-        this.state[segmentId] = (current % 4) + 1;
+        this.state[segmentId] = this.gradoActivo
+            ? (current === this.gradoActivo ? 1 : this.gradoActivo)
+            : (current % 4) + 1;
         this.saveToStorage();
         this.notifyListeners(segmentId);
+        this.updateUI();
+        this.updatePreview();
+    }
+
+    /**
+     * Marca un grupo anatómico completo (una pared, un anillo, un territorio).
+     *
+     * Suma sobre lo que ya está marcado en lugar de reemplazarlo, así se combinan
+     * varios grupos. Si el grupo entero ya tiene el grado que se iba a aplicar, el
+     * toque lo apaga: el mismo botón sirve para poner y para sacar.
+     *
+     * Sin grado activo aplica hipoquinesia, que es el grado con el que uno empieza
+     * a describir y del que después baja o sube.
+     *
+     * @param {string|number[]} grupo clave "familia.nombre" o lista de segmentos
+     */
+    aplicarGrupo(grupo) {
+        const ids = Array.isArray(grupo) ? grupo : MotilityModel.getGroupSegments(grupo);
+        if (!ids || !ids.length) return;
+
+        const grado = this.gradoActivo || 2;
+        const yaEsta = ids.every(id => this.state[id] === grado);
+        const destino = yaEsta ? 1 : grado;
+
+        ids.forEach(id => { this.state[id] = destino; });
+        this.saveToStorage();
+        this.notifyListeners('all');
         this.updateUI();
         this.updatePreview();
     }
@@ -581,8 +669,11 @@ class MotilityController {
                 }
                 // Set affected segments to pattern-specific severity
                 const severity = pattern.severity || 3; // Default to akinetic if not specified
+                // Varios patrones listan el 17 por herencia del modelo de 17 segmentos.
+                // Se saltea: no se pinta ni se analiza, así que marcarlo sólo dejaría un
+                // estado invisible que no coincide con lo que muestra el bull's-eye.
                 pattern.affectedSegments.forEach(id => {
-                    this.state[id] = severity;
+                    if (id !== 17) this.state[id] = severity;
                 });
                 this.saveToStorage();
                 this.notifyListeners('all');
@@ -594,7 +685,11 @@ class MotilityController {
 
     // Reset all segments to normal
     reset() {
-        this.state = this.getDefaultState();
+        // Se limpian TODAS las etapas y se suelta el pincel: un reset abre un estudio
+        // nuevo, no una etapa nueva del mismo estudio.
+        this.faseActiva = 'reposo';
+        this.phases = { reposo: this.getDefaultState() };
+        this.gradoActivo = null;
         this.pattern = 'none';
         this.saveToStorage();
         sessionStorage.setItem('motility-pattern', 'none');

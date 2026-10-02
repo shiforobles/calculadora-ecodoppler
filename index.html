@@ -16,7 +16,7 @@
         rel="stylesheet">
 
     <!-- Styles -->
-    <link rel="stylesheet" href="styles.css?v=18.3">
+    <link rel="stylesheet" href="styles.css?v=18.4">
 </head>
 
 <body>
@@ -408,17 +408,54 @@
                     <span class="calc-label">WMSI:</span>
                     <span id="wmsi-value" class="calc-value">1.00</span>
                 </div>
+                <!-- Etapas del eco estrés. El modelo ya guarda un mapa de segmentos por
+                     etapa (MotilityController.FASES); falta sólo mostrar el selector.
+                     Se deja preparado y oculto para no ofrecer una etapa que todavía no
+                     se informa.
+                <div class="fase-selector" role="group" aria-label="Etapa del estudio">
+                    <span class="calc-label">Etapa:</span>
+                    <button type="button" class="btn-fase" data-fase="reposo" aria-pressed="true">Reposo</button>
+                    <button type="button" class="btn-fase" data-fase="dosis_baja" aria-pressed="false">Dosis baja</button>
+                    <button type="button" class="btn-fase" data-fase="pico" aria-pressed="false">Pico</button>
+                    <button type="button" class="btn-fase" data-fase="recuperacion" aria-pressed="false">Recuperación</button>
+                </div>
+                -->
+
+                <div class="grado-selector" role="group" aria-label="Grado a aplicar al tocar un segmento">
+                    <span class="calc-label">Grado:</span>
+                    <button type="button" class="btn-grado grado-2" data-grado="2" aria-pressed="false">Hipoquinesia</button>
+                    <button type="button" class="btn-grado grado-3" data-grado="3" aria-pressed="false">Aquinesia</button>
+                    <button type="button" class="btn-grado grado-4" data-grado="4" aria-pressed="false">Disquinesia</button>
+                    <button type="button" class="btn-grado grado-1" data-grado="1" aria-pressed="false">Normal</button>
+                </div>
+
+                <div class="grupo-presets">
+                    <div class="grupo-fila">
+                        <span class="calc-label">Paredes:</span>
+                        <button type="button" class="btn-grupo" data-grupo="paredes.anterior">Anterior</button>
+                        <button type="button" class="btn-grupo" data-grupo="paredes.septal">Septal</button>
+                        <button type="button" class="btn-grupo" data-grupo="paredes.inferior">Inferior</button>
+                        <button type="button" class="btn-grupo" data-grupo="paredes.lateral">Lateral</button>
+                    </div>
+                    <div class="grupo-fila">
+                        <span class="calc-label">Niveles:</span>
+                        <button type="button" class="btn-grupo" data-grupo="niveles.basales">Basales</button>
+                        <button type="button" class="btn-grupo" data-grupo="niveles.medios">Medios</button>
+                        <button type="button" class="btn-grupo" data-grupo="niveles.apicales">Apicales</button>
+                    </div>
+                    <div class="grupo-fila">
+                        <span class="calc-label">Territorios:</span>
+                        <button type="button" class="btn-grupo" data-grupo="territorios.DA">DA</button>
+                        <button type="button" class="btn-grupo" data-grupo="territorios.CD">CD</button>
+                        <button type="button" class="btn-grupo" data-grupo="territorios.Cx">Cx</button>
+                        <button type="button" class="btn-grupo" data-grupo="territorios.global">Global</button>
+                    </div>
+                </div>
+
                 <div class="form-group">
                     <label for="pattern-selector">Patrón Especial:</label>
                     <select id="pattern-selector">
                         <option value="none">Ninguno (Manual)</option>
-
-                        <optgroup label="🔴 Isquémicos">
-                            <option value="ischemic_da">DA (Anterior/Septal/Ápex)</option>
-                            <option value="ischemic_cd">CD (Inferior/Inferoseptal)</option>
-                            <option value="ischemic_cx">Cx (Lateral/Inferolateral)</option>
-                            <option value="ischemic_multivessel">Multivaso (DA+CD)</option>
-                        </optgroup>
 
                         <optgroup label="🫀 Takotsubo">
                             <option value="takotsubo_apical">Apical (Clásico)</option>
@@ -1582,15 +1619,15 @@
     <script src="js/mini-calculators.js?v=16.0"></script>
     <script src="js/quality-control.js?v=16.0"></script>
     <!-- Motility System -->
-    <script src="js/motility-model.js?v=17.1"></script>
+    <script src="js/motility-model.js?v=17.2"></script>
     <script src="js/motility-engine.js?v=1.0"></script>
     <script src="js/wmsi-engine.js?v=1.0"></script>
     <script src="js/territory-engine.js?v=1.1"></script>
-    <script src="js/motility-controller.js?v=17.0"></script>
-    <script src="js/motility-svg.js?v=16.1"></script>
+    <script src="js/motility-controller.js?v=17.1"></script>
+    <script src="js/motility-svg.js?v=16.2"></script>
     <script src="js/gemini-ai.js?v=18.2"></script>
     <script src="js/presets.js?v=1.0"></script>
-    <script src="js/ui-controller.js?v=19.15"></script>
+    <script src="js/ui-controller.js?v=19.16"></script>
     <script src="js/ui-extensions.js?v=16.0"></script>
     <script src="js/ui-lanus.js?v=16.0"></script>
     <script src="js/ui-aorta-display.js?v=16.0"></script>

@@ -1782,3 +1782,82 @@ input.invalid {
     border-color: var(--color-info);
     color: #fff;
 }
+
+
+/* ── Pincel de grado ─────────────────────────────────────────────────────────
+   Fija qué grado se aplica al tocar un segmento. Cada botón lleva el color con
+   el que se va a pintar el bull's-eye, que es el mismo de la leyenda. */
+.grado-selector {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    flex-wrap: wrap;
+}
+
+.btn-grado {
+    min-height: 40px;
+    padding: 0.45rem 0.7rem;
+    border: 1.5px solid var(--color-border);
+    border-bottom: 3px solid var(--grado-color);
+    border-radius: var(--radius-lg);
+    background: var(--color-bg-card);
+    color: var(--color-text-primary);
+    font-family: inherit;
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.btn-grado:hover { border-color: var(--grado-color); }
+
+.btn-grado[aria-pressed="true"] {
+    background: var(--grado-color);
+    border-color: var(--grado-color);
+    color: #fff;
+}
+
+.btn-grado.grado-1 { --grado-color: #10b981; }
+.btn-grado.grado-2 { --grado-color: #fbbf24; }
+.btn-grado.grado-3 { --grado-color: #ef4444; }
+.btn-grado.grado-4 { --grado-color: #a855f7; }
+
+/* El amarillo no da contraste con texto blanco */
+.btn-grado.grado-2[aria-pressed="true"] { color: #1F2937; }
+
+/* ── Marcado por grupo anatómico ─────────────────────────────────────────────
+   Cada botón suma su pared, anillo o territorio a lo que ya está marcado, con
+   el grado activo. Volver a tocarlo lo saca. */
+.grupo-presets {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+}
+
+.grupo-fila {
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+    flex-wrap: wrap;
+}
+
+.grupo-fila .calc-label { min-width: 5.5rem; }
+
+.btn-grupo {
+    min-height: 36px;
+    padding: 0.35rem 0.6rem;
+    border: 1.5px solid var(--color-border);
+    border-radius: var(--radius-md);
+    background: var(--color-bg-card);
+    color: var(--color-text-primary);
+    font-family: inherit;
+    font-size: 0.8rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.btn-grupo:hover {
+    border-color: var(--color-primary);
+    background: var(--color-primary-bg);
+}
