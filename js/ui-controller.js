@@ -1515,6 +1515,13 @@ class UIController {
 
             // 2. LV Geometry and Function
             let viConclusion = '';
+            let viSoloSujeto = false;
+            // Cómo se engancha la motilidad a la frase del ventrículo. Null = con la
+            // conjunción "y"/"e", que sólo funciona cuando antes hay un complemento al
+            // que sumarse ("con hipertrofia excéntrica e hipoquinesia de…"). Detrás de
+            // un sustantivo o de un adjetivo suelto la conjunción queda torpe y se usa
+            // "con", que subordina en lugar de enumerar.
+            let nexoMotilidad = null;
 
             // Geometry description
             const sexo = document.getElementById('sexo').value;
@@ -1537,8 +1544,14 @@ class UIController {
                 // No geometry data — use diameter alone
                 if (dilated) {
                     viConclusion += `Ventrículo izquierdo dilatado`;
+                    // "dilatado e hipoquinesia" une un adjetivo con un sustantivo
+                    nexoMotilidad = ', con ';
                 } else {
                     viConclusion += `Ventrículo izquierdo`;
+                    // Acá la frase quedó en el sujeto, sin predicado: "Ventrículo
+                    // izquierdo e hipoquinesia de los segmentos…" no se puede leer.
+                    nexoMotilidad = ' con ';
+                    viSoloSujeto = true;
                 }
             }
 
@@ -1547,16 +1560,24 @@ class UIController {
             if (this.motility) {
                 const mot = this.motility.getMotilityTexts();
                 if (mot.alterada && mot.descripcionMinuscula) {
-                    const primera = mot.descripcionMinuscula.split(' ')[0];
-                    // "y" → "e" delante de i- / hi- (hipoquinesia, inferior…)
-                    const conj = (primera.startsWith('i') || (primera.startsWith('hi') && !primera.startsWith('hie')))
-                        ? 'e' : 'y';
-                    viConclusion += ` ${conj} ${mot.descripcionMinuscula}`;
+                    if (nexoMotilidad) {
+                        viConclusion += `${nexoMotilidad}${mot.descripcionMinuscula}`;
+                        viSoloSujeto = false;   // ya tiene predicado
+                    } else {
+                        const primera = mot.descripcionMinuscula.split(' ')[0];
+                        // "y" → "e" delante de i- / hi- (hipoquinesia, inferior…)
+                        const conj = (primera.startsWith('i') || (primera.startsWith('hi') && !primera.startsWith('hie')))
+                            ? 'e' : 'y';
+                        viConclusion += ` ${conj} ${mot.descripcionMinuscula}`;
+                    }
                     if (mot.territorio) viConclusion += `, ${mot.territorio}`;
                 }
             }
 
-            viConclusion += `. `;
+            // Si no hubo nada que decir del ventrículo, "Ventrículo izquierdo." sería
+            // una frase sin predicado: se omite y la conclusión arranca por la función
+            // sistólica, que siempre se informa.
+            viConclusion = viSoloSujeto ? '' : `${viConclusion}. `;
 
             // Asincronía septal por marcapasos o post-CRM: se informa acá porque la
             // sección del VI ya no lleva descripción de motilidad.
