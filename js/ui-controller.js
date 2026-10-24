@@ -20,7 +20,7 @@ class UIController {
             psap: 0,
             diastolicResult: null
         };
-        this.reportMode = 'lista';
+        this.reportMode = 'narrativo';
         // Se marca cuando el usuario edita el informe a mano: lo editado es lo que se
         // guarda y no debe sobrescribirse por una regeneración sin avisar.
         this.reportEdited = false;
