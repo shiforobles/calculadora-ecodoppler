@@ -3243,13 +3243,18 @@ class UIController {
             p4 += `. No se observa flujo de insuficiencia tricuspídea que permita estimar la presión sistólica de la arteria pulmonar`;
         } else if (htpResult) {
             const velStr = velIt ? ` (Vmax IT ${velIt} m/s${itQuantParts.length ? ', ' + itQuantParts.join(', ') : ''})` : itQuantStr;
+            // El grado es el cargado, no un "leve" fijo: la probabilidad de HTP baja
+            // no implica que la insuficiencia tricuspídea sea leve. Y va en las dos
+            // ramas: omitirlo cuando la probabilidad era intermedia o alta dejaba una
+            // IT torrencial escrita igual que una leve en cuanto había una Vmax cargada.
+            const itGradoTxt = (itGradoVal && itGradoVal !== 'no') ? ` ${itGradoVal}` : '';
             if (htpResult.probability === 'Baja') {
-                // El grado es el cargado, no un "leve" fijo: la probabilidad de HTP baja
-                // no implica que la insuficiencia tricuspídea sea leve.
-                const itGradoTxt = (itGradoVal && itGradoVal !== 'no') ? ` ${itGradoVal}` : '';
                 p4 += `. Se constata insuficiencia tricuspídea${itGradoTxt}${velStr}${itFlujStr}, con baja probabilidad de hipertensión pulmonar (PSAP estimada en ${this.state.psap} mmHg)`;
             } else {
-                p4 += `. La insuficiencia tricuspídea${velStr}${itFlujStr} determina una probabilidad ecocardiográfica de hipertensión pulmonar ${htpResult.probability.toLowerCase()}, con PSAP estimada de ${this.state.psap} mmHg`;
+                // Misma forma que la rama de arriba a propósito: con "determina" como
+                // verbo, el inciso de las venas suprahepáticas quedaba entre el sujeto
+                // y el verbo y partía la oración ("...suprahepáticas determina una...").
+                p4 += `. Se constata insuficiencia tricuspídea${itGradoTxt}${velStr}${itFlujStr}, con probabilidad ecocardiográfica de hipertensión pulmonar ${htpResult.probability.toLowerCase()} (PSAP estimada de ${this.state.psap} mmHg)`;
                 // If filling pressures are elevated (grade II/III diastolic dysfunction),
                 // the PH most likely has a post-capillary (left heart) component.
                 const _dr = this.state.diastolicResult;
@@ -3259,7 +3264,7 @@ class UIController {
             }
         } else {
             if (itGradoVal && itGradoVal !== 'no' && velIt > 0) {
-                p4 += `. Se registra insuficiencia tricuspídea${itQuantStr}${itFlujStr} (Vmax IT ${velIt} m/s), sin hipertensión pulmonar significativa estimable`;
+                p4 += `. Se registra insuficiencia tricuspídea ${itGradoVal}${itQuantStr}${itFlujStr} (Vmax IT ${velIt} m/s), sin hipertensión pulmonar significativa estimable`;
             } else if (itGradoVal && itGradoVal !== 'no') {
                 // Grado cargado sin velocidad regurgitante: se informa la insuficiencia,
                 // sin estimar presión pulmonar. Antes sólo aparecía si había cuantificación,
