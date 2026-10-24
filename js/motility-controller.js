@@ -4,27 +4,8 @@
  */
 
 class MotilityController {
-    /**
-     * Etapas de un eco estrés. Por ahora sólo se usa 'reposo': la estructura queda
-     * armada para que agregar las otras sea conectar un selector, sin tocar nada de
-     * lo que hoy lee el estado.
-     */
-    static FASES = ['reposo', 'dosis_baja', 'pico', 'recuperacion'];
-
-    static FASES_LABEL = {
-        reposo: 'Reposo',
-        dosis_baja: 'Dosis baja',
-        pico: 'Pico',
-        recuperacion: 'Recuperación',
-    };
-
     constructor() {
-        // Un mapa de segmentos POR FASE. `this.state` es la fase activa (ver el
-        // getter de abajo), así que todo el código que ya existía sigue leyendo y
-        // escribiendo lo mismo que antes.
-        this.faseActiva = 'reposo';
-        this.phases = { reposo: this.getDefaultState() };
-
+        this.state = this.getDefaultState();
         this.pattern = 'none';
         // Grado que se aplica al tocar un segmento. null = ciclado clásico.
         this.gradoActivo = null;
@@ -33,25 +14,6 @@ class MotilityController {
         // Clean up any lingering storage from previous versions to ensure it resets for new studies
         sessionStorage.removeItem('motility-state');
         sessionStorage.removeItem('motility-pattern');
-    }
-
-    /** Mapa de segmentos de la fase activa */
-    get state() { return this.phases[this.faseActiva]; }
-    set state(mapa) { this.phases[this.faseActiva] = mapa; }
-
-    /**
-     * Cambia de etapa. Una etapa nueva arranca en normal y NO hereda lo de reposo:
-     * heredar haría que un defecto fijo se informe en el pico sin haberlo mirado.
-     * Si al conectar el eco estrés se decide lo contrario, se cambia acá.
-     */
-    setFase(nombre) {
-        if (!MotilityController.FASES.includes(nombre)) return this.faseActiva;
-        if (!this.phases[nombre]) this.phases[nombre] = this.getDefaultState();
-        this.faseActiva = nombre;
-        this.notifyListeners('all');
-        this.updateUI();
-        this.updatePreview();
-        return this.faseActiva;
     }
 
     // Initialize with all segments normal
@@ -693,10 +655,8 @@ class MotilityController {
 
     // Reset all segments to normal
     reset() {
-        // Se limpian TODAS las etapas y se suelta el pincel: un reset abre un estudio
-        // nuevo, no una etapa nueva del mismo estudio.
-        this.faseActiva = 'reposo';
-        this.phases = { reposo: this.getDefaultState() };
+        // Un reset abre un estudio nuevo: todo a normal y se suelta el pincel.
+        this.state = this.getDefaultState();
         this.gradoActivo = null;
         this.pattern = 'none';
         this.saveToStorage();
