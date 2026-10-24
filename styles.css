@@ -1416,6 +1416,7 @@ input.invalid {
     font-size: 9px;
     font-weight: 500;
     fill: #6b7280;
+    pointer-events: none;
     user-select: none;
 }
 
