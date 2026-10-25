@@ -166,7 +166,7 @@ const TerritoryEngine = {
         };
     },
 
-    /** Territorio dominante y, si corresponde, su extensión */
+    /** Territorio dominante y, si corresponde, su extensión o su par */
     _territory(counts, total) {
         const orden = Object.keys(counts)
             .filter(t => counts[t] > 0)
@@ -184,36 +184,58 @@ const TerritoryEngine = {
             };
         }
 
-        // ¿Domina alguno de verdad?
-        const domina = counts[primero] >= counts[segundo] * this.DOMINANCE_FACTOR;
-        if (!domina) {
-            return {
-                territory: 'compromiso multiterritorial',
-                dominant: null, extension: null, multiterritorial: true, cerrada: true,
-            };
-        }
-
-        // Territorios menores que califican como extensión. Con pocos segmentos
+        // Territorios menores que no son ruido anatómico. Con pocos segmentos
         // alterados no se descarta ninguno: ver TOTAL_SIN_UMBRAL.
         const sinUmbral = total <= this.TOTAL_SIN_UMBRAL;
-        const extensiones = orden.slice(1).filter(t =>
+        const menores = orden.slice(1).filter(t =>
             sinUmbral || (
                 counts[t] >= this.MIN_SEGMENTS_EXTENSION &&
                 counts[t] / total >= this.MIN_RATIO_EXTENSION
             )
         );
 
-        if (!extensiones.length) {
+        // Los demás territorios son ruido anatómico: sólo queda el dominante.
+        if (!menores.length) {
             return {
                 territory: `territorio ${primero}`,
                 dominant: primero, extension: null, multiterritorial: false,
             };
         }
 
-        const lista = extensiones.map(t => `territorio ${t}`).join(' y ');
+        // ¿El primero domina DE VERDAD sobre el que le sigue? La comparación es
+        // ESTRICTA (>, no >=): con 3 vs 2 el cociente es exactamente 1.5× y eso no
+        // es una prolongación de un territorio sobre otro, son dos regiones
+        // separadas comprometidas en paralelo. "Con extensión a" se reserva para la
+        // dominancia real; el empate —o el casi-empate— se nombra en paralelo.
+        const domina = counts[primero] > counts[segundo] * this.DOMINANCE_FACTOR;
+
+        if (domina) {
+            const lista = menores.map(t => `territorio ${t}`).join(' y ');
+            return {
+                territory: `territorio ${primero} con extensión a ${lista}`,
+                dominant: primero, extension: menores.join(', '), multiterritorial: false,
+            };
+        }
+
+        // Sin dominancia real: territorios parejos.
+        const parejos = [primero, ...menores];
+
+        // Tres (o más) parejos: no se listan sueltos, es enfermedad difusa.
+        if (parejos.length >= 3) {
+            return {
+                territory: 'compromiso multiterritorial',
+                dominant: null, extension: null, multiterritorial: true, cerrada: true,
+            };
+        }
+
+        // Dos parejos: se nombran en paralelo, sin subordinar uno al otro. Orden
+        // anatómico fijo (DA, CD, Cx) para que la frase sea estable, y sin la frase
+        // cerrada, para que tome el prefijo "distribución compatible con...".
+        const ORDEN_CANONICO = { DA: 0, CD: 1, Cx: 2 };
+        const par = parejos.slice().sort((a, b) => ORDEN_CANONICO[a] - ORDEN_CANONICO[b]);
         return {
-            territory: `territorio ${primero} con extensión a ${lista}`,
-            dominant: primero, extension: extensiones.join(', '), multiterritorial: false,
+            territory: `territorios ${par[0]} y ${par[1]}`,
+            dominant: null, extension: null, multiterritorial: true, cerrada: false,
         };
     },
 

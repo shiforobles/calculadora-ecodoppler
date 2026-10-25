@@ -34,8 +34,10 @@ const casos = [
     { bloque: 'TERRITORIO', nombre: '5,6,11,12,16 (Cx)',
       estados: estado({ '5,6,11,12,16': HK }), esperado: 'territorio Cx' },
 
-    { bloque: 'TERRITORIO', nombre: '1,7,13 + 5,11 (Cx = 40% del total)',
-      estados: estado({ '1,7,13,5,11': HK }), esperado: 'territorio DA con extensión a territorio Cx' },
+    // DA 3 / Cx 2 es 1.5× exacto: NO es dominancia real. La pared anterior y la
+    // inferolateral son dos regiones separadas, no una prolongación de la otra.
+    { bloque: 'TERRITORIO', nombre: '1,7,13 + 5,11 (DA 3 / Cx 2, parejo 1.5×)',
+      estados: estado({ '1,7,13,5,11': HK }), esperado: 'territorios DA y Cx' },
 
     { bloque: 'TERRITORIO', nombre: '1-16 (tres territorios parejos)',
       estados: estado({ [rango(1, 16)]: HK }), esperado: 'compromiso multiterritorial',
@@ -117,9 +119,32 @@ const casos = [
     { bloque: 'DA DISTAL', nombre: '1,2,7,8,10 (el no-DA es inferior medio) → no aplica',
       estados: estado({ '1,2,7,8,10': HK }), esperado: 'territorio DA' },
 
-    // Con un solo segmento de DA no hay con qué sostener que el vaso sea el culpable.
-    { bloque: 'DA DISTAL', nombre: '14,15 (DA 1 / CD 1) → no aplica',
-      estados: estado({ '14,15': HK }), esperado: 'compromiso multiterritorial' },
+    // Con un solo segmento de DA no hay con qué sostener la regla de DA distal. Y
+    // 1 vs 1 no es multiterritorial: son dos apicales vecinos de distinto territorio.
+    { bloque: 'DA DISTAL', nombre: '14,15 (DA 1 / CD 1) → no aplica DA distal, parejo',
+      estados: estado({ '14,15': HK }), esperado: 'territorios DA y CD' },
+
+    // ── PAREJOS vs DOMINANCIA (regla estricta >1.5×) ──
+    // El caso que motivó la regla: dos paredes opuestas con extensión pareja. Cada
+    // una es su territorio; el 14 (septal apical, DA) es un solo segmento y se
+    // descarta como ruido. Cx 3 / CD 2 = 1.5× → parejo, no "con extensión a".
+    { bloque: 'PAREJO vs DOMINANCIA', nombre: '3,9,14 + 6,12,16 (Cx 3 / CD 2 / DA 1 ruido)',
+      estados: estado({ '3,9,14,6,12,16': HK }), esperado: 'territorios CD y Cx' },
+
+    // Empate puro 3-3: también en paralelo, en orden canónico DA, CD, Cx.
+    { bloque: 'PAREJO vs DOMINANCIA', nombre: '1,7,8 + 4,10,15 (DA 3 / CD 3, empate)',
+      estados: estado({ '1,7,8,4,10,15': HK }), esperado: 'territorios DA y CD' },
+
+    // Tres parejos SIN patrón de fondo: sigue siendo multiterritorial.
+    { bloque: 'PAREJO vs DOMINANCIA', nombre: '1,7,13 + 4,10,15 + 6,12,16 (3-3-3)',
+      estados: estado({ '1,7,13,4,10,15,6,12,16': HK }), esperado: 'compromiso multiterritorial', esperadoPatron: null },
+
+    // Dominancia REAL (>1.5×): estas DEBEN seguir diciendo "con extensión a".
+    { bloque: 'PAREJO vs DOMINANCIA', nombre: '1,2,7,8 + 5,11 (DA 4 / Cx 2, 2.0×)',
+      estados: estado({ '1,2,7,8,5,11': HK }), esperado: 'territorio DA con extensión a territorio Cx' },
+
+    { bloque: 'PAREJO vs DOMINANCIA', nombre: '5,6,11,12 + 4,10 (Cx 4 / CD 2, 2.0×)',
+      estados: estado({ '5,6,11,12,4,10': HK }), esperado: 'territorio Cx con extensión a territorio CD' },
 ];
 
 let ok = 0, fail = 0, bloqueActual = '';
