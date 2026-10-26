@@ -121,8 +121,9 @@ class HemodynamicsCalculator {
      * @returns {Object} { grade, description, severity }
      */
     classifyDiastolicFunction(params) {
-        const { E, A, ePrime, eSeptal, eLateral, LAVolIndex, TRVel = 0, LVEF = 60, ritmo = 'sinusal', context = {}, TRIV, TD, LARS, PVSD, age = 0 } = params;
+        const { E, A, ePrime, eSeptal, eLateral, LAVolIndex, TRVel = 0, LVEF = 60, ritmo = 'sinusal', context = {}, TRIV, TD, LARS, PVSD, age = 0, fc = 0 } = params;
         const { bcri = false, mac = false, imSevera = false, mcp = false, valsalva = false } = context;
+        const isFA = (ritmo === 'fa' || ritmo === 'flutter');
 
         // TRIV thresholds: ≤70 ms → positive (elevated pressures); ≥100 ms → negative (Grade I direction)
         const trivPositive = !isNaN(TRIV) && TRIV > 0 && TRIV <= 70;
@@ -179,14 +180,18 @@ class HemodynamicsCalculator {
 
         // Warnings — only clinically relevant modifiers (not "Guía 2025")
         const warnings = [];
-        if (bcri)     warnings.push('BCRI: e\' septal excluido');
+        // En FA el E/e' se evalúa con el septal (≥11); con BCRI el septal está
+        // contaminado por la asincronía, así que el criterio no se puede valorar.
+        if (bcri)     warnings.push(isFA ? 'E/e\' no valorable por BCRI' : 'BCRI: e\' septal excluido');
         if (mac)      warnings.push('MAC: E/e\' no válido');
         if (imSevera) warnings.push('IM Severa: E/e\' sobreestima presiones');
         if (mcp)      warnings.push('MCP: umbrales modificados');
         if (valsalva) warnings.push('Valsalva (+)');
+        // FA taquicárdica: el llenado se acorta y los marcadores de presión pierden
+        // fiabilidad. Es advertencia, no cambia el grado.
+        if (isFA && fc > 100) warnings.push('FC >100 lpm: tiempo de llenado acortado, marcadores de presión menos fiables');
 
         // Check if we have minimum required data
-        const isFA = (ritmo === 'fa' || ritmo === 'flutter');
 
         if (!E || (!isFA && !A) || !ePrime) {
             return {
@@ -203,9 +208,14 @@ class HemodynamicsCalculator {
             let faCriteria = 0;
             let faData = 0;
 
-            if (!mac && !imSevera && !isNaN(EeRatio)) {
+            // E/e' en FA: SEPTAL ≥11. El septal es más reproducible latido a latido
+            // que el lateral o el promedio; el ≥14 de antes era el corte de ritmo
+            // sinusal reusado, que dejaba la rama sub-sensible. Con BCRI el septal no
+            // es valorable, así que el criterio no suma (la advertencia lo explica).
+            const eeSeptalFA = (!bcri && !isNaN(eSeptal) && eSeptal > 0) ? E / eSeptal : null;
+            if (!mac && !imSevera && eeSeptalFA !== null) {
                 faData++;
-                if (EeRatio >= 14) faCriteria++;
+                if (eeSeptalFA >= 11) faCriteria++;
             }
             if (TRVel > 0) {
                 faData++;
@@ -227,7 +237,7 @@ class HemodynamicsCalculator {
             } else if (faCriteria === 0) {
                 return { grade: "Normal", description: `FA: Presiones de llenado VI normales (0/${faData} criterios positivos).${warnFA}`, severity: "green" };
             } else {
-                return { grade: "Indeterminado", description: `FA: Función Diastólica Indeterminada (1/${faData} criterios positivos). Evaluación adicional requerida.${warnFA}`, severity: "yellow" };
+                return { grade: "Indeterminado", description: `FA: Indeterminado — 1/${faData} criterios de presión elevada. Valorar en conjunto (AI, clínica, resto del estudio).${warnFA}`, severity: "yellow" };
             }
         }
 

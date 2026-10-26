@@ -876,10 +876,11 @@ class UIController {
         const LARS = parseFloat(document.getElementById('diast_lars')?.value);
         const PVSD = parseFloat(document.getElementById('diast_pvsd')?.value);
         const age  = parseFloat(document.getElementById('edad')?.value) || 0;
+        const fc   = parseFloat(document.getElementById('fc')?.value) || 0;
 
         // Classify diastolic function
         this.state.diastolicResult = this.calc.classifyDiastolicFunction({
-            E, A, ePrime, eSeptal, eLateral, LAVolIndex, TRVel, LVEF, wallMotion, ritmo, context, TRIV, TD, LARS, PVSD, age
+            E, A, ePrime, eSeptal, eLateral, LAVolIndex, TRVel, LVEF, wallMotion, ritmo, context, TRIV, TD, LARS, PVSD, age, fc
         });
 
         // Update semaphore display
