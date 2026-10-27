@@ -122,14 +122,26 @@ class HemodynamicsCalculator {
      */
     classifyDiastolicFunction(params) {
         const { E, A, ePrime, eSeptal, eLateral, LAVolIndex, TRVel = 0, LVEF = 60, ritmo = 'sinusal', context = {}, TRIV, TD, LARS, PVSD, age = 0, fc = 0 } = params;
-        const { bcri = false, mac = false, imSevera = false, mcp = false, valsalva = false } = context;
+        const { bcri = false, mac = false, imSevera = false, mcp = false, valsalva = false, protesisMitral = false } = context;
         const isFA = (ritmo === 'fa' || ritmo === 'flutter');
+
+        // Prótesis mitral: el algoritmo diastólico general (flujo mitral, E/e') no es
+        // aplicable. La guía ASE lo excluye explícitamente, así que se corta acá en
+        // lugar de devolver un grado que no corresponde.
+        if (protesisMitral) {
+            return {
+                grade: "No valorable",
+                description: "No valorable por el algoritmo general (prótesis mitral).",
+                severity: "neutral"
+            };
+        }
 
         // TRIV thresholds: ≤70 ms → positive (elevated pressures); ≥100 ms → negative (Grade I direction)
         const trivPositive = !isNaN(TRIV) && TRIV > 0 && TRIV <= 70;
         const trivNegative = !isNaN(TRIV) && TRIV >= 100;
 
-        // TD (Deceleration Time) thresholds: <160 ms → restrictive/elevated; >240 ms → impaired relaxation
+        // TD (Deceleration Time): <160 ms corrobora patrón restrictivo. Es el único
+        // umbral de TD que usa el algoritmo (el corte largo >240 ms no se evalúa).
         const tdShort = !isNaN(TD) && TD > 0 && TD < 160;
 
         // --- 2025 GUIDELINES Table 6: age-specific e' cutoffs ---
@@ -185,7 +197,7 @@ class HemodynamicsCalculator {
         if (bcri)     warnings.push(isFA ? 'E/e\' no valorable por BCRI' : 'BCRI: e\' septal excluido');
         if (mac)      warnings.push('MAC: E/e\' no válido');
         if (imSevera) warnings.push('IM Severa: E/e\' sobreestima presiones');
-        if (mcp)      warnings.push('MCP: umbrales modificados');
+        if (mcp)      warnings.push('MCH: el algoritmo general tiene menor validez en esta población; valorar con criterios específicos');
         if (valsalva) warnings.push('Valsalva (+)');
         // FA taquicárdica: el llenado se acorta y los marcadores de presión pierden
         // fiabilidad. Es advertencia, no cambia el grado.
@@ -259,7 +271,7 @@ class HemodynamicsCalculator {
         if (mainCriteriaCount === 3) {
             if (EARatio >= 2) {
                 let gradeIIIDesc = `Disfunción Diastólica Grado III (↑↑↑LAP marcada). Presiones de llenado VI marcadamente elevadas.${warnSuffix}`;
-                if (tdShort) gradeIIIDesc = gradeIIIDesc.replace('marcadas.', `marcadas. TD acortado (${TD} ms) corrobora patrón restrictivo.`);
+                if (tdShort) gradeIIIDesc = gradeIIIDesc.replace('marcadamente elevadas.', `marcadamente elevadas. TD acortado (${TD} ms) corrobora patrón restrictivo.`);
                 return { grade: "III", description: gradeIIIDesc, severity: "red" };
             } else {
                 return { grade: "II", description: `Disfunción Diastólica Grado II (↑↑LAP leve-moderada). Presiones de llenado VI elevadas.${warnSuffix}`, severity: "red" };

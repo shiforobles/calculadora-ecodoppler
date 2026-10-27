@@ -847,6 +847,9 @@ class UIController {
             imSevera:  document.getElementById('ctx_im')?.checked || false,
             mcp:       document.getElementById('ctx_mcp')?.checked || false,
             valsalva:  document.getElementById('ctx_valsalva')?.checked || false,
+            // Prótesis mitral → el algoritmo diastólico general no aplica (ASE)
+            protesisMitral: (document.getElementById('prot_check')?.checked || false) &&
+                            (document.getElementById('prot_posicion')?.value === 'mitral'),
         };
 
         // Update E/A ratio
