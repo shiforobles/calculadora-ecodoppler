@@ -32,3 +32,12 @@ test('Ocultar solo separador automático; todos los caracteres originales perman
     const parts = P.reportParts(text); assert.equal(parts.length, 3); assert.equal(parts.join(''), text);
     for (const manual of ['Nota\n' + header, '== Nota manual ==', 'ECOCARDIOGRAMA DOPPLER CARDÍACO\n====\nNota']) assert.deepEqual(P.reportParts(manual), [manual]);
 });
+
+test('Fecha local: no adelantar el día al pasar medianoche UTC y respetar el cambio de año', () => {
+    const { execFileSync } = require('node:child_process');
+    for (const [instant, expected] of [['2026-10-30T01:30:00Z', '2026-10-29'], ['2026-10-30T03:01:00Z', '2026-10-30'], ['2027-01-01T01:00:00Z', '2026-12-31']]) {
+        const script = `const P=require(${JSON.stringify(require.resolve('../js/print-preview'))}); process.stdout.write(P.localStudyDate(new Date(${JSON.stringify(instant)})));`;
+        const value = execFileSync(process.execPath, ['-e', script], { env: { ...process.env, TZ: 'America/Argentina/Buenos_Aires' }, encoding: 'utf8' });
+        assert.equal(value, expected);
+    }
+});

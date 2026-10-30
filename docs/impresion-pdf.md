@@ -19,7 +19,9 @@ Los dos logos hospitalarios actuales siguen siendo recreaciones provisionales.
 
 Elegir una plantilla vale para esa impresión. **Usar como predeterminada** recuerda la elección
 solo cuando se solicita. Genérico es la selección inicial de un navegador nuevo.
-La fecha del estudio es opcional, no se precarga y vale solo para esa impresión.
+La fecha del estudio se completa al abrir la vista previa con el día local de la computadora.
+Aparece en el PDF y puede editarse para un estudio de otro día. No se guarda en la plantilla
+y se vuelve a tomar el día actual en cada nueva vista previa, sin convertir a UTC.
 
 **Abrir diálogo de impresión** permite elegir una impresora o Guardar como PDF. Usar papel A4
 y desactivar encabezados/pies automáticos del navegador si agregan fecha o URL.
@@ -47,11 +49,12 @@ No incorpora imagen de firma ni firma digital verificable. Esa función queda pa
 
 ## Pruebas y límites
 
-- 186 casos existentes, 5 pruebas unitarias de impresión y 11 escenarios de navegador.
+- 186 casos existentes, 6 pruebas unitarias de impresión y 12 escenarios de navegador.
 - Verificación de orden de botones y ausencia de editores en ambos modos.
 - Datos profesionales fijos en ambas plantillas, aun con preferencias antiguas o ajenas.
 - Texto manual, HTML literal, almacenamiento bloqueado/cuota y cambios con la vista previa abierta.
 - Preferencia explícita sin guardar paciente, texto o fecha; cambiar el selector no la modifica.
+- Fecha automática local comprobada antes/después de medianoche UTC y en el cambio de año.
 - Anchos de computadora, celular y tablet; PDFs A4 cortos y largos revisados visualmente.
 - Todos los ensayos usan datos ficticios y bloquean solicitudes ajenas al origen de prueba.
 

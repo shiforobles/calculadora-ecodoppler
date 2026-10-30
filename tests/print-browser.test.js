@@ -14,7 +14,7 @@ test('Imprimir/PDF en ambas pantallas, aislado de servicios externos', { skip: !
     const browser = await chromium.launch({ headless: true, ...(fs.existsSync(chrome) ? { executablePath: chrome } : {}) });
     const errors = [];
     async function setup(file = 'index.html', width = 1280) {
-        const context = await browser.newContext({ viewport: { width, height: 1000 } });
+        const context = await browser.newContext({ viewport: { width, height: 1000 }, timezoneId: 'America/Argentina/Buenos_Aires' });
         await context.route('**/*', async route => {
             const url = new URL(route.request().url());
             if (url.origin !== origin) return route.abort();
@@ -65,7 +65,7 @@ test('Imprimir/PDF en ambas pantallas, aislado de servicios externos', { skip: !
                 assert.equal((await popup.locator('#print-report').innerText()).includes('Observación manual ficticia'), true);
                 await popup.click('#print-now'); await popup.waitForFunction(() => window.__printCalls === 1);
                 assert.equal(await page.inputValue(report), text); assert.equal(await page.evaluate(k => localStorage.getItem(k), key), null);
-                assert.equal(await popup.locator('#print-date').inputValue(), ''); assert.equal(await popup.evaluate(() => window.INJECTED), undefined);
+                assert.equal(await popup.locator('#print-date').inputValue(), await page.evaluate(() => PrintPreview.localStudyDate())); assert.equal(await popup.evaluate(() => window.INJECTED), undefined);
                 await context.close();
             });
             await t.test(file + ': datos nuevos después de edición requieren decisión; captura abierta se invalida', async () => {
@@ -109,12 +109,39 @@ test('Imprimir/PDF en ambas pantallas, aislado de servicios externos', { skip: !
             const saved = await page.evaluate(k => JSON.parse(localStorage.getItem(k)), key);
             assert.deepEqual(saved, { schemaVersion: 2, defaultProfileId: 'hospital' });
             await popup.selectOption('#print-profile', 'generic'); await popup.close();
-            popup = await preview(); assert.equal(await popup.locator('#print-profile').inputValue(), 'hospital'); assert.equal(await popup.locator('#print-date').inputValue(), '');
+            popup = await preview(); assert.equal(await popup.locator('#print-profile').inputValue(), 'hospital'); assert.equal(await popup.locator('#print-date').inputValue(), await page.evaluate(() => PrintPreview.localStudyDate()));
             assert.match(await popup.locator('.professional').textContent(), /Dr\. Lucas Sebastián RoblesMatrícula 166\.452/); assert.equal(await popup.locator('.institution img').count(), 2);
             await popup.selectOption('#print-profile', 'generic'); await popup.close();
             await page.reload(); await page.fill(report, 'NUEVO FICTICIO'); popup = await preview(); assert.equal(await popup.locator('#print-profile').inputValue(), 'hospital');
             assert.equal(await popup.locator('#print-report').textContent(), 'NUEVO FICTICIO'); assert.doesNotMatch(await popup.locator('.patient').textContent().catch(() => ''), /FICTICIO-NO-GUARDAR/);
             await context.close();
+        });
+        await t.test('Fecha automática local en ambas plantillas, editable y sin persistir', async () => {
+            for (const file of ['index.html', 'eco-rapido.html']) {
+                const { context, page, report, preview } = await setup(file);
+                await page.clock.setFixedTime(new Date('2026-10-30T01:30:00Z'));
+                await page.fill(report, 'ESTUDIO FICTICIO PARA FECHA');
+                let popup = await preview();
+                assert.equal(await popup.locator('#print-date').inputValue(), '2026-10-29');
+                assert.match(await popup.locator('.patient').textContent(), /Fecha del estudio: 29\/10\/2026/);
+                if (artifacts && file === 'index.html') await popup.pdf({ path: path.join(artifacts, 'fecha-automatica.pdf'), format: 'A4', preferCSSPageSize: true, printBackground: true });
+                await popup.selectOption('#print-profile', 'hospital');
+                assert.match(await popup.locator('.patient').textContent(), /29\/10\/2026/);
+                await popup.fill('#print-date', '2026-10-20');
+                assert.match(await popup.locator('.patient').textContent(), /20\/10\/2026/);
+                await popup.selectOption('#print-profile', 'generic');
+                assert.equal(await popup.locator('#print-date').inputValue(), '2026-10-20');
+                await popup.click('#print-set-default');
+                const preference = await page.evaluate(k => JSON.parse(localStorage.getItem(k)), key);
+                assert.deepEqual(preference, { schemaVersion: 2, defaultProfileId: 'generic' });
+                assert.equal(await page.inputValue(report), 'ESTUDIO FICTICIO PARA FECHA');
+                await popup.close();
+                await page.clock.setFixedTime(new Date('2026-10-30T04:00:00Z'));
+                popup = await preview();
+                assert.equal(await popup.locator('#print-date').inputValue(), '2026-10-30');
+                assert.match(await popup.locator('.patient').textContent(), /30\/10\/2026/);
+                await context.close();
+            }
         });
         await t.test('almacenamiento bloqueado/cuota: impresión disponible y otras claves intactas', async () => {
             for (const mode of ['get', 'set', 'json']) {

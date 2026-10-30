@@ -39,6 +39,9 @@
     }
     const moduleURL = root.document?.currentScript?.src;
     const asset = name => new URL('../' + name, moduleURL || root.location.href).href;
+    function localStudyDate(date = new Date()) {
+        return [date.getFullYear(), String(date.getMonth() + 1).padStart(2, '0'), String(date.getDate()).padStart(2, '0')].join('-');
+    }
     function connect({ reportId, buttonId, readStudy, readPatient }) {
         const report = root.document.getElementById(reportId);
         let baseline = null;
@@ -52,7 +55,7 @@
             if (baseline === null || baseline !== study()) {
                 if (!root.confirm('El formulario cambió después del informe o no se pudo comprobar su correspondencia. Revisá el texto y la identificación. ¿Confirmás que los revisaste y querés imprimir el texto actual, sin regenerarlo?')) return;
             }
-            const snapshot = { text, patient: clone(readPatient()), study: study() };
+            const snapshot = { text, patient: clone(readPatient()), study: study(), studyDate: localStudyDate() };
             const popup = root.open(asset('print-preview.html'), '_blank');
             if (!popup) { root.alert('El navegador bloqueó la vista previa. Permití las ventanas emergentes para esta app y volvé a intentar. El informe se conserva.'); return; }
             if (active && !active.closed) active.close();
@@ -111,9 +114,10 @@
             status.textContent = ok ? 'Plantilla guardada como predeterminada en este navegador.' : 'No se pudo guardar la preferencia. Podés seguir imprimiendo con la plantilla elegida.';
             updateDefault();
         });
-        const date = labeled('Fecha del estudio (opcional, solo esta impresión)', el('input', { type: 'date', id: 'print-date' }));
+        const date = labeled('Fecha del estudio', el('input', { type: 'date', id: 'print-date' }));
+        date.value = snapshot.studyDate;
         date.addEventListener('input', render);
-        aside.append(el('p', { class: 'hint' }, 'La fecha no se completa automáticamente. Solo se recuerda la plantilla si lo pedís; no se guarda el paciente ni el informe.'));
+        aside.append(el('p', { class: 'hint' }, 'Se completa con la fecha local de hoy. Podés cambiarla si el estudio es de otro día. No se guarda con la plantilla.'));
         const print = el('button', { type: 'button', id: 'print-now' }, 'Abrir diálogo de impresión');
         aside.append(print, stale, status, el('p', { class: 'hint' }, 'Elegí Guardar como PDF en el diálogo. Usá papel A4 y desactivá encabezados y pies del navegador si agregan la URL o la fecha. La paginación final depende del navegador.'));
         if (loaded.error) status.textContent = 'No se pudo leer la preferencia. Se usa Genérico; podés imprimir igualmente.';
@@ -178,7 +182,7 @@
         win.addEventListener('pagehide', () => win.clearInterval(timer), { once: true });
         updateDefault(); render(); check();
     }
-    const api = { connect, formFingerprint, STORAGE_KEY, cleanState, load, save, reportParts };
+    const api = { connect, formFingerprint, STORAGE_KEY, cleanState, load, save, reportParts, localStudyDate };
     if (typeof module !== 'undefined' && module.exports) module.exports = api;
     else root.PrintPreview = api;
 })(typeof window !== 'undefined' ? window : globalThis);
