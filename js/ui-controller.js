@@ -30,6 +30,16 @@ class UIController {
      * Initialize all event listeners
      */
     init() {
+        this.printPreview = window.PrintPreview?.connect({
+            reportId: 'resultado', buttonId: 'btn_print',
+            readStudy: () => PrintPreview.formFingerprint('resultado', this.motility?.state),
+            readPatient: () => ({
+                id: document.getElementById('paciente_id')?.value || '',
+                age: document.getElementById('edad')?.value || '',
+                sex: document.getElementById('sexo')?.value || ''
+            })
+        });
+
         // Expose Quick Fill function globally
         window.setTricuspidValues = (grade) => this.setTricuspidValues(grade);
 
@@ -1990,6 +2000,7 @@ class UIController {
 
             // Display report
             document.getElementById('resultado').value = report;
+            this.printPreview?.markCurrent();
             this.reportEdited = false;
 
         } catch (error) {
@@ -3495,6 +3506,7 @@ class UIController {
             return;
         }
 
+        const printStudyAtRequest = this.printPreview?.study();
         const btn = document.getElementById('mode_ia');
         const originalText = btn?.textContent || 'Gemini IA';
         if (btn) { btn.disabled = true; btn.textContent = 'Generando...'; }
@@ -3536,6 +3548,7 @@ class UIController {
                 if (firma) newReport += '\n\n' + firma;
             }
             document.getElementById('resultado').value = newReport;
+            this.printPreview?.markCurrent(printStudyAtRequest);
 
             document.getElementById('mode_lista')?.classList.remove('mode-btn-active');
             document.getElementById('mode_narrativo')?.classList.remove('mode-btn-active');

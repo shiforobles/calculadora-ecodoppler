@@ -1,0 +1,28 @@
+<svg id="default_cardio_svg" width="72" height="72" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+                        <defs>
+                            <clipPath id="circle-clip">
+                                <circle cx="100" cy="100" r="68"/>
+                            </clipPath>
+                        </defs>
+                        <!-- Fondo Circular con Banderas -->
+                        <g clip-path="url(#circle-clip)">
+                            <rect x="30" y="30" width="140" height="30" fill="#c61d23"/>
+                            <rect x="30" y="60" width="140" height="28" fill="#f39200"/>
+                            <rect x="30" y="88" width="140" height="26" fill="#e41e26"/>
+                            <rect x="30" y="114" width="140" height="28" fill="#009cde"/>
+                            <rect x="30" y="142" width="140" height="30" fill="#073b5c"/>
+                            <!-- Trazado ECG Blanco -->
+                            <polyline points="30,100 58,100 64,70 70,125 76,100 124,100 130,70 136,125 142,100 170,100" fill="none" stroke="#ffffff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+                        </g>
+                        <!-- Anillo Exterior -->
+                        <circle cx="100" cy="100" r="68" fill="none" stroke="#072b44" stroke-width="6"/>
+                        <circle cx="100" cy="100" r="78" fill="none" stroke="#0f172a" stroke-width="2.5" stroke-dasharray="6,5"/>
+
+                        <!-- Corazón Anatómico Central -->
+                        <path d="M 100,145 C 72,128 68,95 82,82 C 92,72 104,78 108,86 C 116,76 130,84 128,104 C 126,122 112,138 100,145 Z" fill="#f39200" stroke="#072b44" stroke-width="5"/>
+                        <path d="M 90,80 L 90,56 M 102,80 L 102,52 M 114,82 L 118,58" stroke="#c61d23" stroke-width="7" stroke-linecap="round"/>
+
+                        <!-- Textos Curvos Simulados -->
+                        <text x="100" y="22" font-family="Arial, sans-serif" font-size="19" font-weight="900" fill="#0f172a" text-anchor="middle" letter-spacing="1">CARDIOLOGÍA</text>
+                        <text x="100" y="193" font-family="Arial, sans-serif" font-size="21" font-weight="900" fill="#0f172a" text-anchor="middle" letter-spacing="2">H.E.B.A.</text>
+                    </svg>
