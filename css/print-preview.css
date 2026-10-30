@@ -3,8 +3,7 @@ body{margin:0;color:#151515;font-family:Arial,Helvetica,sans-serif;font-size:10p
 .controls{background:white;padding:22px;border:1px solid #d6dade;border-radius:10px;font:14px/1.5 Arial;color:#26313b;height:max-content}
 .controls h1{font-size:22px;margin:0 0 10px}
 .controls label{display:block;font-weight:bold;margin:16px 0 0}
-.controls input:not([type=checkbox]),.controls select,.controls button{width:100%;padding:10px;font:inherit;border:1px solid #bac2c9;border-radius:5px;margin-top:7px;background:white;color:#26313b}
-.controls input[type=checkbox]{margin-left:10px;width:18px;height:18px;vertical-align:middle}
+.controls input,.controls select,.controls button{width:100%;padding:10px;font:inherit;border:1px solid #bac2c9;border-radius:5px;margin-top:7px;background:white;color:#26313b}
 .controls button{cursor:pointer;background:#173f53;color:white}
 .controls button.secondary{background:#f3f5f6;color:#26313b}
 .controls button:disabled{opacity:.55;cursor:default}

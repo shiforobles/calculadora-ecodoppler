@@ -2,22 +2,19 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const P = require('../js/print-preview');
 const store = () => { const values = new Map(); return { values, getItem: key => values.get(key) || null, setItem: (key, value) => values.set(key, value) }; };
-test('Genérico inicial sin datos personales', () => {
+test('Genérico inicial y preferencia sin datos de perfiles ni pacientes', () => {
     const { state, error } = P.load(store());
-    assert.equal(error, false); assert.equal(state.defaultProfileId, 'generic');
-    for (const p of Object.values(state.profiles)) { assert.equal(p.professional, ''); assert.equal(p.registration, ''); }
-    assert.equal(state.profiles.generic.institution, '');
+    assert.equal(error, false);
+    assert.deepEqual(state, { schemaVersion: 2, defaultProfileId: 'generic' });
 });
-test('Persistencia de perfil explícita y lista permitida sin datos de estudios', () => {
-    const s = store(); const state = P.load(s).state; state.defaultProfileId = 'hospital';
-    state.patient = 'NO-GUARDAR'; state.profiles.hospital.report = 'NO-GUARDAR'; state.profiles.hospital.professional = 'Profesional ficticio';
-    assert.equal(P.save(s, state), true);
-    const saved = s.getItem(P.STORAGE_KEY); assert.equal(saved.includes('NO-GUARDAR'), false);
-    assert.equal(P.load(s).state.defaultProfileId, 'hospital');
-    assert.equal(P.load(s).state.profiles.hospital.professional, 'Profesional ficticio'); assert.equal(s.values.size, 1);
+test('Persistencia explícita solo de plantilla, sin datos personales ni estudios', () => {
+    const s = store();
+    assert.equal(P.save(s, { defaultProfileId: 'hospital', patient: 'NO-GUARDAR', report: 'NO-GUARDAR', profiles: { generic: { professional: 'NO-GUARDAR' } } }), true);
+    assert.deepEqual(JSON.parse(s.getItem(P.STORAGE_KEY)), { schemaVersion: 2, defaultProfileId: 'hospital' });
+    assert.equal(P.load(s).state.defaultProfileId, 'hospital'); assert.equal(s.values.size, 1);
 });
 test('JSON inválido, versión incompatible y almacenamiento bloqueado no impiden imprimir', () => {
-    for (const value of ['{', '{"schemaVersion":2}']) {
+    for (const value of ['{', '{"schemaVersion":1}']) {
         assert.equal(P.load({ getItem: () => value }).error, true);
         assert.equal(P.load({ getItem: () => value }).state.defaultProfileId, 'generic');
     }
@@ -25,11 +22,9 @@ test('JSON inválido, versión incompatible y almacenamiento bloqueado no impide
     assert.equal(P.load(blocked).error, true); assert.equal(P.save(blocked, {}), false);
     assert.equal(P.load(null).state.defaultProfileId, 'generic');
 });
-test('No admitir URLs remotas, SVG ni campos ajenos en logos persistidos', () => {
-    for (const logoLeft of ['https://example.test/paciente', 'data:image/svg+xml;base64,PHN2Zz4=', 'data:image/png;base64,' + 'a'.repeat(500000)]) {
-        const state = P.cleanState({ profiles: { hospital: { logoLeft, patient: 'NO' } } });
-        assert.equal(state.profiles.hospital.logoLeft, ''); assert.equal('patient' in state.profiles.hospital, false);
-    }
+test('Configuraciones antiguas o inyectadas no pueden modificar las plantillas', () => {
+    assert.deepEqual(P.cleanState({ defaultProfileId: 'otra', profiles: { hospital: { professional: 'AJENO', logoLeft: 'https://example.test/' } } }), { schemaVersion: 2, defaultProfileId: 'generic' });
+    assert.equal(P.load({ getItem: () => '{"schemaVersion":1,"profiles":{"generic":{"professional":"AJENO"}}}' }).error, true);
 });
 test('Ocultar solo separador automático; todos los caracteres originales permanecen', () => {
     const header = 'ECOCARDIOGRAMA DOPPLER CARDÍACO\n' + '='.repeat(80) + '\n';

@@ -1,80 +1,79 @@
-# Imprimir / PDF: primera versión
+# Imprimir / PDF: plantillas listas para usar
 
-Rama independiente de `main` da6d23e. No incluye el bloque pendiente de coherencia de informes.
-Los dos adaptadores solo registran qué formulario acompañaba a la generación del texto;
-no modifican cálculos, redacción, copia ni guardado.
+Implementado en la rama `codex/imprimir-pdf`, separada del bloque de coherencia pendiente.
+No modifica cálculos, motores clínicos, texto de los informes, copia, envío a Sheets ni dashboard.
 
 ## Uso
 
-1. Generar o editar el informe en la calculadora completa o eco rápido.
-2. Elegir **Imprimir / PDF**. Si cambiaron los datos desde la generación, revisar texto e
-   identificación y confirmar explícitamente que se quiere imprimir tal cual, o cancelar.
-3. En la ventana nueva, elegir Genérico o Hospital Español. Genérico es el inicial;
-   no se precargan nombre, matrícula ni fecha. La fecha opcional vale solo para esa impresión.
-4. Ajustar el membrete y el bloque profesional opcional. Hospital incluye recreaciones
-   provisionales de logos, reemplazables por PNG/JPG/WebP locales de hasta 1 MB.
-5. **Guardar configuración** conserva los perfiles, sin cambiar el predeterminado.
-   **Usar como predeterminado** guarda el perfil y la preferencia explícitamente.
-6. **Abrir diálogo de impresión**, papel A4, elegir impresora o Guardar como PDF.
-   Desactivar los encabezados/pies automáticos del navegador si agregan fecha o URL.
+En la calculadora completa, los botones siguen el orden **Generar → Copiar → Guardar → Imprimir**.
+Imprimir / PDF también está disponible en eco rápido, que sigue sin guardar estudios.
 
-El texto original y las ediciones permanecen intactos. Solo se oculta en la presentación
-el separador de 80 signos `=` inmediatamente después del título automático conocido.
-Otras líneas, incluidas líneas manuales de `=`, se conservan. HTML escrito en el informe
-se presenta literalmente; no se interpreta.
+La vista previa ofrece exactamente dos plantillas fijas:
 
-La ventana mantiene una captura en memoria. Si cambian el texto, el formulario o la
-identificación, se bloquea su botón de imprimir y se solicita reabrir la vista previa.
-La impresión nativa también oculta el informe de una captura invalidada. Al navegar
-fuera de la app se elimina el documento de la ventana de impresión.
+- **Genérico:** sin institución ni logos, con Dr. Lucas Sebastián Robles y Matrícula 166.452 al final.
+- **Hospital Español:** membrete institucional y los mismos datos profesionales al final.
 
-## Privacidad y límites
+No hay editor de membretes, nombre, matrícula o logos, ni creación de plantillas durante la impresión.
+Nuevas plantillas o modificaciones se incorporan mediante cambios de código revisados.
+Los dos logos hospitalarios actuales siguen siendo recreaciones provisionales.
 
-- La función no llama a Generar, cálculos, IA, portapapeles, Sheets ni guardado de estudios.
-- Única clave propia: `ecodoppler_print_profiles_v1`. Guarda exclusivamente campos admitidos
-  de perfiles y predeterminado, nunca paciente, mediciones, fecha del estudio o informe.
-- Preferencias compartidas entre usuarios del mismo perfil de navegador. Un navegador
-  nuevo comienza en Genérico; no sincroniza con Google ni con otra computadora.
-- Si el almacenamiento falla, se permite imprimir y se informa que la preferencia no se guardó.
-- La ventana y cualquier PDF descargado contienen el informe: cerrarla y custodiar el PDF
-  según la práctica habitual. No hay borradores ni estudios persistentes en eco rápido.
-- No agrega firma manuscrita ni firma digital verificable. El bloque profesional es texto opcional.
-- Validado con Chrome de escritorio, incluyendo anchos 390/768/1280. No equivale a probar
-  impresoras físicas, Safari/iOS, Android ni los diálogos nativos de esos sistemas.
-- La hoja en pantalla es una vista continua A4; los saltos definitivos los resuelve el navegador.
-  Repetición de encabezado y número de página dependen del soporte de impresión del navegador.
-- La detección compara los valores actuales con los de la última generación; no valida
-  correspondencia clínica entre texto manual y mediciones. La revisión sigue siendo del profesional.
+Elegir una plantilla vale para esa impresión. **Usar como predeterminada** recuerda la elección
+solo cuando se solicita. Genérico es la selección inicial de un navegador nuevo.
+La fecha del estudio es opcional, no se precarga y vale solo para esa impresión.
 
-## Verificación
+**Abrir diálogo de impresión** permite elegir una impresora o Guardar como PDF. Usar papel A4
+y desactivar encabezados/pies automáticos del navegador si agregan fecha o URL.
 
-Pruebas existentes: `node --test tests/*.test.js` (los archivos antiguos también imprimen
-sus conteos internos: 186 casos). Nuevas pruebas unitarias: `tests/print-preview.test.js`.
-Interacción real: `tests/print-browser.test.js`, requiere Playwright y Chrome; se marca
-omitida explícitamente si no hay Playwright. Todas las solicitudes ajenas al origen ficticio
-son bloqueadas. No se envían estudios a servicios reales.
+## Conservación del texto y privacidad
 
-Para revisar PDFs ficticios y capturas, establecer `ECO_PRINT_ARTIFACTS` en un directorio
-vacío antes de ejecutar la prueba de navegador. No subir esos artefactos al repositorio.
+Se imprime el informe visible, incluidas las ediciones manuales. Solo se oculta el separador
+automático de 80 signos `=` inmediatamente después del título conocido; no se borra del
+informe original. El resto del texto se conserva literalmente, incluso líneas manuales de `=`
+y etiquetas HTML. La función no genera ni recalcula, no usa IA y no envía estudios.
+No se deduplican ni eliminan firmas que ya formen parte del texto original.
 
-## Copia de prueba independiente
+Si cambiaron los datos desde la generación, se pide revisar texto e identificación antes
+de continuar sin regenerar. Si cambia el origen con la vista previa abierta, se invalida
+la captura y se pide reabrirla. No se mezcla identificación nueva con texto anterior.
 
-`scripts/build-print-preview.py /ruta/vacia/dist` crea una copia con lista explícita de
-archivos: sin dashboard, datos, bibliografía, historial Git, configuración local ni pruebas.
-Agrega un aviso y una política de seguridad que bloquea conexiones salientes, IA y envíos.
-Deshabilita los accesos principales a guardado/sincronización/IA en esa copia. Estos cambios
-solo existen en el paquete de revisión; no cambian el envío de la aplicación.
+La clave propia `ecodoppler_print_template_v2` guarda exclusivamente versión del formato e
+identificador de plantilla predeterminada. Nunca guarda pacientes, mediciones, fecha,
+informe, nombre, matrícula o logos. Las configuraciones antiguas del editor no se leen,
+no cambian estas plantillas y no se borran automáticamente.
+Si falla el almacenamiento, se puede imprimir igual; se informa que la preferencia no se guardó.
+La ventana y el PDF descargado sí contienen el informe y deben custodiarse como cualquier informe.
 
-El alojamiento de prueba debe tener origen independiente y acceso privado. GitHub Pages
-continúa desde `main`; subir esta rama o abrir un PR no actualiza la publicación principal.
+No incorpora imagen de firma ni firma digital verificable. Esa función queda para otra etapa.
 
-## Resultado de esta entrega
+## Pruebas y límites
 
-- 186 casos existentes aprobados; 5 pruebas unitarias nuevas y 11 escenarios de navegador aprobados.
-- Los 22 informes de presets (Lista y Narrativo) son idénticos a main carácter por carácter.
-- PDFs ficticios de una y dos páginas revisados visualmente: identificación repetida,
-  numeración, texto literal y profesional junto al final.
-- El mismo recorrido de navegador pasó sobre el paquete aislado de revisión.
-- Vista privada: https://eco-doppler-prueba-impresion.lucasrobles.chatgpt.site
-  Requiere el acceso del propietario en Sites. Eco rápido: `/eco-rapido.html`.
-  No actualiza la app pública ni se despliega automáticamente con cada cambio del PR.
+- 186 casos existentes, 5 pruebas unitarias de impresión y 11 escenarios de navegador.
+- Verificación de orden de botones y ausencia de editores en ambos modos.
+- Datos profesionales fijos en ambas plantillas, aun con preferencias antiguas o ajenas.
+- Texto manual, HTML literal, almacenamiento bloqueado/cuota y cambios con la vista previa abierta.
+- Preferencia explícita sin guardar paciente, texto o fecha; cambiar el selector no la modifica.
+- Anchos de computadora, celular y tablet; PDFs A4 cortos y largos revisados visualmente.
+- Todos los ensayos usan datos ficticios y bloquean solicitudes ajenas al origen de prueba.
+
+Ejecutar `node --test tests/*.test.js`. La prueba de navegador requiere Playwright y Chrome;
+se omite explícitamente si no hay Playwright. Para generar PDFs ficticios de revisión,
+definir `ECO_PRINT_ARTIFACTS` con un directorio vacío. No subir esos artefactos al repositorio.
+
+La vista de pantalla es continua; los saltos finales dependen del navegador. Chrome de escritorio
+es el navegador probado. Safari/iOS, Android e impresoras físicas requieren verificación adicional.
+Encabezado repetido y numeración dependen del soporte de impresión del navegador.
+
+## Archivos y copia de revisión
+
+Botones y carga del módulo: `index.html`, `eco-rapido.html`. Integración: `js/ui-controller.js`,
+`js/eco-rapido.js`. Presentación: `js/print-preview.js`, `print-preview.html`,
+`css/print-preview.css` y `img/print/`. Pruebas: `tests/print-preview.test.js` y
+`tests/print-browser.test.js`. Empaquetado aislado: `scripts/build-print-preview.py`.
+
+El empaquetador usa una lista explícita de archivos, sin dashboard, datos, bibliografía,
+historial Git, configuración local ni pruebas. Solo en esa copia agrega un aviso,
+bloquea conexiones salientes y deshabilita guardado/sincronización/IA.
+
+Vista privada: https://eco-doppler-prueba-impresion.lucasrobles.chatgpt.site
+Eco rápido: `/eco-rapido.html`. Requiere acceso del propietario en Sites.
+No modifica GitHub Pages desde `main`. Actualizar esta rama o PR no reemplaza la app pública.

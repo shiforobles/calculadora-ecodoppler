@@ -6,7 +6,7 @@ const path = require('node:path');
 let chromium; try { ({ chromium } = require('playwright')); } catch {}
 const root = path.resolve(process.env.ECO_PRINT_ROOT || path.join(__dirname, '..'));
 const origin = 'http://127.0.0.1:9876';
-const key = 'ecodoppler_print_profiles_v1';
+const key = 'ecodoppler_print_template_v2';
 const artifacts = process.env.ECO_PRINT_ARTIFACTS;
 
 test('Imprimir/PDF en ambas pantallas, aislado de servicios externos', { skip: !chromium && 'Falta Playwright para ejecutar navegador' }, async t => {
@@ -47,7 +47,7 @@ test('Imprimir/PDF en ambas pantallas, aislado de servicios externos', { skip: !
             await page.click(button); assert.match(messages.at(-1), /bloqueó/); assert.equal(await page.inputValue(report), 'INFORME FICTICIO'); await context.close();
         });
         for (const file of ['index.html', 'eco-rapido.html']) {
-            await t.test(file + ': captura literal, sin IA, cálculos ni envío; encabezado vacío inicial', async () => {
+            await t.test(file + ': captura literal, sin IA, cálculos ni envío; plantilla genérica con profesional fijo', async () => {
                 const { context, page, report, preview } = await setup(file);
                 const text = 'ECOCARDIOGRAMA DOPPLER CARDÍACO\n' + '='.repeat(80) + '\nObservación manual ficticia: á, ñ, ≤ ≥.\n<b>Esto es texto</b>\n<script>window.INJECTED=1</script>\n' + '='.repeat(80);
                 await page.fill(report, text);
@@ -57,7 +57,9 @@ test('Imprimir/PDF en ambas pantallas, aislado de servicios externos', { skip: !
                 });
                 const popup = await preview();
                 assert.equal(await popup.locator('#print-profile').inputValue(), 'generic');
-                assert.equal(await popup.locator('.institution').count(), 0); assert.equal(await popup.locator('.professional').count(), 0);
+                assert.equal(await popup.locator('.institution').count(), 0); assert.equal(await popup.locator('.professional').count(), 1);
+                assert.match(await popup.locator('.professional').textContent(), /Dr\. Lucas Sebastián Robles/);
+                assert.match(await popup.locator('.professional').textContent(), /Matrícula 166\.452/);
                 assert.equal(await popup.locator('#print-report').textContent(), text); assert.equal(await popup.locator('#print-report script, #print-report b').count(), 0);
                 assert.equal(await popup.locator('.app-separator').isVisible(), false);
                 assert.equal((await popup.locator('#print-report').innerText()).includes('Observación manual ficticia'), true);
@@ -94,19 +96,22 @@ test('Imprimir/PDF en ambas pantallas, aislado de servicios externos', { skip: !
             // Presets can regenerate according to the existing controller; if so, the new report is current.
             await preview(); assert.equal(await page.locator('#resultado').inputValue() !== '', true); await context.close();
         });
-        await t.test('perfil puntual no cambia predeterminado; persistencia explícita sin paciente, fecha ni texto', async () => {
+        await t.test('Copiar y Guardar consecutivos; solo dos plantillas sin editor, con preferencia explícita', async () => {
             const { context, page, report, preview } = await setup();
+            assert.deepEqual(await page.locator('.action-buttons button').evaluateAll(nodes => nodes.slice(1, 5).map(n => n.id)), ['btn_generate', 'btn_copy', 'btn_save_study', 'btn_print']);
             await page.fill('#paciente_id', 'FICTICIO-NO-GUARDAR'); await page.fill(report, 'TEXTO-NO-GUARDAR');
-            let popup = await preview(); await popup.selectOption('#print-profile', 'hospital');
+            let popup = await preview();
+            assert.deepEqual(await popup.locator('#print-profile option').allTextContents(), ['Genérico', 'Hospital Español']);
+            assert.equal(await popup.locator('input[type=text], input[type=file], input[type=checkbox], #print-save-config').count(), 0);
+            await popup.selectOption('#print-profile', 'hospital');
             assert.equal(await page.evaluate(k => localStorage.getItem(k), key), null);
-            await popup.fill('#print-professional', 'Dra. Ana Ejemplo'); await popup.fill('#print-registration', 'DEMO'); await popup.check('#print-showProfessional');
-            await popup.fill('#print-date', '2026-10-29'); await popup.click('#print-save-config');
-            let saved = await page.evaluate(k => JSON.parse(localStorage.getItem(k)), key); assert.equal(saved.defaultProfileId, 'generic');
-            assert.doesNotMatch(JSON.stringify(saved), /FICTICIO-NO-GUARDAR|TEXTO-NO-GUARDAR|2026-10-29/);
-            await popup.click('#print-set-default'); await popup.selectOption('#print-profile', 'generic'); await popup.close();
+            await popup.fill('#print-date', '2026-10-29'); await popup.click('#print-set-default');
+            const saved = await page.evaluate(k => JSON.parse(localStorage.getItem(k)), key);
+            assert.deepEqual(saved, { schemaVersion: 2, defaultProfileId: 'hospital' });
+            await popup.selectOption('#print-profile', 'generic'); await popup.close();
             popup = await preview(); assert.equal(await popup.locator('#print-profile').inputValue(), 'hospital'); assert.equal(await popup.locator('#print-date').inputValue(), '');
-            assert.match(await popup.locator('.professional').textContent(), /Dra. Ana Ejemplo/); assert.equal(await popup.locator('.institution img').count(), 2);
-            await popup.selectOption('#print-profile', 'generic'); await popup.click('#print-save-config'); await popup.close();
+            assert.match(await popup.locator('.professional').textContent(), /Dr\. Lucas Sebastián RoblesMatrícula 166\.452/); assert.equal(await popup.locator('.institution img').count(), 2);
+            await popup.selectOption('#print-profile', 'generic'); await popup.close();
             await page.reload(); await page.fill(report, 'NUEVO FICTICIO'); popup = await preview(); assert.equal(await popup.locator('#print-profile').inputValue(), 'hospital');
             assert.equal(await popup.locator('#print-report').textContent(), 'NUEVO FICTICIO'); assert.doesNotMatch(await popup.locator('.patient').textContent().catch(() => ''), /FICTICIO-NO-GUARDAR/);
             await context.close();
@@ -128,18 +133,22 @@ test('Imprimir/PDF en ambas pantallas, aislado de servicios externos', { skip: !
                 await context.close();
             }
         });
-        await t.test('logos locales validados; datos como texto y no como HTML', async () => {
-            const { context, page, report, preview } = await setup('eco-rapido.html'); await page.fill(report, 'FICTICIO');
+        await t.test('plantillas fijas ignoran membretes antiguos y guardados ajenos; texto literal seguro', async () => {
+            const { context, page, report, preview } = await setup('eco-rapido.html');
+            await page.evaluate(key => {
+                localStorage.setItem('ecodoppler_print_profiles_v1', JSON.stringify({ schemaVersion: 1, profiles: { generic: { professional: 'OTRO PROFESIONAL' } } }));
+                localStorage.setItem(key, JSON.stringify({ schemaVersion: 2, defaultProfileId: 'hospital', profiles: { hospital: { professional: 'OTRO PROFESIONAL', institution: '<script>malicioso</script>', logoLeft: 'https://example.test/secreto' } } }));
+            }, key);
+            await page.fill(report, '<img src="https://example.test/secreto" onerror="alert(1)">');
             const popup = await preview();
-            await popup.fill('#print-institution', '<img src="https://example.test/secreto" onerror="alert(1)">');
-            assert.match(await popup.locator('.institution .name').textContent(), /<img/); assert.equal(await popup.locator('.institution img').count(), 0);
-            await popup.setInputFiles('#print-logoLeft', { name: 'logo.svg', mimeType: 'image/svg+xml', buffer: Buffer.from('<svg/>') });
-            assert.match(await popup.locator('#print-status').textContent(), /No se pudo cargar/);
-            await popup.setInputFiles('#print-logoLeft', { name: 'logo.png', mimeType: 'image/png', buffer: Buffer.from(await popup.evaluate(() => { const c = document.createElement('canvas'); c.width = 10; c.height = 10; c.getContext('2d').fillRect(0, 0, 10, 10); return c.toDataURL('image/png').split(',')[1]; }), 'base64') });
-            await popup.waitForFunction(() => document.getElementById('print-status').textContent.includes('Logo cargado'));
-            await popup.check('#print-showLogos'); await popup.click('#print-save-config');
-            const stored = await page.evaluate(k => JSON.parse(localStorage.getItem(k)), key);
-            assert.match(stored.profiles.generic.logoLeft, /^data:image\/png;base64,/); await context.close();
+            assert.equal(await popup.locator('#print-report img, #print-report script').count(), 0);
+            assert.match(await popup.locator('.institution .name').textContent(), /Hospital Español/);
+            assert.match(await popup.locator('.professional').textContent(), /Dr\. Lucas Sebastián RoblesMatrícula 166\.452/);
+            assert.equal(await popup.locator('.institution img').evaluateAll(images => images.every(img => new URL(img.src).origin === 'http://127.0.0.1:9876')), true);
+            await popup.selectOption('#print-profile', 'generic');
+            assert.equal(await popup.locator('.institution').count(), 0);
+            assert.match(await popup.locator('.professional').textContent(), /166\.452/);
+            await context.close();
         });
         await t.test('móvil/tablet: controles accesibles, hoja desplazable y sin desbordes en el panel', async () => {
             for (const width of [390, 768]) {
@@ -159,13 +168,13 @@ test('Imprimir/PDF en ambas pantallas, aislado de servicios externos', { skip: !
             const text = original + '\n\nObservación manual ficticia: control evolutivo.\n\n' + Array.from({ length: 16 }, (_, i) => 'Observación adicional de prueba ' + (i + 1) + '. Párrafo ficticio para comprobar varias páginas sin resumir el texto original: á, é, í, ó, ú, ñ, ≥ y ≤.\n').join('\n') + '\nTexto literal: <b>esto no es HTML</b>.';
             await page.fill(report, text); const popup = await preview();
             assert.equal(await popup.locator('#print-report').textContent(), text);
-            await popup.selectOption('#print-profile', 'hospital'); await popup.fill('#print-professional', 'Dra. Ana Ejemplo'); await popup.fill('#print-registration', 'DEMO'); await popup.check('#print-showProfessional'); await popup.fill('#print-date', '2026-10-29');
+            await popup.selectOption('#print-profile', 'hospital'); await popup.fill('#print-date', '2026-10-29');
             await popup.evaluate(() => Promise.all([...document.images].map(img => img.decode())));
             if (artifacts) {
                 fs.mkdirSync(artifacts, { recursive: true });
                 await popup.pdf({ path: path.join(artifacts, 'impresion-larga.pdf'), format: 'A4', preferCSSPageSize: true, printBackground: true });
                 await page.fill(report, original + '\n\nObservación manual ficticia: control evolutivo.'); await popup.close();
-                const short = await preview(); await short.selectOption('#print-profile', 'hospital'); await short.fill('#print-professional', 'Dra. Ana Ejemplo'); await short.fill('#print-registration', 'DEMO'); await short.check('#print-showProfessional'); await short.fill('#print-date', '2026-10-29');
+                const short = await preview(); await short.selectOption('#print-profile', 'hospital'); await short.fill('#print-date', '2026-10-29');
                 await short.evaluate(() => Promise.all([...document.images].map(img => img.decode())));
                 await short.screenshot({ path: path.join(artifacts, 'vista-hospital.png'), fullPage: true });
                 await short.pdf({ path: path.join(artifacts, 'impresion-hospital.pdf'), format: 'A4', preferCSSPageSize: true, printBackground: true });
