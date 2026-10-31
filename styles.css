@@ -290,8 +290,71 @@ body {
    ======================================== */
 
 .container {
-    max-width: 1100px;
+    max-width: 1400px;
     margin: 0 auto;
+}
+
+/* ── Dos columnas: el estudio a la izquierda, el informe anclado a la derecha ──
+   El informe estaba al final de nueve pantallas: para cotejar un dato contra lo
+   que quedó escrito había que recorrer la página entera. Ahora acompaña.
+   Por debajo de 1280px vuelve a una sola columna, igual que antes. */
+.app-layout {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: var(--spacing-lg);
+    align-items: start;
+}
+
+@media (min-width: 1280px) {
+    .app-layout {
+        /* minmax(0,1fr) y no 1fr: sin eso una tabla o un SVG ancho estira la
+           columna y desborda la grilla. */
+        grid-template-columns: minmax(0, 1fr) 420px;
+    }
+
+    .report-col {
+        position: sticky;
+        top: var(--spacing-md);
+        max-height: calc(100vh - 2 * var(--spacing-md));
+        display: flex;
+        flex-direction: column;
+        gap: var(--spacing-md);
+    }
+
+    /* Dentro del panel anclado el informe sigue creciendo con el texto, pero
+       topado por lo que queda de pantalla después de la botonera y el título;
+       pasado ese punto scrollea él y no la página. */
+    .report-col .card:last-child {
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+        margin-bottom: 0;
+        overflow: auto;
+    }
+
+    .report-col .report-output {
+        min-height: 18rem;
+        max-height: calc(100vh - 18rem);
+    }
+
+    /* La botonera entra en dos filas en 420px en vez de desbordar */
+    .report-col .action-buttons {
+        margin-bottom: 0;
+    }
+
+    .report-col .action-buttons .btn {
+        flex: 1 1 calc(50% - var(--spacing-md));
+        min-width: 0;
+    }
+}
+
+/* Borrar todo cierra la columna del formulario, lejos del panel anclado */
+.zona-borrado {
+    display: flex;
+    justify-content: flex-end;
+    padding-top: var(--spacing-md);
+    margin-bottom: var(--spacing-lg);
+    border-top: 1px dashed var(--color-border);
 }
 
 /* Header */
@@ -413,19 +476,30 @@ body {
    Grid System
    ======================================== */
 
+/* ── Grillas de campos ───────────────────────────────────────────────────────
+   Antes los cortes eran @media, o sea que miraban la VENTANA. Metido el
+   formulario en una columna de 950px dentro de una ventana de 1500, habría
+   seguido poniendo tres campos por fila aunque la columna no diera.
+   Ahora cada tarjeta es su propio contexto y los campos responden al ancho
+   que realmente tienen. */
+.card,
+.subsection {
+    container-type: inline-size;
+}
+
 .grid {
     display: grid;
     gap: var(--spacing-md);
     grid-template-columns: 1fr;
 }
 
-@media (min-width: 640px) {
+@container (min-width: 540px) {
     .grid {
         grid-template-columns: repeat(2, 1fr);
     }
 }
 
-@media (min-width: 1024px) {
+@container (min-width: 860px) {
     .grid {
         grid-template-columns: repeat(3, 1fr);
     }
@@ -435,7 +509,7 @@ body {
     grid-template-columns: 1fr;
 }
 
-@media (min-width: 640px) {
+@container (min-width: 540px) {
     .grid-2col {
         grid-template-columns: repeat(2, 1fr);
     }
@@ -445,9 +519,18 @@ body {
     grid-column: span 1;
 }
 
-@media (min-width: 640px) {
+@container (min-width: 540px) {
     .grid-span-2 {
         grid-column: span 2;
+    }
+}
+
+/* Sin contexto de contenedor alrededor (por ejemplo si una grilla queda fuera
+   de una tarjeta) las @container no aplican: este respaldo por ventana evita
+   que quede en una sola columna. */
+@media (min-width: 640px) {
+    .app-layout > :not(.study-col):not(.report-col) .grid {
+        grid-template-columns: repeat(2, 1fr);
     }
 }
 
@@ -790,13 +873,13 @@ input.invalid {
     background: var(--color-bg-card); color: var(--color-primary); font-size: 0.85rem; font-weight: 600;
     cursor: pointer; transition: background 0.15s, color 0.15s;
 }
-.preset-btn:hover { background: var(--color-primary); color: #fff; }
+.preset-btn:hover { background: var(--color-primary); color: var(--on-solid); }
 .preset-btn-green { border-color: var(--color-accent-green); color: var(--color-accent-green); }
 .preset-btn-green:hover { background: var(--color-accent-green); color: var(--on-solid); }
-.preset-btn-yellow { border-color: #d97706; color: #d97706; }
-.preset-btn-yellow:hover { background: #d97706; color: #fff; }
-.preset-btn-red { border-color: var(--color-error); color: var(--color-error); }
-.preset-btn-red:hover { background: var(--color-error); color: #fff; }
+.preset-btn-yellow { border-color: var(--sev-leve-text); color: var(--sev-leve-text); }
+.preset-btn-yellow:hover { background: var(--sev-leve-bg); color: var(--sev-leve-fg); }
+.preset-btn-red { border-color: var(--sev-severo-text); color: var(--sev-severo-text); }
+.preset-btn-red:hover { background: var(--sev-severo-bg); color: var(--sev-severo-fg); }
 .preset-sep { flex: 0 0 100%; height: 0; }
 
 /* Cabecera del informe: el título y el selector de modo */
@@ -864,9 +947,9 @@ input.invalid {
     user-select: none;
 }
 .diast-ctx-btn:has(input:checked) {
-    background: #1e40af;
-    border-color: #1e40af;
-    color: #fff;
+    background: var(--color-primary-dark);
+    border-color: var(--color-primary-dark);
+    color: var(--on-solid);
 }
 .diast-ctx-btn input { display: none; }
 
@@ -2082,9 +2165,9 @@ input.invalid {
 }
 
 .btn-vista[aria-pressed="true"] {
-    background: var(--color-info);
-    border-color: var(--color-info);
-    color: #fff;
+    background: var(--color-link);
+    border-color: var(--color-link);
+    color: var(--on-solid);
 }
 
 
@@ -2115,18 +2198,23 @@ input.invalid {
 
 .btn-grado:hover { border-color: var(--grado-color); }
 
+/* Presionado usa un tono MÁS PROFUNDO del mismo color, no el de la leyenda:
+   sobre el verde, el rojo y el violeta de referencia el texto blanco se queda
+   en 2.5, 3.8 y 4.0. El hue se mantiene, así que la asociación con el
+   segmento pintado no se pierde; el SVG y las muestras de la leyenda siguen
+   con la paleta exacta. */
 .btn-grado[aria-pressed="true"] {
-    background: var(--grado-color);
-    border-color: var(--grado-color);
-    color: #fff;
+    background: var(--grado-color-fuerte, var(--grado-color));
+    border-color: var(--grado-color-fuerte, var(--grado-color));
+    color: #FFFFFF;
 }
 
-.btn-grado.grado-1 { --grado-color: #10b981; }
-.btn-grado.grado-2 { --grado-color: #fbbf24; }
-.btn-grado.grado-3 { --grado-color: #ef4444; }
-.btn-grado.grado-4 { --grado-color: #a855f7; }
+.btn-grado.grado-1 { --grado-color: #10b981; --grado-color-fuerte: #047857; }
+.btn-grado.grado-2 { --grado-color: #fbbf24; --grado-color-fuerte: #fbbf24; }
+.btn-grado.grado-3 { --grado-color: #ef4444; --grado-color-fuerte: #b91c1c; }
+.btn-grado.grado-4 { --grado-color: #a855f7; --grado-color-fuerte: #7e22ce; }
 
-/* El amarillo no da contraste con texto blanco */
+/* El amarillo no da contraste con texto blanco, vaya o no más profundo */
 .btn-grado.grado-2[aria-pressed="true"] { color: #1F2937; }
 
 /* ── Marcado por grupo anatómico ─────────────────────────────────────────────
@@ -2480,8 +2568,8 @@ input.invalid {
 }
 
 .preset-btn-masiva-alt:hover {
-    background: var(--tint-danger-border);
-    color: var(--tint-danger-on);
+    background: var(--sev-severo-bg);
+    color: var(--sev-severo-fg);
 }
 
 /* Modal del administrador de presets. Venía con var(--color-surface,#fff):

@@ -51,6 +51,9 @@
             </div>
         </header>
 
+        <div class="app-layout">
+        <div class="study-col">
+
         <!-- Datos Físicos y Filiación -->
         <section class="card">
             <h2 class="section-title section-title--apoyo">Datos del Paciente</h2>
@@ -1531,6 +1534,16 @@
             </div>
         </section>
 
+        <section class="zona-borrado">
+            <button id="btn_reset" class="btn btn-danger btn-reset">
+                <span>🗑️</span> BORRAR TODO
+            </button>
+        </section>
+
+        </div><!-- /study-col -->
+
+        <div class="report-col">
+
         <!-- Botones de Acción -->
         <section class="action-buttons">
             <button id="btn_generate" class="btn btn-primary">
@@ -1548,9 +1561,6 @@
             <button id="btn_sync_setup" class="btn btn-secondary" title="Configurar la sincronización con Google Sheets">
                 <span>⚙️</span> SINCRONIZACIÓN
             </button>
-            <button id="btn_reset" class="btn btn-danger btn-reset">
-                <span>🗑️</span> BORRAR TODO
-            </button>
         </section>
 
         <!-- Área de Resultado -->
@@ -1567,6 +1577,9 @@
                 placeholder="El informe compacto se generará aquí...&#10;&#10;Complete los datos del paciente y presione 'GENERAR INFORME'"></textarea>
             <p id="report_status" class="report-status" role="status" hidden></p>
         </section>
+
+        </div><!-- /report-col -->
+        </div><!-- /app-layout -->
 
         <footer class="app-footer">
             <p>Calculadora Ecodoppler Cardíaco | Fórmulas ASE/EACVI 2025 <span id="app-version" style="opacity:0.55;font-size:0.8em;margin-left:0.5em;">v18.0</span></p>

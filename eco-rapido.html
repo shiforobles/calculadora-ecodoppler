@@ -157,11 +157,13 @@
   .btn-grado{min-height:40px;padding:.35rem .6rem;border:1.5px solid var(--border);
              border-bottom:3px solid var(--grado-color);border-radius:8px;background:var(--card);
              color:var(--text);font-family:inherit;font-size:.78rem;font-weight:600;cursor:pointer;}
-  .btn-grado[aria-pressed="true"]{background:var(--grado-color);border-color:var(--grado-color);color:#fff;}
-  .btn-grado.grado-1{--grado-color:#10b981;}
-  .btn-grado.grado-2{--grado-color:#fbbf24;}
-  .btn-grado.grado-3{--grado-color:#ef4444;}
-  .btn-grado.grado-4{--grado-color:#a855f7;}
+  /* Presionado va un tono más profundo: sobre el verde, el rojo y el violeta
+     de la leyenda el texto blanco no llega a 4.5:1. El SVG no se toca. */
+  .btn-grado[aria-pressed="true"]{background:var(--grado-fuerte);border-color:var(--grado-fuerte);color:#fff;}
+  .btn-grado.grado-1{--grado-color:#10b981; --grado-fuerte:#047857;}
+  .btn-grado.grado-2{--grado-color:#fbbf24; --grado-fuerte:#fbbf24;}
+  .btn-grado.grado-3{--grado-color:#ef4444; --grado-fuerte:#b91c1c;}
+  .btn-grado.grado-4{--grado-color:#a855f7; --grado-fuerte:#7e22ce;}
   .btn-grado.grado-2[aria-pressed="true"]{color:#1f2937;}
 
   /* Marcado por pared, anillo o territorio: suma sobre lo ya marcado */
