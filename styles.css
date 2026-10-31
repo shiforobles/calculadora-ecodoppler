@@ -290,71 +290,8 @@ body {
    ======================================== */
 
 .container {
-    max-width: 1400px;
+    max-width: 1100px;
     margin: 0 auto;
-}
-
-/* ── Dos columnas: el estudio a la izquierda, el informe anclado a la derecha ──
-   El informe estaba al final de nueve pantallas: para cotejar un dato contra lo
-   que quedó escrito había que recorrer la página entera. Ahora acompaña.
-   Por debajo de 1280px vuelve a una sola columna, igual que antes. */
-.app-layout {
-    display: grid;
-    grid-template-columns: 1fr;
-    gap: var(--spacing-lg);
-    align-items: start;
-}
-
-@media (min-width: 1280px) {
-    .app-layout {
-        /* minmax(0,1fr) y no 1fr: sin eso una tabla o un SVG ancho estira la
-           columna y desborda la grilla. */
-        grid-template-columns: minmax(0, 1fr) 420px;
-    }
-
-    .report-col {
-        position: sticky;
-        top: var(--spacing-md);
-        max-height: calc(100vh - 2 * var(--spacing-md));
-        display: flex;
-        flex-direction: column;
-        gap: var(--spacing-md);
-    }
-
-    /* Dentro del panel anclado el informe sigue creciendo con el texto, pero
-       topado por lo que queda de pantalla después de la botonera y el título;
-       pasado ese punto scrollea él y no la página. */
-    .report-col .card:last-child {
-        display: flex;
-        flex-direction: column;
-        min-height: 0;
-        margin-bottom: 0;
-        overflow: auto;
-    }
-
-    .report-col .report-output {
-        min-height: 18rem;
-        max-height: calc(100vh - 18rem);
-    }
-
-    /* La botonera entra en dos filas en 420px en vez de desbordar */
-    .report-col .action-buttons {
-        margin-bottom: 0;
-    }
-
-    .report-col .action-buttons .btn {
-        flex: 1 1 calc(50% - var(--spacing-md));
-        min-width: 0;
-    }
-}
-
-/* Borrar todo cierra la columna del formulario, lejos del panel anclado */
-.zona-borrado {
-    display: flex;
-    justify-content: flex-end;
-    padding-top: var(--spacing-md);
-    margin-bottom: var(--spacing-lg);
-    border-top: 1px dashed var(--color-border);
 }
 
 /* Header */
@@ -407,56 +344,13 @@ body {
     box-shadow: var(--shadow-md);
 }
 
-/* ── Jerarquía de títulos ────────────────────────────────────────────────────
-   Antes los 15 títulos eran idénticos: mismo tamaño, mismo peso y el mismo
-   subrayado teal de 3px. "Septum Interauricular" gritaba igual que
-   "Ventrículo Izquierdo", y con 15 tarjetas iguales apiladas no había forma
-   de orientarse. Ahora hay tres niveles.
-
-   1 · Sección del estudio: lleva número en insignia y es la más fuerte. */
 .section-title {
-    display: flex;
-    align-items: center;
-    gap: 0.6rem;
-    font-size: var(--font-size-xl);
+    font-size: var(--font-size-lg);
     font-weight: 700;
     color: var(--color-primary-dark);
     margin-bottom: var(--spacing-md);
     padding-bottom: var(--spacing-sm);
-    border-bottom: 2px solid var(--color-border);
-    letter-spacing: -0.01em;
-}
-
-.section-num {
-    flex: 0 0 auto;
-    width: 1.75rem;
-    height: 1.75rem;
-    border-radius: 50%;
-    background: var(--color-primary);
-    color: var(--on-solid);
-    display: inline-grid;
-    place-items: center;
-    font-size: 0.85rem;
-    font-weight: 700;
-    font-variant-numeric: tabular-nums;
-}
-
-/* 2 · Bloque dentro de una sección (la motilidad regional es parte del VI) */
-.section-title--bloque {
-    font-size: var(--font-size-lg);
-    color: var(--color-primary);
-    border-bottom-style: dashed;
-}
-
-/* 3 · Tarjeta de apoyo: no es parte de la secuencia del estudio, así que no
-       compite con ella. Datos, antecedentes, presets, calculadoras, informe. */
-.section-title--apoyo {
-    font-size: var(--font-size-sm);
-    font-weight: 600;
-    color: var(--color-text-secondary);
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    border-bottom: 1px solid var(--color-border);
+    border-bottom: 3px solid var(--color-primary);
 }
 
 .subsection {
@@ -476,30 +370,19 @@ body {
    Grid System
    ======================================== */
 
-/* ── Grillas de campos ───────────────────────────────────────────────────────
-   Antes los cortes eran @media, o sea que miraban la VENTANA. Metido el
-   formulario en una columna de 950px dentro de una ventana de 1500, habría
-   seguido poniendo tres campos por fila aunque la columna no diera.
-   Ahora cada tarjeta es su propio contexto y los campos responden al ancho
-   que realmente tienen. */
-.card,
-.subsection {
-    container-type: inline-size;
-}
-
 .grid {
     display: grid;
     gap: var(--spacing-md);
     grid-template-columns: 1fr;
 }
 
-@container (min-width: 540px) {
+@media (min-width: 640px) {
     .grid {
         grid-template-columns: repeat(2, 1fr);
     }
 }
 
-@container (min-width: 860px) {
+@media (min-width: 1024px) {
     .grid {
         grid-template-columns: repeat(3, 1fr);
     }
@@ -509,7 +392,7 @@ body {
     grid-template-columns: 1fr;
 }
 
-@container (min-width: 540px) {
+@media (min-width: 640px) {
     .grid-2col {
         grid-template-columns: repeat(2, 1fr);
     }
@@ -519,18 +402,9 @@ body {
     grid-column: span 1;
 }
 
-@container (min-width: 540px) {
+@media (min-width: 640px) {
     .grid-span-2 {
         grid-column: span 2;
-    }
-}
-
-/* Sin contexto de contenedor alrededor (por ejemplo si una grilla queda fuera
-   de una tarjeta) las @container no aplican: este respaldo por ventana evita
-   que quede en una sola columna. */
-@media (min-width: 640px) {
-    .app-layout > :not(.study-col):not(.report-col) .grid {
-        grid-template-columns: repeat(2, 1fr);
     }
 }
 
@@ -1037,9 +911,9 @@ input.invalid {
 }
 
 /* ── Borrar todo ─────────────────────────────────────────────────────────────
-   Va último y separado del resto: antes era el primer botón de la fila y pesaba
-   lo mismo que GENERAR INFORME. Sigue siendo un solo clic, sin confirmación;
-   lo que protege de un accidente es el Deshacer, no una pregunta en cada uso. */
+   Va último en la fila y en rojo: antes era el PRIMER botón, en gris y del
+   mismo tamaño que GENERAR INFORME. Sigue siendo un solo clic, sin
+   confirmación; lo que protege de un accidente es el Deshacer. */
 .btn-danger {
     background: var(--sev-severo-bg);
     color: var(--sev-severo-fg);
@@ -1048,11 +922,6 @@ input.invalid {
 .btn-danger:hover {
     background: var(--sev-severo-bg);
     filter: brightness(1.1);
-}
-
-.btn-reset {
-    margin-left: auto;
-    flex: 0 0 auto;
 }
 
 /* ── Barra de deshacer ─────────────────────────────────────────────────────── */
@@ -1147,7 +1016,9 @@ input.invalid {
 .btn-secondary {
     background: var(--color-text-secondary);
     color: var(--on-solid);
-    flex: 0.5;
+    /* El flex: 0.5 venía de cuando estos dos botones eran sólo ícono; con
+       etiqueta les quedaba corto y el texto salía cortado. */
+    flex: 1;
 }
 
 .btn-secondary:hover {
