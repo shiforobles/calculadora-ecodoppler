@@ -500,18 +500,45 @@ select:hover:not(:disabled) {
 }
 
 input[type="number"] {
-    font-family: var(--font-family-mono);
     font-weight: 600;
 }
 
-/* Calculated Values (Disabled Inputs) */
+/* Los "Ej: 65" iban en monoespaciada y parecían salida de máquina. La
+   monoespaciada queda para los valores calculados, que es donde alinear
+   dígitos sirve. */
+input::placeholder,
+textarea::placeholder {
+    font-family: var(--font-family-sans);
+    font-weight: 400;
+}
+
+/* ── Campos calculados ───────────────────────────────────────────────────────
+   No son campos: son resultados. Venían con caja, borde y fondo teal, igual
+   que un input editable, e invitaban a escribir donde no se puede. Ahora se
+   leen como un valor, y mientras no hay dato muestran "—" en vez de un hueco
+   que no se sabe si está vacío o roto. */
 .calculated-value {
-    background: var(--color-primary-bg) !important;
+    background: transparent !important;
     color: var(--color-primary-dark) !important;
     font-weight: 700;
     font-family: var(--font-family-mono);
-    cursor: not-allowed;
-    border-color: var(--color-primary-light);
+    font-size: var(--font-size-lg);
+    cursor: default;
+    border: none !important;
+    border-bottom: 2px solid var(--color-primary-light) !important;
+    border-radius: 0 !important;
+    padding: 0.35rem 0.1rem;
+    box-shadow: none !important;
+}
+
+.calculated-value::placeholder {
+    color: var(--color-text-muted);
+    font-weight: 400;
+    opacity: 1;
+}
+
+.calculated-value:hover {
+    border-bottom-color: var(--color-primary) !important;
 }
 
 /* Input Validation States */
@@ -1071,7 +1098,11 @@ input.invalid {
 
 .report-output {
     width: 100%;
-    min-height: 500px;
+    /* Arranca compacto y crece con el texto, en vez de reservar 500px
+       de textarea vacía debajo de cada estudio. */
+    min-height: 11rem;
+    field-sizing: content;
+    max-height: 75vh;
     padding: var(--spacing-md);
     border: 1.5px solid var(--color-border);
     border-radius: var(--radius-md);
@@ -2478,4 +2509,43 @@ input.invalid {
     overflow: auto;
     padding: 1.25rem;
     box-shadow: var(--shadow-lg);
+}
+
+
+/* ── Encabezado en pantalla chica ────────────────────────────────────────────
+   La fila de botones no envolvía: a 375px "Eco Focalizado" quedaba cortado por
+   la izquierda y "Iniciar Dictado" por la derecha, sin scroll que lo revelara. */
+@media (max-width: 600px) {
+    .app-header {
+        padding: var(--spacing-md);
+    }
+
+    .header-content,
+    .app-header > div {
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: var(--spacing-sm);
+    }
+
+    .voice-controls,
+    .header-actions {
+        flex-wrap: wrap;
+        justify-content: center;
+        width: 100%;
+    }
+
+    .app-header .btn {
+        flex: 0 1 auto;
+        min-width: 0;
+        font-size: var(--font-size-xs);
+        padding: 0.5rem 0.7rem;
+    }
+}
+
+/* ── Aire al final de la página ──────────────────────────────────────────────
+   En el teléfono la barra inferior del navegador se superpone al contenido y
+   tapa lo último que haya en pantalla. Esto reserva su alto al final, más el
+   área segura del dispositivo. */
+body {
+    padding-bottom: calc(5.5rem + env(safe-area-inset-bottom, 0px));
 }
