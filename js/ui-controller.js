@@ -2153,7 +2153,7 @@ class UIController {
             const dialog = document.createElement('dialog');
             dialog.id = 'report-conflict-dialog';
             dialog.setAttribute('aria-labelledby', 'report-conflict-title');
-            dialog.style.cssText = 'max-width:540px;width:90vw;max-height:85vh;overflow:auto;margin:auto;border:1px solid #cbd5e1;border-radius:10px;padding:1.25rem;color:var(--color-text);background:var(--color-surface);';
+            dialog.className = 'report-conflict-dialog';
             dialog.innerHTML = `
                 <h3 id="report-conflict-title" style="margin-bottom:.75rem;">Revisar informe antes de continuar</h3>
                 <p style="margin-bottom:.75rem;">Cambiaron los datos después de editar el texto. Regenerar reemplaza tus ediciones con un informe de los datos actuales.</p>

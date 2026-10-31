@@ -1862,3 +1862,25 @@ input.invalid {
     border-color: var(--color-primary);
     background: var(--color-primary-bg);
 }
+
+/* ── Diálogo de conflicto del informe ────────────────────────────────────────
+   Antes venía con estilos inline que apuntaban a --color-text y --color-surface,
+   dos variables que no existen: el diálogo salía transparente y su texto caía
+   sobre el formulario, en claro y en oscuro. Va acá, con las variables reales. */
+.report-conflict-dialog {
+    max-width: 540px;
+    width: 90vw;
+    max-height: 85vh;
+    overflow: auto;
+    margin: auto;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-lg);
+    color: var(--color-text-primary);
+    background: var(--color-bg-card);
+    box-shadow: var(--shadow-lg);
+}
+
+.report-conflict-dialog::backdrop {
+    background: rgba(15, 23, 42, 0.55);
+}
