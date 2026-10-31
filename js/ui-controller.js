@@ -69,6 +69,7 @@ class UIController {
         });
         document.getElementById('btn_admin_presets')?.addEventListener('click', () => this.showPresetManager());
 
+        this.refreshConfiguredAccess();
         this._initReportTracking();
 
         // Button event listeners
@@ -84,7 +85,7 @@ class UIController {
         const btnViewSheet = document.getElementById('btn_view_sheet');
         if (btnViewSheet) btnViewSheet.addEventListener('click', () => {
             const url = window.GoogleSync ? GoogleSync.getSheetUrl() : '';
-            if (url) window.open(url, '_blank');
+            if (GoogleSync.safeWebUrl(url)) window.open(url, '_blank', 'noopener,noreferrer');
             else this.showToast('⚙️ Configurá la URL del Sheet en ⚙️ primero');
         });
 
@@ -4012,7 +4013,7 @@ class UIController {
             const hc  = document.getElementById('paciente_id').value || '(sin ID)';
 
             if (!window.GoogleSync || !GoogleSync.isConfigured()) {
-                this.showToast('⚙️ Configurá Google Sheets primero con el botón ⚙️');
+                this.showToast('⚠️ No se envió el estudio: falta la URL de Apps Script. Cargala en ⚙️ Configuración. El informe sigue disponible para copiar.');
                 return;
             }
 
@@ -4032,6 +4033,28 @@ class UIController {
         }
     }
 
+    refreshConfiguredAccess() {
+        const sheet = document.getElementById('btn_view_sheet');
+        if (sheet) sheet.hidden = !GoogleSync.safeWebUrl(GoogleSync.getSheetUrl());
+        const gemini = document.getElementById('mode_ia');
+        if (gemini) gemini.hidden = !window.GeminiAI?.getKey();
+        const groqKey = GoogleSync.getOptional('groq_api_key');
+        if (groqKey && !window.aiAssistant && window.AIAssistant) window.aiAssistant = new AIAssistant();
+        if (window.aiAssistant) {
+            window.aiAssistant.apiKey = groqKey;
+            const button = document.getElementById('ai-assistant-btn');
+            if (button) button.hidden = !groqKey;
+            if (!groqKey) window.aiAssistant.panel.style.display = 'none';
+        }
+        for (const id of ['personal_ai_1', 'personal_ai_2']) {
+            const link = document.getElementById(id);
+            if (!link) continue;
+            const url = GoogleSync.safeWebUrl(GoogleSync.getOptional(id));
+            link.hidden = !url;
+            if (url) link.href = url; else link.removeAttribute('href');
+        }
+    }
+
     showSyncSetupModal() {
         document.getElementById('sync-setup-modal')?.remove();
 
@@ -4042,6 +4065,7 @@ class UIController {
             display:flex;align-items:center;justify-content:center;padding:1rem;
         `;
 
+        const escape = value => String(value).replace(/[&<>"']/g, c => ({'&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;'}[c]));
         const currentUrl      = window.GoogleSync ? GoogleSync.getUrl() : '';
         const currentSheetUrl = window.GoogleSync ? GoogleSync.getSheetUrl() : '';
         const currentDoctor   = window.GoogleSync ? GoogleSync.getDoctor() : '';
@@ -4059,7 +4083,7 @@ class UIController {
                 URL del Web App (Apps Script)
             </label>
             <div style="display:flex;gap:0.5rem;margin-bottom:1rem;">
-                <input id="sync-url-input" type="text" value="${currentUrl}"
+                <input id="sync-url-input" type="text" value="${escape(currentUrl)}"
                     placeholder="https://script.google.com/macros/s/.../exec"
                     style="flex:1;border:1px solid #d1d5db;border-radius:6px;padding:0.5rem 0.75rem;font-size:0.875rem;">
             </div>
@@ -4068,11 +4092,21 @@ class UIController {
                 URL de tu Google Sheet (para abrir directo)
             </label>
             <div style="display:flex;gap:0.5rem;margin-bottom:1.25rem;">
-                <input id="sync-sheet-url-input" type="text" value="${currentSheetUrl}"
+                <input id="sync-sheet-url-input" type="text" value="${escape(currentSheetUrl)}"
                     placeholder="https://docs.google.com/spreadsheets/d/.../edit"
                     style="flex:1;border:1px solid #d1d5db;border-radius:6px;padding:0.5rem 0.75rem;font-size:0.875rem;">
             </div>
 
+            <p>Configuración local de este navegador. No se comparte con otros equipos.</p>
+            <label for="sheet-csv-url">URL CSV del dashboard (opcional)</label>
+            <input id="sheet-csv-url" type="url" value="${escape(GoogleSync.getOptional('ecodoppler_sheet_csv_url'))}">
+            <p>No publiques una planilla con datos identificatorios para obtener esta URL. Podés importar un archivo local en el dashboard.</p>
+            <label for="groq-config-key">API key de Groq (opcional)</label>
+            <input id="groq-config-key" type="password" autocomplete="off" value="${escape(GoogleSync.getOptional('groq_api_key'))}">
+            <label for="personal-ai-1">Enlace personal de IA 1 (opcional, HTTPS)</label>
+            <input id="personal-ai-1" type="url" value="${escape(GoogleSync.getOptional('personal_ai_1'))}">
+            <label for="personal-ai-2">Enlace personal de IA 2 (opcional, HTTPS)</label>
+            <input id="personal-ai-2" type="url" value="${escape(GoogleSync.getOptional('personal_ai_2'))}">
             <hr style="border:none;border-top:1px solid #e5e7eb;margin:1rem 0;">
             <p style="margin:0 0 0.5rem;font-size:0.875rem;font-weight:600;color:#374151;">Gemini IA</p>
             <p style="margin:0 0 0.5rem;font-size:0.8rem;color:#6b7280;">
@@ -4081,7 +4115,7 @@ class UIController {
             </p>
             <div style="display:flex;gap:0.5rem;margin-bottom:1.25rem;">
                 <input id="gemini-key-input" type="password"
-                    value="${window.GeminiAI ? GeminiAI.getKey() : ''}"
+                    value="${escape(window.GeminiAI ? GeminiAI.getKey() : '')}"
                     placeholder="AIza..."
                     style="flex:1;border:1px solid #d1d5db;border-radius:6px;padding:0.5rem 0.75rem;font-size:0.875rem;">
                 <button id="gemini-toggle-key"
@@ -4103,14 +4137,14 @@ class UIController {
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;margin-bottom:1.25rem;">
                 <div>
                     <label style="font-size:0.8rem;color:#6b7280;display:block;margin-bottom:0.3rem;">Nombre y apellido</label>
-                    <input id="firma-nombre" type="text" value="${currentDoctor}"
-                        placeholder="Ej: Lucas Robles"
+                    <input id="firma-nombre" type="text" value="${escape(currentDoctor)}"
+                        placeholder="Nombre del profesional"
                         style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:0.5rem 0.75rem;font-size:0.875rem;box-sizing:border-box;">
                 </div>
                 <div>
                     <label style="font-size:0.8rem;color:#6b7280;display:block;margin-bottom:0.3rem;">Matrícula</label>
-                    <input id="firma-matricula" type="text" value="${currentMat}"
-                        placeholder="Ej: 366.452"
+                    <input id="firma-matricula" type="text" value="${escape(currentMat)}"
+                        placeholder="Matrícula profesional"
                         style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:0.5rem 0.75rem;font-size:0.875rem;box-sizing:border-box;">
                 </div>
             </div>
@@ -4179,19 +4213,32 @@ class UIController {
 
         document.getElementById('sync-save-btn').addEventListener('click', () => {
             const url = document.getElementById('sync-url-input').value.trim();
-            if (url && !url.startsWith('https://script.google.com')) {
+            if (url && !GoogleSync.validScriptUrl(url)) {
                 alert('⚠️ La URL del script debe ser de Google Apps Script (https://script.google.com/...)');
                 return;
             }
+            const optionalUrls = [
+                ['ecodoppler_sheet_csv_url', 'sheet-csv-url'],
+                ['personal_ai_1', 'personal-ai-1'], ['personal_ai_2', 'personal-ai-2']
+            ];
+            const sheetValue = document.getElementById('sync-sheet-url-input').value.trim();
+            if ([sheetValue, ...optionalUrls.map(([, id]) => document.getElementById(id).value.trim())]
+                .some(value => value && !GoogleSync.safeWebUrl(value))) {
+                alert('Usá enlaces HTTPS válidos, sin usuario ni contraseña en la URL.');
+                return;
+            }
             if (url) GoogleSync.setUrl(url);
+            optionalUrls.forEach(([key, id]) => GoogleSync.setOptional(key, document.getElementById(id).value));
+            GoogleSync.setOptional('groq_api_key', document.getElementById('groq-config-key').value);
             const sheetUrl = document.getElementById('sync-sheet-url-input').value.trim();
-            if (sheetUrl) GoogleSync.setSheetUrl(sheetUrl);
+            GoogleSync.setSheetUrl(sheetUrl);
             GoogleSync.setDoctor(document.getElementById('firma-nombre').value);
             GoogleSync.setMatricula(document.getElementById('firma-matricula').value);
             GoogleSync.setFirmaEnabled(document.getElementById('firma-enabled').checked);
             // Save Gemini API key
             const geminiKey = document.getElementById('gemini-key-input')?.value?.trim();
-            if (geminiKey && window.GeminiAI) GeminiAI.setKey(geminiKey);
+            if (window.GeminiAI) GeminiAI.setKey(geminiKey || '');
+            this.refreshConfiguredAccess();
             this.showToast('✅ Configuración guardada.');
             modal.remove();
         });
@@ -4206,12 +4253,17 @@ class UIController {
                 return;
             }
 
+            if (!GoogleSync.validScriptUrl(urlInput)) {
+                resultDiv.style.display = 'block';
+                resultDiv.textContent = 'Ingresá una URL válida de Apps Script terminada en /exec.';
+                return;
+            }
             GoogleSync.setUrl(urlInput);
             const testUrl = GoogleSync.testUrl();
-            window.open(testUrl, '_blank');
+            window.open(testUrl, '_blank', 'noopener,noreferrer');
 
             resultDiv.style.cssText = 'display:block;padding:0.5rem 0.75rem;border-radius:6px;background:#dbeafe;color:#1e40af;font-size:0.83rem;margin-top:0.75rem;line-height:1.5;';
-            resultDiv.innerHTML = '🔗 Se abrió una pestaña con la URL de prueba.<br>Si ves <code style="background:#e0e7ff;padding:0 3px;border-radius:3px;">{"ok":true}</code> → el script funciona correctamente.<br>Si ves un error → copiá el texto y compartilo.';
+            resultDiv.innerHTML = '🔗 Se abrió una pestaña con la URL de prueba.<br>Si ves <code style="background:#e0e7ff;padding:0 3px;border-radius:3px;">{"status":"ok"}</code> → el script responde; esto no confirma un guardado.<br>Si ves un error → copiá el texto y compartilo.';
         });
 
         document.getElementById('sync-copy-code').addEventListener('click', async () => {

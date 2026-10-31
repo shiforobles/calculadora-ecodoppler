@@ -30,6 +30,57 @@ test('interacción de informes y siglas en ambas pantallas (sin red)', { skip: !
         page.on('dialog', d => d.accept());
         page.setDefaultTimeout(10000);
         await page.goto(origin + '/index.html', { waitUntil: 'domcontentloaded' });
+        await t.test('privacidad: sin configuración no hay accesos personales ni envío', async () => {
+            assert.equal(await page.locator('#mode_ia').isVisible(), false);
+            assert.equal(await page.locator('#btn_view_sheet').isVisible(), false);
+            assert.equal(await page.locator('#personal_ai_1').isVisible(), false);
+            assert.equal(await page.locator('#ai-assistant-btn').count(), 0);
+            const result = await page.evaluate(async () => {
+                let calls = 0; const original = window.fetch;
+                window.fetch = async () => { calls++; };
+                let error;
+                try { await GoogleSync.send(['FICTICIO']); } catch (e) { error = e.message; }
+                window.fetch = original;
+                return { calls, error };
+            });
+            assert.equal(result.calls, 0); assert.match(result.error, /no configurada/);
+        });
+        await t.test('configuración persiste, escapa texto y muestra solo accesos configurados', async () => {
+            await page.evaluate(() => {
+                GoogleSync.setUrl('https://script.google.com/macros/s/TEST/exec');
+                GoogleSync.setSheetUrl('https://docs.google.com/spreadsheets/d/TEST/edit');
+                GoogleSync.setDoctor('Profesional "Ficticio" <test>');
+                GoogleSync.setMatricula('TEST');
+                GoogleSync.setFirmaEnabled(true);
+                localStorage.setItem('test_other', 'preservar');
+            });
+            await page.reload({waitUntil:'domcontentloaded'});
+            assert.equal(await page.locator('#btn_view_sheet').isVisible(), true);
+            await page.click('#btn_sync_setup');
+            assert.equal(await page.inputValue('#firma-nombre'), 'Profesional "Ficticio" <test>');
+            await page.fill('#personal-ai-1', 'javascript:alert(1)');
+            await page.click('#sync-save-btn');
+            assert.equal(await page.locator('#sync-setup-modal').count(), 1);
+            await page.fill('#personal-ai-1', 'https://example.org/tool');
+            await page.fill('#gemini-key-input', 'FICTICIO');
+            await page.fill('#groq-config-key', 'FICTICIO');
+            await page.click('#sync-save-btn');
+            assert.equal(await page.locator('#mode_ia').isVisible(), true);
+            assert.equal(await page.locator('#ai-assistant-btn').isVisible(), true);
+            assert.equal(await page.locator('#personal_ai_1').getAttribute('href'), 'https://example.org/tool');
+            await page.reload({waitUntil:'domcontentloaded'});
+            assert.equal(await page.locator('#ai-assistant-btn').count(), 1);
+            assert.equal(await page.evaluate(() => GoogleSync.getUrl()), 'https://script.google.com/macros/s/TEST/exec');
+            assert.equal(await page.evaluate(() => localStorage.getItem('test_other')), 'preservar');
+            await page.click('#btn_sync_setup');
+            await page.fill('#personal-ai-1', ''); await page.fill('#gemini-key-input', '');
+            await page.fill('#groq-config-key', ''); await page.click('#sync-save-btn');
+            assert.equal(await page.locator('#mode_ia').isVisible(), false);
+            assert.equal(await page.locator('#ai-assistant-btn').isVisible(), false);
+            assert.equal(await page.locator('#personal_ai_1').isVisible(), false);
+            await page.evaluate(() => localStorage.clear());
+            await page.reload({waitUntil:'domcontentloaded'});
+        });
         await page.evaluate(() => {
             window.__copied = []; window.__sent = [];
             Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: async text => { window.__copied.push(text); } } });

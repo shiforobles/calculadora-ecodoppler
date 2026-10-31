@@ -2508,3 +2508,6 @@ input.invalid {
 body {
     padding-bottom: calc(5.5rem + env(safe-area-inset-bottom, 0px));
 }
+
+/* Los accesos opcionales permanecen ocultos aunque su clase use flex. */
+[hidden] { display: none !important; }
