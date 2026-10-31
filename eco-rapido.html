@@ -4,9 +4,16 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Eco en cama del paciente</title>
+<script>
+  // Antes de pintar: si no, al abrir en oscuro se ve un destello claro.
+  // Misma clave que el estudio completo, así el tema viaja entre pantallas.
+  try { document.documentElement.setAttribute('data-theme', localStorage.getItem('theme') || 'light'); } catch (e) {}
+</script>
 <style>
   :root{
+    color-scheme:light;
     --bg:#f1f5f9; --card:#fff; --border:#cbd5e1; --text:#0f172a; --muted:#64748b;
+    --surface-sutil:#f8fafc; --boton-suave:#e2e8f0;
     /* Gravedad: misma escala que la barra de grado del bull's-eye. El violeta
        del bull's-eye queda reservado para disquinesia, que es otra cosa y no
        "más grave", así que la escala va verde → ámbar → naranja → rojo. */
@@ -14,8 +21,26 @@
     --sev-leve-bg:#fbbf24; --sev-leve-fg:#1f2937;
     --sev-moderado-bg:#c2410c; --sev-moderado-fg:#fff;
     --sev-severo-bg:#b91c1c; --sev-severo-fg:#fff;
-    --accent:#0369a1; --accent-soft:#e0f2fe; --warn:#b45309; --ok:#16a34a;
+    --accent:#0369a1; --accent-soft:#e0f2fe; --warn:#b45309; --ok:#15803d;
   }
+
+  /* Modo oscuro. Mismas variables que styles.css y la misma clave de
+     localStorage, así que el tema elegido en el estudio completo se respeta
+     acá. Es el módulo del eco en cama, la situación de menos luz, y era el
+     único de los dos que no lo tenía. */
+  :root[data-theme="dark"]{
+    color-scheme:dark;
+    --bg:#0f172a; --card:#1e293b; --border:#334155; --text:#f8fafc; --muted:#a8b6c8;
+    --surface-sutil:#243143; --boton-suave:#334155;
+    --sev-normal-bg:#6ee7b7; --sev-normal-fg:#064e3b;
+    --sev-leve-bg:#fcd34d; --sev-leve-fg:#451a03;
+    --sev-moderado-bg:#fdba74; --sev-moderado-fg:#7c2d12;
+    --sev-severo-bg:#fca5a5; --sev-severo-fg:#7f1d1d;
+    --accent:#22d3ee; --accent-soft:#0b3a47; --warn:#fbbf24; --ok:#6ee7b7;
+    /* sobre relleno sólido aclarado el texto tiene que invertirse */
+    --on-accent:#04252e;
+  }
+  :root{ --on-accent:#fff; }
   *{box-sizing:border-box}
   body{margin:0;font:15px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
        background:var(--bg);color:var(--text);padding:.75rem;}
@@ -24,6 +49,11 @@
          padding:.7rem 1rem;border-radius:10px;margin-bottom:.75rem;}
   header h1{margin:0;font-size:1.05rem;font-weight:700;}
   header .sub{font-size:.76rem;opacity:.85;}
+  .header-acciones{display:flex;align-items:center;gap:.4rem;flex-wrap:wrap;}
+  .btn-tema{background:rgba(255,255,255,.18);border:none;border-radius:8px;
+            color:#fff;font-size:1rem;line-height:1;cursor:pointer;
+            min-height:36px;min-width:40px;padding:.35rem .5rem;}
+  .btn-tema:hover{background:rgba(255,255,255,.3);}
   header a{color:#fff;background:rgba(255,255,255,.18);text-decoration:none;
            padding:.4rem .7rem;border-radius:7px;font-size:.8rem;font-weight:600;white-space:nowrap;}
 
@@ -40,12 +70,12 @@
   .row > label{flex:0 0 120px;font-size:.82rem;color:var(--muted);font-weight:600;}
   .opts{display:flex;gap:.3rem;flex-wrap:wrap;flex:1;}
 
-  button.opt{background:#fff;border:1.5px solid var(--border);border-radius:8px;
+  button.opt{background:var(--card);border:1.5px solid var(--border);border-radius:8px;
              padding:.5rem .7rem;font-size:.84rem;font-family:inherit;cursor:pointer;
              color:var(--text);min-height:40px;transition:.12s;}
   button.opt:hover{border-color:var(--accent);background:var(--accent-soft);}
   button.opt[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);
-                                  color:#fff;font-weight:600;}
+                                  color:var(--on-accent);font-weight:600;}
 
   /* ── Gravedad en el chip seleccionado ──────────────────────────────────────
      Sólo pinta el que está elegido; el texto no cambia. Lo que no es una
@@ -87,7 +117,8 @@
 
   input[type=text],input[type=number],input[type=date]{
     padding:.45rem .55rem;border:1.5px solid var(--border);border-radius:8px;
-    font-family:inherit;font-size:.86rem;min-height:40px;}
+    font-family:inherit;font-size:.86rem;min-height:40px;
+    background:var(--card);color:var(--text);}
   #fey{width:90px;font-size:1.05rem;font-weight:700;text-align:center;}
   #fey_grado{font-size:.8rem;font-weight:600;}
 
@@ -97,14 +128,14 @@
   #panel_informe{position:sticky;top:.75rem;}
   #informe{width:100%;min-height:420px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
            font-size:.78rem;line-height:1.5;padding:.6rem;border:1px solid var(--border);
-           border-radius:8px;resize:vertical;background:#fff;}
+           border-radius:8px;resize:vertical;background:var(--card);color:var(--text);}
   .acciones{display:flex;gap:.4rem;margin-top:.5rem;flex-wrap:wrap;}
   .acciones button{flex:1;min-width:110px;padding:.6rem;border-radius:8px;border:none;
                    font-family:inherit;font-size:.85rem;font-weight:600;cursor:pointer;min-height:44px;}
-  #btn_copiar{background:var(--accent);color:#fff;}
-  #btn_limpiar{background:#e2e8f0;color:var(--text);}
+  #btn_copiar{background:var(--accent);color:var(--on-accent);}
+  #btn_limpiar{background:var(--boton-suave);color:var(--text);}
 
-  #bullseye_box{display:none;margin-top:.5rem;padding:.5rem;background:#f8fafc;
+  #bullseye_box{display:none;margin-top:.5rem;padding:.5rem;background:var(--surface-sutil);
                 border:1px dashed var(--accent);border-radius:8px;}
   #bullseye_box.visible{display:block}
   #motility-svg-container svg{max-width:270px;display:block;margin:0 auto;}
@@ -115,16 +146,16 @@
   .vista-filtro{display:flex;align-items:center;justify-content:center;gap:.35rem;
                 flex-wrap:wrap;margin-bottom:.5rem;font-size:.78rem;color:var(--muted);}
   .btn-vista{min-height:36px;padding:.35rem .7rem;border:1.5px solid var(--border);
-             border-radius:8px;background:#fff;color:var(--text);font-family:inherit;
+             border-radius:8px;background:var(--card);color:var(--text);font-family:inherit;
              font-size:.8rem;font-weight:600;cursor:pointer;}
   .btn-vista:hover{border-color:var(--accent);background:var(--accent-soft);}
-  .btn-vista[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:#fff;}
+  .btn-vista[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--on-accent);}
 
   /* Pincel de grado: cada botón lleva el color con el que pinta el bull's-eye */
   .grado-selector{display:flex;align-items:center;justify-content:center;gap:.3rem;
                   flex-wrap:wrap;margin-bottom:.4rem;font-size:.78rem;color:var(--muted);}
   .btn-grado{min-height:40px;padding:.35rem .6rem;border:1.5px solid var(--border);
-             border-bottom:3px solid var(--grado-color);border-radius:8px;background:#fff;
+             border-bottom:3px solid var(--grado-color);border-radius:8px;background:var(--card);
              color:var(--text);font-family:inherit;font-size:.78rem;font-weight:600;cursor:pointer;}
   .btn-grado[aria-pressed="true"]{background:var(--grado-color);border-color:var(--grado-color);color:#fff;}
   .btn-grado.grado-1{--grado-color:#10b981;}
@@ -138,7 +169,7 @@
   .grupo-fila{display:flex;align-items:center;justify-content:center;gap:.25rem;
               flex-wrap:wrap;font-size:.72rem;color:var(--muted);}
   .btn-grupo{min-height:34px;padding:.3rem .55rem;border:1.5px solid var(--border);
-             border-radius:6px;background:#fff;color:var(--text);font-family:inherit;
+             border-radius:6px;background:var(--card);color:var(--text);font-family:inherit;
              font-size:.75rem;font-weight:500;cursor:pointer;}
   .btn-grupo:hover{border-color:var(--accent);background:var(--accent-soft);}
   .mot-leyenda{font-size:.72rem;color:var(--muted);text-align:center;margin-top:.3rem;}
@@ -156,7 +187,10 @@
     <h1>🫀 Eco Focalizado</h1>
     <div class="sub">Estudio en cama del paciente</div>
   </div>
-  <a href="index.html">← Estudio completo</a>
+  <div class="header-acciones">
+    <button type="button" id="btn_tema" class="btn-tema" title="Cambiar tema" aria-label="Cambiar tema"><span id="tema_icono">🌙</span></button>
+    <a href="index.html">← Estudio completo</a>
+  </div>
 </header>
 
 <div class="layout">
@@ -482,7 +516,22 @@
 <script src="js/motility-controller.js?v=17.2"></script>
 <script src="js/motility-svg.js?v=16.2"></script>
 <script src="js/quick-report.js?v=1.0"></script>
-<script src="js/eco-rapido.js?v=1.1"></script>
+<script>
+  (function () {
+    const raiz = document.documentElement;
+    const boton = document.getElementById('btn_tema');
+    const icono = document.getElementById('tema_icono');
+    const pintar = t => { if (icono) icono.textContent = t === 'dark' ? '☀️' : '🌙'; };
+    pintar(raiz.getAttribute('data-theme'));
+    boton?.addEventListener('click', () => {
+      const siguiente = raiz.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+      raiz.setAttribute('data-theme', siguiente);
+      try { localStorage.setItem('theme', siguiente); } catch (e) {}
+      pintar(siguiente);
+    });
+  })();
+</script>
+<script src="js/eco-rapido.js?v=1.2"></script>
 
 </body>
 </html>
