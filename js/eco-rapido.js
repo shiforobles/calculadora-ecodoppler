@@ -128,15 +128,65 @@
     // ── Salida ───────────────────────────────────────────────────────────────
 
     let editadoAMano = false;
-    $('informe').addEventListener('input', () => { editadoAMano = true; });
+    let baseRevision = '';
 
-    function regenerar() {
-        // Si el operador retocó el texto, no se lo pisamos sin avisar
-        if (editadoAMano) return;
-        $('informe').value = QuickReport.generate(datos);
+    const firmaDatos = () => JSON.stringify(datos, (_key, value) => typeof value === 'number' ? String(value) : value);
+    const desactualizado = () => editadoAMano && firmaDatos() !== baseRevision;
+
+    function mostrarEstadoInforme() {
+        const pendiente = desactualizado();
+        $('informe_estado').hidden = !pendiente;
+        $('informe_estado').textContent = pendiente
+            ? 'Informe desactualizado: cambiaron los datos después de revisar el texto. Regenerá o confirmá el texto revisado antes de copiar.'
+            : '';
+        if (!pendiente) $('informe_conflicto').hidden = true;
     }
 
-    $('btn_copiar').addEventListener('click', async () => {
+    $('informe').addEventListener('input', () => {
+        // Escribir no acepta cambios pendientes: sólo una decisión explícita lo hace.
+        editadoAMano = true;
+        mostrarEstadoInforme();
+    });
+
+    function regenerar() {
+        if (!editadoAMano) {
+            $('informe').value = QuickReport.generate(datos);
+            baseRevision = firmaDatos();
+        }
+        mostrarEstadoInforme();
+    }
+
+    function regenerarExplicitamente() {
+        editadoAMano = false;
+        regenerar();
+    }
+
+    $('btn_regenerar').addEventListener('click', () => {
+        if (editadoAMano && $('informe').value.trim() &&
+            !confirm('El informe fue editado a mano. ¿Regenerarlo y descartar esos cambios?')) return;
+        regenerarExplicitamente();
+    });
+    $('btn_cancelar_copia').addEventListener('click', () => {
+        $('informe_conflicto').hidden = true;
+    });
+    $('btn_regenerar_conflicto').addEventListener('click', async () => {
+        regenerarExplicitamente();
+        await copiar();
+    });
+    $('btn_conservar').addEventListener('click', async () => {
+        // Nueva base sólo al confirmar que el texto fue revisado con los datos actuales.
+        baseRevision = firmaDatos();
+        mostrarEstadoInforme();
+        await copiar();
+    });
+
+    $('btn_copiar').addEventListener('click', copiar);
+
+    async function copiar() {
+        if (desactualizado()) {
+            $('informe_conflicto').hidden = false;
+            return;
+        }
         const txt = $('informe').value;
         if (!txt.trim()) { toast('No hay informe para copiar'); return; }
         try {
@@ -147,12 +197,12 @@
             document.execCommand('copy');
             toast('✅ Informe copiado');
         }
-    });
+    }
 
     /**
      * Estado de partida: cada estructura preseleccionada en su opción normal. En sala
      * la mayoría de los hallazgos son normales, así que el operador sólo toca lo que
-     * está alterado. La FEy queda vacía: es el único dato que siempre se mide.
+     * está alterado. La FEy inicia en 60 y se puede modificar según la medición.
      */
     const DEFAULTS = {
         'ritmo':                  'sinusal',

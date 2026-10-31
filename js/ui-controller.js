@@ -12,18 +12,27 @@ class UIController {
         this.qc = qualityControl || null;
         this.motility = motilityController || null;
         this.state = {
-            bsa: 0,
-            lvMass: 0,
-            lvMassIndex: 0,
-            rwt: 0,
-            geometry: '',
-            psap: 0,
+            bsa: null,
+            bmi: null,
+            lvMass: null,
+            lvMassIndex: null,
+            rwt: null,
+            geometry: null,
+            cardiacOutput: null,
+            protAlert: null,
+            psap: null,
             diastolicResult: null
         };
         this.reportMode = 'narrativo';
         // Se marca cuando el usuario edita el informe a mano: lo editado es lo que se
         // guarda y no debe sobrescribirse por una regeneración sin avisar.
         this.reportEdited = false;
+        this._reportSnapshot = null;
+        this._lastStudySnapshot = null;
+        this._studyRevision = 0;
+        this._reportTextRevision = 0;
+        this._aiRequestId = 0;
+        this._indexedMeasurements = new Map();
     }
 
     /**
@@ -60,9 +69,7 @@ class UIController {
         });
         document.getElementById('btn_admin_presets')?.addEventListener('click', () => this.showPresetManager());
 
-        // Ediciones manuales sobre el informe
-        const txtResultado = document.getElementById('resultado');
-        if (txtResultado) txtResultado.addEventListener('input', () => { this.reportEdited = true; });
+        this._initReportTracking();
 
         // Button event listeners
         const btnGenerate = document.getElementById('btn_generate');
@@ -408,19 +415,33 @@ class UIController {
      */
     calculateAll() {
         clearTimeout(this._calcDebounceTimer);
-        this._calcDebounceTimer = setTimeout(() => {
-            this.calculateBSA();
-            this.calculateLVMassAndGeometry();
-            this.calculateDiastolicFunction();
-            this.calculatePSAP();
-            this.calculateCardiacOutput();
-            this.calculateRightChambers();
-            this.evaluarProtesis();
-            if (this.updatePAATBadge) this.updatePAATBadge();
-            if (this.updateAorticDisplay) this.updateAorticDisplay();
-            this.updateExpectedLVOT();
-            this.validateInputs();
-        }, 150);
+        this._calcDebounceTimer = setTimeout(() => this.calculateNow(), 150);
+    }
+
+    /** Termina los cálculos antes de consumirlos; escribir conserva el debounce. */
+    calculateNow() {
+        clearTimeout(this._calcDebounceTimer);
+        this._calcDebounceTimer = null;
+        const previousBSA = this.state.bsa;
+        this.calculateBSA();
+        this._refreshIndexedMeasurements();
+        if (previousBSA !== this.state.bsa) {
+            ['cont_result', 'lanus_result'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.innerHTML = '';
+            });
+        }
+        this.calculateLVMassAndGeometry();
+        this.calculateDiastolicFunction();
+        this.calculatePSAP();
+        this.calculateCardiacOutput();
+        this.calculateRightChambers();
+        this.evaluarProtesis();
+        if (this.updatePAATBadge) this.updatePAATBadge();
+        if (this.updateAorticDisplay) this.updateAorticDisplay();
+        this.updateExpectedLVOT();
+        this.validateInputs();
+        this._trackStudyChanges();
     }
 
     /**
@@ -428,6 +449,16 @@ class UIController {
      */
     evaluarProtesis() {
         const check = document.getElementById('prot_check');
+        // Una evaluación sin mediciones no puede reutilizar la interpretación anterior.
+        this.state.protAlert = null;
+        ['prot_dvi_disp', 'prot_eoa_disp', 'prot_ieoa_disp'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.textContent = '-';
+        });
+        ['prot_metrics', 'prot_feedback'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) { el.style.display = 'none'; if (id === 'prot_feedback') el.textContent = ''; }
+        });
         if (!check || !check.checked) return;
 
         const posEl = document.getElementById('prot_posicion');
@@ -571,6 +602,8 @@ class UIController {
             this.calculateBMI(weight, height / 100); // height in meters
             this.updateBSAAlerts();
         } else {
+            this.state.bsa = null;
+            this.state.bmi = null;
             document.getElementById('sc_display').value = '';
             document.getElementById('bmi_display').value = '';
             const alertCont = document.getElementById('bsa_alert_container');
@@ -647,8 +680,10 @@ class UIController {
                 '<span class="calc-label">Masa VI:</span><span class="calc-value">-</span>';
             // Reset stale geometry state so conclusions don't show old data
             this.state.geometry     = null;
-            this.state.lvMassIndex  = 0;
-            this.state.rwt          = 0;
+            this.state.lvMass       = null;
+            this.state.lvMassIndex  = null;
+            this.state.rwt          = null;
+            this.state.hypertensivePhenotype = false;
             return;
         }
 
@@ -916,6 +951,7 @@ class UIController {
         const hr       = parseFloat(document.getElementById('fc')?.value);
         const bsa      = this.state.bsa;
 
+        this.state.cardiacOutput = null;
         const svEl = document.getElementById('gc_sv_display');
         const coEl = document.getElementById('gc_co_display');
         const ciEl = document.getElementById('gc_ci_display');
@@ -949,7 +985,7 @@ class UIController {
                 '<span class="calc-label">PSAP Estimada:</span><span class="calc-value">-</span>';
             // Sin velocidad de IT no hay PSAP: si no se borra, el informe hereda la del
             // estudio anterior y afirma una presión que en este paciente no se midió.
-            this.state.psap = 0;
+            this.state.psap = null;
             return;
         }
 
@@ -1054,22 +1090,22 @@ class UIController {
     /**
      * Generate clinical report - ORIGINAL FORMAT
      */
-    async generateReport() {
+    async generateReport({ confirmEdits = true } = {}) {
         try {
             // No pisar ediciones manuales sin consentimiento explícito
             const prevReport = document.getElementById('resultado')?.value || '';
-            if (this.reportEdited && prevReport.trim()) {
-                if (!confirm('El informe fue editado a mano. ¿Regenerarlo y descartar esos cambios?')) return;
+            if (confirmEdits && this.reportEdited && prevReport.trim()) {
+                if (!confirm('El informe fue editado a mano. ¿Regenerarlo y descartar esos cambios?')) return false;
             }
 
-            // Force recalculation
-            this.calculateAll();
+            // No consumir un estado anterior al último input.
+            this.calculateNow();
 
             // Run quality control if available - v14.0
             if (this.qc && this.runQualityControl) {
                 if (!this.runQualityControl()) {
                     alert('⚠️ Hay errores críticos en los datos ingresados. Revise el Control de Calidad antes de generar el informe.');
-                    return;
+                    return false;
                 }
             }
 
@@ -1990,19 +2026,159 @@ class UIController {
 
             // Display report
             document.getElementById('resultado').value = report;
-            this.reportEdited = false;
+            this._acceptCurrentReport(false);
+            return true;
 
         } catch (error) {
             console.error('Error generating report:', error);
             alert('Error al generar el informe: ' + error.message);
+            return false;
         }
     }
 
+
+    /** Mantiene sólo índices que la app inyectó; una edición manual deja de seguirlos. */
+    _registerIndexedMeasurement(id, calculate) {
+        this._indexedMeasurements.set(id, { calculate, value: String(document.getElementById(id).value) });
+    }
+
+    _refreshIndexedMeasurements() {
+        for (const [id, source] of this._indexedMeasurements) {
+            const field = document.getElementById(id);
+            if (!field || String(field.value) !== source.value) {
+                this._indexedMeasurements.delete(id);
+                continue;
+            }
+            field.value = this.state.bsa > 0 ? source.calculate(this.state.bsa) ?? '' : '';
+            source.value = String(field.value);
+        }
+    }
+
+    /** Instantánea de entradas del estudio, independiente de los displays calculados. */
+    _getStudySnapshot() {
+        const excluded = new Set(['resultado', 'preset_selector', 'diastole_text_hidden', 'ai_calc_mode', 'it_pisa_radio', 'it_pisa_va', 'it_vti']);
+        const fields = [...document.querySelectorAll('.container input[id], .container select[id], .container textarea[id]')]
+            .filter(el => !excluded.has(el.id) && !el.readOnly && el.type !== 'file' && el.type !== 'hidden' &&
+                !el.id.endsWith('_display') && !el.id.endsWith('_disp') &&
+                !/^(cont_|pisa_|lanus_)/.test(el.id))
+            .map(el => [el.id, el.type === 'checkbox' || el.type === 'radio' ? el.checked : el.value]);
+        return JSON.stringify({ fields, segments: this.motility?.state || null,
+            pattern: this.motility?.pattern || 'none', firma: window.GoogleSync?.getFirma?.() || '' });
+    }
+
+    _initReportTracking() {
+        this._lastStudySnapshot = this._getStudySnapshot();
+        document.getElementById('resultado')?.addEventListener('input', () => {
+            this.reportEdited = true;
+            this._reportTextRevision++;
+            // Una edición tras cambios pendientes no los da por revisados.
+            if (this._reportSnapshot === null) this._reportSnapshot = this._getStudySnapshot();
+            this._updateReportStatus();
+        });
+        const root = document.querySelector('.container');
+        const changed = event => {
+            const id = event.target.id;
+            // Una edición de autoría propia deja de seguir el cálculo inyectado, aun si se deshace.
+            if (event.type === 'input') this._indexedMeasurements.delete(id);
+            const preview = id.startsWith('cont_') ? 'cont_result' : id.startsWith('pisa_') ? 'pisa_result' : id.startsWith('lanus_') ? 'lanus_result' : null;
+            if (preview) document.getElementById(preview).innerHTML = '';
+            if (id !== 'resultado') this._trackStudyChanges();
+        };
+        root?.addEventListener('input', changed);
+        root?.addEventListener('change', changed);
+        // También detecta inyecciones de minicalculadoras que asignan .value sin eventos.
+        root?.addEventListener('click', () => queueMicrotask(() => this._trackStudyChanges()));
+        this.motility?.addListener(() => this._trackStudyChanges());
+    }
+
+    _trackStudyChanges() {
+        const snapshot = this._getStudySnapshot();
+        if (snapshot !== this._lastStudySnapshot) {
+            this._studyRevision++;
+            this._lastStudySnapshot = snapshot;
+        }
+        this._updateReportStatus();
+    }
+
+    _isReportStale() {
+        return this._reportSnapshot !== this._getStudySnapshot();
+    }
+
+    _updateReportStatus() {
+        const status = document.getElementById('report_status');
+        if (!status) return;
+        const stale = !!document.getElementById('resultado')?.value.trim() && this._isReportStale();
+        status.hidden = !stale;
+        status.textContent = !stale ? '' : this.reportEdited
+            ? 'Informe pendiente de revisión: cambiaron datos después de editar el texto. Antes de copiar o guardar podrás regenerarlo, conservarlo como revisado o cancelar.'
+            : 'Hay cambios en los datos. El informe se actualizará antes de copiar o guardar.';
+    }
+
+    _acceptCurrentReport(edited) {
+        this.reportEdited = edited;
+        this._reportSnapshot = this._getStudySnapshot();
+        this._reportTextRevision++;
+        this._updateReportStatus();
+    }
+
+    /** No cambia el envío: sólo prepara texto y mediciones de la misma revisión. */
+    async _ensureReportCurrent() {
+        this.calculateNow();
+        const text = document.getElementById('resultado').value;
+        if (!text.trim() || !this.reportEdited && this._isReportStale()) {
+            return this.generateReport({ confirmEdits: false });
+        }
+        if (!this._isReportStale()) return true;
+
+        const review = { study: this._getStudySnapshot(), text, revision: this._reportTextRevision };
+        const choice = await this._resolveReportConflict();
+        this._trackStudyChanges();
+        if (choice === 'cancel') return false;
+        if (review.study !== this._getStudySnapshot() || review.text !== document.getElementById('resultado').value ||
+            review.revision !== this._reportTextRevision) {
+            this.showToast('Los datos o el texto volvieron a cambiar. Revisá el informe antes de copiar o guardar.');
+            return false;
+        }
+        if (choice === 'regenerate') return this.generateReport({ confirmEdits: false });
+        if (choice === 'keep') {
+            this._acceptCurrentReport(true);
+            return true;
+        }
+        return false;
+    }
+
+    _resolveReportConflict() {
+        if (this._reportConflictPromise) return this._reportConflictPromise;
+        this._reportConflictPromise = new Promise(resolve => {
+            const dialog = document.createElement('dialog');
+            dialog.id = 'report-conflict-dialog';
+            dialog.setAttribute('aria-labelledby', 'report-conflict-title');
+            dialog.style.cssText = 'max-width:540px;width:90vw;max-height:85vh;overflow:auto;margin:auto;border:1px solid #cbd5e1;border-radius:10px;padding:1.25rem;color:var(--color-text);background:var(--color-surface);';
+            dialog.innerHTML = `
+                <h3 id="report-conflict-title" style="margin-bottom:.75rem;">Revisar informe antes de continuar</h3>
+                <p style="margin-bottom:.75rem;">Cambiaron los datos después de editar el texto. Regenerar reemplaza tus ediciones con un informe de los datos actuales.</p>
+                <p style="margin-bottom:1rem;">Si ya revisaste el texto con esos cambios, podés conservarlo. Cancelar no copia ni prepara el guardado y mantiene tu trabajo.</p>
+                <div style="display:flex;gap:.5rem;flex-wrap:wrap;">
+                    <button type="button" class="btn btn-primary" data-decision="regenerate">Regenerar informe</button>
+                    <button type="button" class="btn btn-success" data-decision="keep">Conservar texto revisado</button>
+                    <button type="button" class="btn btn-secondary" data-decision="cancel">Cancelar</button>
+                </div>`;
+            const finish = choice => { dialog.remove(); resolve(choice); };
+            dialog.querySelectorAll('[data-decision]').forEach(button => {
+                button.addEventListener('click', () => finish(button.dataset.decision));
+            });
+            dialog.addEventListener('cancel', event => { event.preventDefault(); finish('cancel'); });
+            document.body.appendChild(dialog);
+            dialog.showModal();
+        }).finally(() => { this._reportConflictPromise = null; });
+        return this._reportConflictPromise;
+    }
 
     /**
      * Copy report to clipboard (Modern Clipboard API)
      */
     async copyReport() {
+        if (!await this._ensureReportCurrent()) return;
         const reportText = document.getElementById('resultado').value;
 
         if (!reportText || reportText.trim() === '') {
@@ -2089,6 +2265,7 @@ class UIController {
         }
 
         this.calculateAll();
+        this._trackStudyChanges();
         this.showToast(`Preset "${preset.label || name.replace(/_/g, ' ')}" aplicado`);
     }
 
@@ -2113,6 +2290,7 @@ class UIController {
      * que no es la primera.
      */
     _resetStudyFields() {
+        this._indexedMeasurements.clear();
         const conservar = new Set([
             ...(window.CAMPOS_PACIENTE || []),
             'paciente_id', 'resultado', 'preset_selector',
@@ -2369,12 +2547,14 @@ class UIController {
         modal.querySelector('#pm_cerrar').addEventListener('click', () => modal.remove());
     }
 
-    setReportMode(mode) {
+    async setReportMode(mode) {
+        if (mode === this.reportMode) return;
+        const previous = this.reportMode;
         this.reportMode = mode;
-        document.getElementById('mode_lista')?.classList.toggle('mode-btn-active', mode === 'lista');
-        document.getElementById('mode_narrativo')?.classList.toggle('mode-btn-active', mode === 'narrativo');
         const current = document.getElementById('resultado').value;
-        if (current && current.trim()) this.generateReport();
+        if (current.trim() && !await this.generateReport()) this.reportMode = previous;
+        document.getElementById('mode_lista')?.classList.toggle('mode-btn-active', this.reportMode === 'lista');
+        document.getElementById('mode_narrativo')?.classList.toggle('mode-btn-active', this.reportMode === 'narrativo');
     }
 
     /**
@@ -3495,13 +3675,30 @@ class UIController {
             return;
         }
 
+        const previousText = document.getElementById('resultado').value;
+        if (this.reportEdited && previousText.trim() &&
+            !confirm('El informe fue editado a mano. ¿Generar con IA y reemplazar esos cambios?')) return;
+
+        const requestId = ++this._aiRequestId;
         const btn = document.getElementById('mode_ia');
         const originalText = btn?.textContent || 'Gemini IA';
         if (btn) { btn.disabled = true; btn.textContent = 'Generando...'; }
 
         try {
-            // Ensure all calculations are up to date
-            this.calculateAll();
+            this.calculateNow();
+            const request = {
+                study: this._getStudySnapshot(), studyRevision: this._studyRevision,
+                text: document.getElementById('resultado').value, textRevision: this._reportTextRevision,
+                mode: this.reportMode,
+            };
+            const stillCurrent = () => {
+                this._trackStudyChanges();
+                const valid = requestId === this._aiRequestId && request.study === this._getStudySnapshot() &&
+                    request.studyRevision === this._studyRevision && request.textRevision === this._reportTextRevision &&
+                    request.text === document.getElementById('resultado').value && request.mode === this.reportMode;
+                if (!valid) this.showToast('El estudio o el informe cambió durante la generación. Se conservó el texto actual; volvé a generar con IA si lo necesitás.');
+                return valid;
+            };
 
             // Build compact header (measurements summary)
             const compactHeader = this._buildCompactHeader();
@@ -3518,6 +3715,7 @@ class UIController {
             } catch (aiErr) {
                 const isQuota = /quota|rate.limit|resource.exhausted|429/i.test(aiErr.message);
                 if (isQuota) {
+                    if (!stillCurrent()) return;
                     usedFallback = true;
                     aiNarrative = this._buildNarrativeConclusion()
                         .replace('IMPRESIÓN DIAGNÓSTICA:\n', '');
@@ -3526,6 +3724,7 @@ class UIController {
                 }
             }
 
+            if (!stillCurrent()) return;
             const conclusionHeader = usedFallback
                 ? '\nIMPRESIÓN DIAGNÓSTICA (modo offline — cuota Gemini agotada)\n'
                 : '\nIMPRESIÓN DIAGNÓSTICA:\n';
@@ -3536,6 +3735,7 @@ class UIController {
                 if (firma) newReport += '\n\n' + firma;
             }
             document.getElementById('resultado').value = newReport;
+            this._acceptCurrentReport(false);
 
             document.getElementById('mode_lista')?.classList.remove('mode-btn-active');
             document.getElementById('mode_narrativo')?.classList.remove('mode-btn-active');
@@ -3546,7 +3746,7 @@ class UIController {
         } catch (err) {
             alert('Error al generar con IA: ' + err.message);
         } finally {
-            if (btn) { btn.disabled = false; btn.textContent = originalText; }
+            if (btn && requestId === this._aiRequestId) { btn.disabled = false; btn.textContent = originalText; }
         }
     }
 
@@ -3557,6 +3757,10 @@ class UIController {
      * Build the dataset row array (shared by copyDataset and saveStudy)
      */
     _buildDatasetRow() {
+        this.calculateNow();
+        if (!this._reportSnapshot || this._isReportStale() || !document.getElementById('resultado').value.trim()) {
+            throw new Error('El informe está pendiente de actualizar o revisar antes de preparar los datos.');
+        }
         // --- 1. Basic Data ---
         const fecha = new Date().toLocaleDateString('es-ES');
         const hc = document.getElementById('paciente_id').value || '-';
@@ -3790,6 +3994,7 @@ class UIController {
     }
 
     async copyDataset() {
+        if (!await this._ensureReportCurrent()) return;
         const row = this._buildDatasetRow();
         const tsv = row.join('\t');
         try {
@@ -3802,7 +4007,7 @@ class UIController {
 
     async saveStudy() {
         try {
-            this.calculateAll();
+            if (!await this._ensureReportCurrent()) return;
             const row = this._buildDatasetRow();
             const hc  = document.getElementById('paciente_id').value || '(sin ID)';
 

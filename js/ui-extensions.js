@@ -76,10 +76,11 @@ UIController.prototype.toggleMiniCalc = function (calcId) {
  * Calculate AVA using Continuity Equation
  */
 UIController.prototype.calcContinuity = function () {
+    this.calculateNow();
     const diam = parseFloat(document.getElementById('cont_diam_tsvi').value);
     const vtiTSVI = parseFloat(document.getElementById('cont_vti_tsvi').value);
     const vtiAo = parseFloat(document.getElementById('cont_vti_ao').value);
-    const bsa = this.state.bsa || 1;
+    const bsa = this.state.bsa;
 
     // Only strictly require VTIs. Diameter is optional for Coef.
     if (!vtiTSVI || !vtiAo) {
@@ -94,7 +95,7 @@ UIController.prototype.calcContinuity = function () {
 
         if (result.ava) {
             html += ` | <strong>AVA:</strong> ${result.ava} cm² | 
-                     <strong>AVA Index:</strong> ${result.avaIndex} cm²/m²`;
+                     <strong>AVA Index:</strong> ${bsa > 0 ? result.avaIndex : "—"} cm²/m²`;
         } else {
             html += ` <small>(Ingrese Diámetro para calcular AVA)</small>`;
         }
@@ -107,10 +108,11 @@ UIController.prototype.calcContinuity = function () {
  * Inject AVA values into aortic box
  */
 UIController.prototype.injectAVA = function () {
+    this.calculateNow();
     const diam = parseFloat(document.getElementById('cont_diam_tsvi').value);
     const vtiTSVI = parseFloat(document.getElementById('cont_vti_tsvi').value);
     const vtiAo = parseFloat(document.getElementById('cont_vti_ao').value);
-    const bsa = this.state.bsa || 1;
+    const bsa = this.state.bsa;
 
     const result = this.miniCalc.calculateContinuity(diam, vtiTSVI, vtiAo, bsa);
 
@@ -123,12 +125,25 @@ UIController.prototype.injectAVA = function () {
         // Only inject AVA if calculated
         if (result.ava) {
             document.getElementById('ea_ava').value = result.ava;
-            document.getElementById('ea_ava_index').value = result.avaIndex;
+            document.getElementById('ea_ava_index').value = bsa > 0 ? result.avaIndex : '';
+            this._registerIndexedMeasurement('ea_ava_index', currentBSA => {
+                const currentAVA = document.getElementById('ea_ava').value;
+                // Conservar la precisión original mientras el AVA inyectado no se edite.
+                if (currentAVA === String(result.ava)) {
+                    return this.miniCalc.calculateContinuity(diam, vtiTSVI, vtiAo, currentBSA).avaIndex;
+                }
+                return parseFloat(currentAVA) > 0 ? (parseFloat(currentAVA) / currentBSA).toFixed(2) : '';
+            });
             this.showToast('✅ AVA y Coeficiente inyectados');
         } else {
+            // La nueva inyección reemplaza la anterior: sin diámetro no hay AVA ni índice.
+            document.getElementById('ea_ava').value = '';
+            document.getElementById('ea_ava_index').value = '';
+            this._indexedMeasurements.delete('ea_ava_index');
             this.showToast('✅ Solo Coeficiente Adimensional inyectado (Falta Diámetro)');
         }
     }
+    this._trackStudyChanges();
 };
 
 /**
@@ -169,6 +184,7 @@ UIController.prototype.injectPISA = function () {
     if (result) {
         document.getElementById('im_ore').value = result.ore;
         document.getElementById('im_vr').value = result.vr;
+        this._trackStudyChanges();
         this.showToast('✅ ORE y VR inyectados en la sección mitral');
     }
 };

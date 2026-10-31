@@ -26,9 +26,16 @@ UIController.prototype.toggleLanusMode = function () {
  * Calculate LA volume using Lanús monoplano method
  */
 UIController.prototype.calcLanus = function () {
+    this.calculateNow();
     const area4c = parseFloat(document.getElementById('lanus_area_4c').value);
     const longitudMm = parseFloat(document.getElementById('lanus_longitud').value);
-    const bsa = this.state.bsa || 1;
+    const bsa = this.state.bsa;
+
+    if (!bsa) {
+        document.getElementById('lanus_result').innerHTML = '';
+        alert('Complete peso y altura para indexar el volumen auricular.');
+        return;
+    }
 
     if (!area4c || !longitudMm) {
         alert('⚠️ Ingrese Área 4C y Longitud');
@@ -64,9 +71,16 @@ UIController.prototype.calcLanus = function () {
  * Inject Lanús calculated volume to main AI field
  */
 UIController.prototype.injectLanus = function () {
+    this.calculateNow();
     const area4c = parseFloat(document.getElementById('lanus_area_4c').value);
     const longitudMm = parseFloat(document.getElementById('lanus_longitud').value);
-    const bsa = this.state.bsa || 1;
+    const bsa = this.state.bsa;
+
+    if (!bsa) {
+        document.getElementById('lanus_result').innerHTML = '';
+        alert('Complete peso y altura para indexar el volumen auricular.');
+        return;
+    }
 
     if (!area4c || !longitudMm) {
         alert('⚠️ Complete los campos antes de inyectar');
@@ -77,6 +91,9 @@ UIController.prototype.injectLanus = function () {
 
     if (result) {
         document.getElementById('vol_ai').value = result.volumeIndexed;
+        this._registerIndexedMeasurement('vol_ai', currentBSA =>
+            this.miniCalc.calculateLanusAI(area4c, longitudMm, currentBSA).volumeIndexed);
+        this._trackStudyChanges();
 
         // También calcular para mostrar resultado si no está ya visible
         if (!document.getElementById('lanus_result').innerHTML) {
