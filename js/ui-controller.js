@@ -2400,9 +2400,9 @@ class UIController {
 
         const modal = document.createElement('div');
         modal.id = 'preset-manager-modal';
-        modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;z-index:9999;padding:1rem;';
+        modal.className = 'app-modal-backdrop';
         modal.innerHTML = `
-            <div style="background:var(--color-surface,#fff);color:var(--color-text,#111);border-radius:10px;max-width:560px;width:100%;max-height:90vh;overflow:auto;padding:1.25rem;box-shadow:0 10px 40px rgba(0,0,0,.3);">
+            <div class="app-modal-panel">
                 <h3 style="margin:0 0 .25rem;">Administrar presets</h3>
                 <p style="margin:0 0 1rem;font-size:.85rem;opacity:.75;">
                     Los presets guardan el estudio, nunca los datos del paciente (sexo, edad, peso y altura).

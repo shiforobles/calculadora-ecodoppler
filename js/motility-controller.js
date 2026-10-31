@@ -401,13 +401,14 @@ class MotilityController {
         const parts = [];
 
         // Add WMSI at the top
-        parts.push(`<strong>WMSI:</strong> <span style="font-size: 1.1em; color: ${wmsi > 2.0 ? '#ef4444' : wmsi > 1.5 ? '#f59e0b' : '#10b981'};">${wmsi}</span>`);
+        const nivelWmsi = wmsi > 2.0 ? 'severo' : wmsi > 1.5 ? 'moderado' : 'normal';
+        parts.push(`<strong>WMSI:</strong> <span style="font-size: 1.1em; color: var(--sev-${nivelWmsi}-text);">${wmsi}</span>`);
 
         // Interpretación cualitativa del WMSI (sin rangos de FEVI: ver interpretWMSI)
         const interp = this.interpretWMSI();
         if (interp.label) {
-            const interpColor = interp.severity === 'normal' ? '#10b981' :
-                interp.severity === 'mild' ? '#f59e0b' : '#ef4444';
+            const interpColor = interp.severity === 'normal' ? 'var(--sev-normal-text)' :
+                interp.severity === 'mild' ? 'var(--sev-moderado-text)' : 'var(--sev-severo-text)';
             parts.push(`<strong>Interpretación:</strong> <span style="color: ${interpColor};">${interp.label}</span>`);
         }
 
@@ -475,13 +476,19 @@ class MotilityController {
             const wmsi = this.calculateWMSI();
             wmsiElement.textContent = wmsi;
 
-            // Color code based on severity
-            let color = '#10b981'; // Green
-            if (wmsi > 2.0) color = '#ef4444'; // Red
-            else if (wmsi > 1.5) color = '#f59e0b'; // Orange
-            else if (wmsi > 1.0) color = '#fbbf24'; // Yellow
+            // Color code based on severity.
+            // Toma el color del tema en vez de un hexadecimal fijo: los tonos
+            // claros (#10b981, #fbbf24) no llegaban a 4.5:1 sobre el fondo del
+            // recuadro, y un hexadecimal inline tampoco podía invertirse en
+            // modo oscuro. Los umbrales no cambian.
+            let nivel = 'normal';
+            if (wmsi > 2.0) nivel = 'severo';
+            else if (wmsi > 1.5) nivel = 'moderado';
+            else if (wmsi > 1.0) nivel = 'leve';
 
-            wmsiElement.style.color = color;
+            // El color lo pone styles.css según este atributo: así el tono
+            // puede invertirse en modo oscuro sin tocar esta función.
+            if (wmsiElement.dataset) wmsiElement.dataset.nivel = nivel;
         }
 
         // Update validation warnings
