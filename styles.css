@@ -344,13 +344,56 @@ body {
     box-shadow: var(--shadow-md);
 }
 
+/* ── Jerarquía de títulos ────────────────────────────────────────────────────
+   Antes los 15 títulos eran idénticos: mismo tamaño, mismo peso y el mismo
+   subrayado teal de 3px. "Septum Interauricular" gritaba igual que
+   "Ventrículo Izquierdo", y con 15 tarjetas iguales apiladas no había forma
+   de orientarse. Ahora hay tres niveles.
+
+   1 · Sección del estudio: lleva número en insignia y es la más fuerte. */
 .section-title {
-    font-size: var(--font-size-lg);
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    font-size: var(--font-size-xl);
     font-weight: 700;
     color: var(--color-primary-dark);
     margin-bottom: var(--spacing-md);
     padding-bottom: var(--spacing-sm);
-    border-bottom: 3px solid var(--color-primary);
+    border-bottom: 2px solid var(--color-border);
+    letter-spacing: -0.01em;
+}
+
+.section-num {
+    flex: 0 0 auto;
+    width: 1.75rem;
+    height: 1.75rem;
+    border-radius: 50%;
+    background: var(--color-primary);
+    color: var(--on-solid);
+    display: inline-grid;
+    place-items: center;
+    font-size: 0.85rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+}
+
+/* 2 · Bloque dentro de una sección (la motilidad regional es parte del VI) */
+.section-title--bloque {
+    font-size: var(--font-size-lg);
+    color: var(--color-primary);
+    border-bottom-style: dashed;
+}
+
+/* 3 · Tarjeta de apoyo: no es parte de la secuencia del estudio, así que no
+       compite con ella. Datos, antecedentes, presets, calculadoras, informe. */
+.section-title--apoyo {
+    font-size: var(--font-size-sm);
+    font-weight: 600;
+    color: var(--color-text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    border-bottom: 1px solid var(--color-border);
 }
 
 .subsection {
@@ -729,15 +772,36 @@ input.invalid {
 .preset-btn-red:hover { background: var(--color-error); color: #fff; }
 .preset-sep { flex: 0 0 100%; height: 0; }
 
+/* Cabecera del informe: el título y el selector de modo */
+.report-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--spacing-sm);
+    flex-wrap: wrap;
+    margin-bottom: 10px;
+}
+
+.report-status {
+    font-size: var(--font-size-sm);
+    color: var(--color-warning);
+    margin-top: 0.5rem;
+}
+
 /* Report mode selector (Lista / Narrativo) */
 .report-mode-selector {
     display: flex;
     border-radius: 8px;
     overflow: hidden;
     border: 1px solid var(--color-border);
+    /* A ancho de teléfono "Gemini IA" salía cortado como "Gemi IA": el selector
+       no podía achicarse ni pasar a su propia línea. */
+    flex-wrap: wrap;
+    max-width: 100%;
 }
 .mode-btn {
     padding: 5px 16px;
+    white-space: nowrap;
     border: none;
     background: var(--tint-neutral-bg);
     color: var(--color-text-primary);
@@ -858,7 +922,70 @@ input.invalid {
     display: flex;
     gap: var(--spacing-md);
     flex-wrap: wrap;
+    align-items: stretch;
     margin-bottom: var(--spacing-lg);
+}
+
+/* ── Borrar todo ─────────────────────────────────────────────────────────────
+   Va último y separado del resto: antes era el primer botón de la fila y pesaba
+   lo mismo que GENERAR INFORME. Sigue siendo un solo clic, sin confirmación;
+   lo que protege de un accidente es el Deshacer, no una pregunta en cada uso. */
+.btn-danger {
+    background: var(--sev-severo-bg);
+    color: var(--sev-severo-fg);
+}
+
+.btn-danger:hover {
+    background: var(--sev-severo-bg);
+    filter: brightness(1.1);
+}
+
+.btn-reset {
+    margin-left: auto;
+    flex: 0 0 auto;
+}
+
+/* ── Barra de deshacer ─────────────────────────────────────────────────────── */
+.undo-bar {
+    position: fixed;
+    left: 50%;
+    bottom: 1.25rem;
+    transform: translateX(-50%);
+    z-index: 1200;
+    display: flex;
+    align-items: center;
+    gap: 0.9rem;
+    max-width: calc(100vw - 2rem);
+    padding: 0.7rem 0.8rem 0.7rem 1.1rem;
+    border-radius: var(--radius-lg);
+    background: var(--color-text-primary);
+    color: var(--color-bg-card);
+    box-shadow: var(--shadow-lg);
+    font-size: var(--font-size-sm);
+    animation: undo-bar-in 160ms ease-out;
+}
+
+@keyframes undo-bar-in {
+    from { opacity: 0; transform: translate(-50%, 0.5rem); }
+    to   { opacity: 1; transform: translate(-50%, 0); }
+}
+
+.undo-bar__btn {
+    flex: 0 0 auto;
+    border: 1px solid currentColor;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    font-weight: 700;
+    padding: 0.35rem 0.8rem;
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    min-height: 36px;
+}
+
+.undo-bar__btn:hover {
+    background: var(--color-bg-card);
+    color: var(--color-text-primary);
 }
 
 .btn {
@@ -908,8 +1035,8 @@ input.invalid {
 }
 
 .btn-secondary {
-    background: #6B7280;
-    color: white;
+    background: var(--color-text-secondary);
+    color: var(--on-solid);
     flex: 0.5;
 }
 

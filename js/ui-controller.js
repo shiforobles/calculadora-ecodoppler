@@ -4562,29 +4562,89 @@ class UIController {
     }
 
     // Reset all form fields
+    /**
+     * Borra el estudio en un solo clic, sin confirmación.
+     *
+     * Antes preguntaba y después recargaba la página. Preguntar en cada borrado
+     * cuesta un clic en todos los estudios para evitar un accidente raro; y la
+     * recarga hacía imposible volver atrás. Ahora borra directo y deja unos
+     * segundos un "Deshacer" que devuelve el estudio tal como estaba.
+     */
     resetAll() {
-        if (confirm('¿Está seguro que desea borrar todos los datos?')) {
-            if (this.motility) {
-                this.motility.reset();
-            }
-            // Explicitly clear session storage motility keys to be perfectly sure
-            sessionStorage.removeItem('motility-state');
-            sessionStorage.removeItem('motility-pattern');
+        const previo = this._snapshotEstudio();
 
-            // Force clear all inputs to prevent browser caching on reload
-            document.querySelectorAll('input, select, textarea').forEach(el => {
-                if (el.type === 'checkbox' || el.type === 'radio') {
-                    el.checked = false;
-                } else if (el.tagName === 'SELECT') {
-                    el.selectedIndex = 0;
-                } else {
-                    el.value = '';
-                }
-            });
+        if (this.motility) this.motility.reset();
+        sessionStorage.removeItem('motility-state');
+        sessionStorage.removeItem('motility-pattern');
 
-            // Reload from server to bypass cache
-            window.location.href = window.location.pathname;
+        document.querySelectorAll('input, select, textarea').forEach(el => {
+            if (el.type === 'checkbox' || el.type === 'radio') el.checked = false;
+            else if (el.tagName === 'SELECT') el.selectedIndex = 0;
+            else el.value = '';
+        });
+
+        this._indexedMeasurements.clear();
+        this.reportEdited = false;
+        this._reportSnapshot = null;
+        this.calculateNow();
+
+        this._ofrecerDeshacerBorrado(previo);
+    }
+
+    /** Guarda lo justo para poder devolver el estudio: campos y motilidad. */
+    _snapshotEstudio() {
+        return {
+            campos: [...document.querySelectorAll('input, select, textarea')].map(el => ({
+                el,
+                value: el.value,
+                checked: el.checked,
+                selectedIndex: el.tagName === 'SELECT' ? el.selectedIndex : null
+            })),
+            motilidad: this.motility ? JSON.parse(JSON.stringify(this.motility.state)) : null,
+            patron: this.motility ? this.motility.pattern : null,
+            informeEditado: this.reportEdited
+        };
+    }
+
+    _restaurarEstudio(previo) {
+        previo.campos.forEach(c => {
+            if (!c.el.isConnected) return;
+            if (c.el.type === 'checkbox' || c.el.type === 'radio') c.el.checked = c.checked;
+            else if (c.el.tagName === 'SELECT') c.el.selectedIndex = c.selectedIndex;
+            else c.el.value = c.value;
+        });
+        if (this.motility && previo.motilidad) {
+            this.motility.state = previo.motilidad;
+            this.motility.pattern = previo.patron;
+            this.motility.notifyListeners('all');
         }
+        this.reportEdited = previo.informeEditado;
+        this.calculateNow();
+        this._acceptCurrentReport(previo.informeEditado);
+        this.showToast('Estudio recuperado');
+    }
+
+    /** Barra de deshacer: se va sola si no la tocás. */
+    _ofrecerDeshacerBorrado(previo, segundos = 10) {
+        document.getElementById('undo-reset')?.remove();
+
+        const barra = document.createElement('div');
+        barra.id = 'undo-reset';
+        barra.className = 'undo-bar';
+        barra.setAttribute('role', 'status');
+        barra.innerHTML = `
+            <span>Estudio borrado.</span>
+            <button type="button" class="undo-bar__btn">Deshacer</button>`;
+
+        let temporizador;
+        const cerrar = () => { clearTimeout(temporizador); barra.remove(); };
+        barra.querySelector('.undo-bar__btn').addEventListener('click', () => {
+            cerrar();
+            this._restaurarEstudio(previo);
+        });
+        temporizador = setTimeout(cerrar, segundos * 1000);
+
+        document.body.appendChild(barra);
     }
 
     /**

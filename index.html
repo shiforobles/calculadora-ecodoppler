@@ -53,7 +53,7 @@
 
         <!-- Datos Físicos y Filiación -->
         <section class="card">
-            <h2 class="section-title">Datos del Paciente</h2>
+            <h2 class="section-title section-title--apoyo">Datos del Paciente</h2>
             <div class="grid">
                 <div class="form-group">
                     <label for="paciente_id">HC / ID Paciente</label>
@@ -105,7 +105,7 @@
 
         <!-- Antecedentes Clínicos (Nuevo Módulo) -->
         <section class="card card-antecedentes">
-            <h2 class="section-title">Antecedentes Clínicos de Relevancia</h2>
+            <h2 class="section-title section-title--apoyo">Antecedentes Clínicos de Relevancia</h2>
             <div class="grid grid-3col">
                 <div class="checkbox-group">
                     <input type="checkbox" id="ant_hta">
@@ -174,7 +174,7 @@
 
         <!-- Presets de carga rápida -->
         <section class="card preset-section">
-            <h2 class="section-title">Carga Rápida — Presets</h2>
+            <h2 class="section-title section-title--apoyo">Carga Rápida — Presets</h2>
             <div style="display:flex; gap:.5rem; align-items:center; flex-wrap:wrap;">
                 <select id="preset_selector" style="flex:1; min-width:200px; padding:.45rem .6rem; border:1px solid var(--color-border); border-radius:6px; font-family:inherit; font-size:.9rem;">
                     <option value="">Elegir preset…</option>
@@ -189,7 +189,7 @@
 
         <!-- VI y Motilidad Parietal -->
         <section class="card">
-            <h2 class="section-title">1. Ventrículo Izquierdo y Motilidad</h2>
+            <h2 class="section-title"><span class="section-num" aria-hidden="true">1</span>Ventrículo Izquierdo y Motilidad</h2>
 
             <div class="grid">
                 <div class="form-group">
@@ -401,7 +401,7 @@
 
         <!-- Motilidad Parietal Regional -->
         <section class="card motility-section" id="motility-regional-section" style="display: none;">
-            <h2 class="section-title">🫀 Motilidad Parietal Regional (17 Segmentos AHA)</h2>
+            <h2 class="section-title section-title--bloque">🫀 Motilidad Parietal Regional · 17 segmentos AHA</h2>
 
             <div class="motility-controls">
                 <div class="wmsi-display">
@@ -526,7 +526,7 @@
 
         <!-- Aurícula Izquierda -->
         <section class="card">
-            <h2 class="section-title">2. Aurícula Izquierda</h2>
+            <h2 class="section-title"><span class="section-num" aria-hidden="true">2</span>Aurícula Izquierda</h2>
             <div class="grid">
                 <div class="form-group">
                     <label for="ai_calc_mode">Método de Cálculo</label>
@@ -567,7 +567,7 @@
 
         <!-- Septum Interauricular (ASIA/FOP) -->
         <section class="card">
-            <h2 class="section-title">Evaluación Septum Interauricular</h2>
+            <h2 class="section-title"><span class="section-num" aria-hidden="true">3</span>Septum Interauricular</h2>
 
             <div class="checkbox-group" style="margin-bottom: 1rem;">
                 <input type="checkbox" id="asia_check">
@@ -597,7 +597,7 @@
 
         <!-- Válvula Mitral -->
         <section class="card">
-            <h2 class="section-title">3. Válvula Mitral</h2>
+            <h2 class="section-title"><span class="section-num" aria-hidden="true">4</span>Válvula Mitral</h2>
             <div class="grid">
                 <div class="form-group grid-span-2">
                     <label for="morf_mitral">Morfología</label>
@@ -783,7 +783,7 @@
 
         <!-- 4. Prótesis Valvulares -->
         <section class="card" id="protesis_section">
-            <h2 class="section-title">4. Prótesis Valvulares</h2>
+            <h2 class="section-title"><span class="section-num" aria-hidden="true">5</span>Prótesis Valvulares</h2>
             <div class="grid">
                 <div class="form-group grid-span-4">
                     <div class="checkbox-group"
@@ -887,7 +887,7 @@
 
         <!-- Válvula Aórtica y Aorta -->
         <section class="card">
-            <h2 class="section-title">5. Válvula Aórtica y Aorta</h2>
+            <h2 class="section-title"><span class="section-num" aria-hidden="true">6</span>Válvula Aórtica y Aorta</h2>
             <div class="grid">
                 <div class="form-group grid-span-2">
                     <label for="morf_aortica">Morfología Valvular</label>
@@ -1121,7 +1121,7 @@
 
         <!-- Cavidades Derechas y Válvulas -->
         <section class="card">
-            <h2 class="section-title">6 & 7. Cavidades Derechas y Válvulas</h2>
+            <h2 class="section-title"><span class="section-num" aria-hidden="true">7</span>Cavidades Derechas y Válvulas</h2>
             <div class="grid">
                 <div class="form-group">
                     <label for="ad_estado">Aurícula Derecha</label>
@@ -1387,7 +1387,7 @@
 
         <!-- 6. Válvula Tricúspide (New Module v14.7) -->
         <section class="card">
-            <h2 class="section-title">7. Evaluación del Pericardio</h2>
+            <h2 class="section-title"><span class="section-num" aria-hidden="true">8</span>Pericardio</h2>
 
             <div class="checkbox-container"
                 class="callout-success">
@@ -1459,7 +1459,7 @@
 
         <!-- Mini Calculadoras -->
         <section class="card">
-            <h2 class="section-title">🧮 Calculadoras Hemodinámicas</h2>
+            <h2 class="section-title section-title--apoyo">🧮 Calculadoras Hemodinámicas</h2>
 
             <!-- Ecuación de Continuidad -->
             <div class="mini-calc-container">
@@ -1533,9 +1533,6 @@
 
         <!-- Botones de Acción -->
         <section class="action-buttons">
-            <button id="btn_reset" class="btn btn-secondary">
-                <span>🗑️</span> BORRAR TODO
-            </button>
             <button id="btn_generate" class="btn btn-primary">
                 <span>📋</span> GENERAR INFORME
             </button>
@@ -1545,18 +1542,21 @@
             <button id="btn_save_study" class="btn btn-success">
                 <span>💾</span> GUARDAR ESTUDIO
             </button>
-            <button id="btn_view_sheet" class="btn btn-secondary" title="Ver Google Sheet" style="min-width:48px;padding:0.75rem;">
-                <span>📊</span>
+            <button id="btn_view_sheet" class="btn btn-secondary" title="Ver la planilla de Google">
+                <span>📊</span> VER PLANILLA
             </button>
-            <button id="btn_sync_setup" class="btn btn-secondary" title="Configurar sincronización con Google Sheets" style="min-width:48px;padding:0.75rem;">
-                <span>⚙️</span>
+            <button id="btn_sync_setup" class="btn btn-secondary" title="Configurar la sincronización con Google Sheets">
+                <span>⚙️</span> SINCRONIZACIÓN
+            </button>
+            <button id="btn_reset" class="btn btn-danger btn-reset">
+                <span>🗑️</span> BORRAR TODO
             </button>
         </section>
 
         <!-- Área de Resultado -->
         <section class="card">
-            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;">
-                <h2 class="section-title" style="margin:0;">Informe Generado</h2>
+            <div class="report-header">
+                <h2 class="section-title section-title--apoyo" style="margin:0;">Informe Generado</h2>
                 <div class="report-mode-selector">
                     <button id="mode_lista" class="mode-btn">Lista</button>
                     <button id="mode_narrativo" class="mode-btn mode-btn-active">Narrativo</button>
@@ -1565,7 +1565,7 @@
             </div>
             <textarea id="resultado" class="report-output"
                 placeholder="El informe compacto se generará aquí...&#10;&#10;Complete los datos del paciente y presione 'GENERAR INFORME'"></textarea>
-            <p id="report_status" role="status" style="font-size:.875rem;color:var(--color-warning);margin-top:.5rem;" hidden></p>
+            <p id="report_status" class="report-status" role="status" hidden></p>
         </section>
 
         <footer class="app-footer">
@@ -1616,7 +1616,7 @@
     <script src="js/motility-svg.js?v=16.2"></script>
     <script src="js/gemini-ai.js?v=18.2"></script>
     <script src="js/presets.js?v=1.0"></script>
-    <script src="js/ui-controller.js?v=19.18"></script>
+    <script src="js/ui-controller.js?v=19.19"></script>
     <script src="js/ui-extensions.js?v=16.1"></script>
     <script src="js/ui-lanus.js?v=16.1"></script>
     <script src="js/ui-aorta-display.js?v=16.0"></script>
