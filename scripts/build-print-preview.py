@@ -4,6 +4,8 @@ import argparse
 from pathlib import Path
 import re
 import shutil
+import json
+import subprocess
 
 ROOT = Path(__file__).resolve().parents[1]
 JS = [
@@ -12,7 +14,7 @@ JS = [
     'motility-controller', 'motility-svg', 'gemini-ai', 'presets', 'ui-controller',
     'ui-extensions', 'ui-lanus', 'ui-aorta-display', 'aortic-regurgitation',
     'valvulopathy-modules', 'voice-recognition', 'study-storage', 'google-sync',
-    'ai-assistant', 'quick-report', 'eco-rapido', 'print-preview',
+    'ai-assistant', 'quick-report', 'eco-rapido', 'print-preview', 'build-info', 'ui-guidance',
 ]
 FILES = ['index.html', 'eco-rapido.html', 'print-preview.html', 'app.js', 'styles.css',
          'css/voice-styles.css', 'css/print-preview.css', 'img/anatomical_views.png',
@@ -56,6 +58,11 @@ def build(output):
         if relative != 'print-preview.html':
             html = html.replace('</head>', '<script src="js/review-only.js"></script>\n</head>')
         target.write_text(html)
+    # Source revision/date, never the visitor's clock. One generated identifier per build.
+    metadata = json.loads((ROOT / 'js/build-info.js').read_text().partition('=')[2].strip().removesuffix(';'))
+    commit_date = subprocess.check_output(['git', 'show', '-s', '--format=%cs', 'HEAD'], cwd=ROOT, text=True).strip()
+    metadata.update(version=commit_date[:7].replace('-', '.'), revision=subprocess.check_output(['git', 'rev-parse', '--short', 'HEAD'], cwd=ROOT, text=True).strip(), updated=commit_date, channel='review')
+    (output / 'js/build-info.js').write_text('window.EcoBuild = ' + json.dumps(metadata, ensure_ascii=False) + ';\n')
     (output / 'js/review-only.js').write_text(GUARD)
     print(f'Copia de prueba preparada: {len(FILES) + 1} archivos; sin dashboard, datos ni historial Git.')
 

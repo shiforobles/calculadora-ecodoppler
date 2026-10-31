@@ -16,7 +16,7 @@
         rel="stylesheet">
 
     <!-- Styles -->
-    <link rel="stylesheet" href="styles.css?v=18.4">
+    <link rel="stylesheet" href="styles.css?v=18.4-guidance.1">
 </head>
 
 <body>
@@ -25,7 +25,7 @@
         <header class="app-header">
             <div>
                 <h1>Eco Doppler Cardíaco</h1>
-                <p class="version">v17.6</p>
+                <p class="version">Edición en revisión</p>
             </div>
             <div class="voice-controls">
                 <a href="eco-rapido.html" class="btn btn-voice" title="Eco focalizado en cama del paciente"
@@ -54,7 +54,7 @@
         <!-- Datos Físicos y Filiación -->
         <section class="card">
             <h2 class="section-title">Datos del Paciente</h2>
-            <div class="grid">
+            <div class="grid patient-grid">
                 <div class="form-group">
                     <label for="paciente_id">HC / ID Paciente</label>
                     <input type="text" id="paciente_id" name="paciente_id" placeholder="Ej: JP-1234" autocomplete="off">
@@ -86,13 +86,6 @@
                     <label for="bmi_display">IMC (Riesgo)</label>
                     <input type="text" id="bmi_display" class="calculated-value" disabled>
                 </div>
-                <div class="form-group" style="grid-column: 1 / -1;">
-                    <div id="bsa_alert_container"
-                        style="display:none; margin-top: 0.5rem; padding: 0.75rem; border-radius: 6px; font-weight: 500; font-size: 0.9rem; display: flex; align-items: center; gap: 0.5rem;">
-                        <span id="bsa_alert_icon"></span>
-                        <span id="bsa_alert_text"></span>
-                    </div>
-                </div>
                 <div class="form-group">
                     <label for="ventana">Calidad Ventana Acústica</label>
                     <select id="ventana">
@@ -100,6 +93,14 @@
                         <option value="si">Mala Ventana (Limita evaluación)</option>
                     </select>
                 </div>
+                <div class="form-group" style="grid-column: 1 / -1;">
+                    <div id="bsa_alert_container"
+                        style="display:none; margin-top: 0.5rem; padding: 0.75rem; border-radius: 6px; font-weight: 500; font-size: 0.9rem; display: flex; align-items: center; gap: 0.5rem;">
+                        <span id="bsa_alert_icon"></span>
+                        <span id="bsa_alert_text"></span>
+                    </div>
+                </div>
+
             </div>
         </section>
 
@@ -347,9 +348,10 @@
                 </div>
 
                 <!-- Desempate / Situaciones especiales (colapsable) -->
-                <button type="button" class="toggle-advanced-btn" style="margin-top:0.75rem;" onclick="toggleSection('diast_advanced', this)">
-                    ⚙️ Desempate / Situaciones especiales <span class="toggle-arrow">▼</span>
+                <button type="button" id="diast-guidance-toggle" class="toggle-advanced-btn" style="margin-top:0.75rem;" aria-expanded="false" aria-controls="diast_advanced" onclick="toggleSection('diast_advanced', this)">
+                    ⚙️ Desempate / Situaciones especiales <span id="diast-guidance-indicator" class="guidance-indicator" hidden>Revisar</span><span class="toggle-arrow">▼</span>
                 </button>
+                <p id="diast-guidance-reason" class="guidance-reason" role="status" hidden></p>
                 <div id="diast_advanced" style="display:none; margin-top:0.75rem;">
                     <div class="grid">
                         <div class="form-group">
@@ -527,7 +529,7 @@
         <!-- Aurícula Izquierda -->
         <section class="card">
             <h2 class="section-title">2. Aurícula Izquierda</h2>
-            <div class="grid">
+            <div class="grid la-summary-grid">
                 <div class="form-group">
                     <label for="ai_calc_mode">Método de Cálculo</label>
                     <select id="ai_calc_mode">
@@ -537,7 +539,8 @@
                 </div>
                 <div class="form-group">
                     <label for="vol_ai">Vol. Indexado AI (ml/m²)</label>
-                    <input type="number" id="vol_ai" value="28" min="10" max="100" step="1">
+                    <div class="atrial-input-inline"><input type="number" id="vol_ai" value="28" min="10" max="100" step="1" aria-describedby="la-volume-status">
+                        <output id="la-volume-status" class="la-volume-status" aria-live="polite">Sin dato</output></div>
                 </div>
             </div>
 
@@ -1569,7 +1572,7 @@
         </section>
 
         <footer class="app-footer">
-            <p>Calculadora Ecodoppler Cardíaco | Fórmulas ASE/EACVI 2025 <span id="app-version" style="opacity:0.55;font-size:0.8em;margin-left:0.5em;">v18.0</span></p>
+            <p>Calculadora Ecodoppler Cardíaco | Fórmulas ASE/EACVI 2025 <span id="app-version" style="opacity:0.55;font-size:0.8em;margin-left:0.5em;">Edición en revisión</span></p>
         </footer>
     </div>
 
@@ -1625,6 +1628,8 @@
     <script src="js/voice-recognition.js?v=16.0"></script>
     <script src="js/print-preview.js?v=1.2"></script>
     <script src="app.js?v=17.8"></script>
+    <script src="js/build-info.js?v=2026.10.30"></script>
+    <script src="js/ui-guidance.js?v=1.0"></script>
     <script src="js/study-storage.js?v=1.2"></script>
     <script src="js/google-sync.js?v=1.1"></script>
     <script src="js/ai-assistant.js?v=1.5"></script>

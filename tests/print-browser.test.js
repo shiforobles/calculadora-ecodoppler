@@ -8,6 +8,7 @@ const root = path.resolve(process.env.ECO_PRINT_ROOT || path.join(__dirname, '..
 const origin = 'http://127.0.0.1:9876';
 const key = 'ecodoppler_print_template_v2';
 const artifacts = process.env.ECO_PRINT_ARTIFACTS;
+const uiArtifacts = process.env.ECO_UI_ARTIFACTS || artifacts;
 
 test('Imprimir/PDF en ambas pantallas, aislado de servicios externos', { skip: !chromium && 'Falta Playwright para ejecutar navegador' }, async t => {
     const chrome = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
@@ -114,6 +115,80 @@ test('Imprimir/PDF en ambas pantallas, aislado de servicios externos', { skip: !
             await popup.selectOption('#print-profile', 'generic'); await popup.close();
             await page.reload(); await page.fill(report, 'NUEVO FICTICIO'); popup = await preview(); assert.equal(await popup.locator('#print-profile').inputValue(), 'hospital');
             assert.equal(await popup.locator('#print-report').textContent(), 'NUEVO FICTICIO'); assert.doesNotMatch(await popup.locator('.patient').textContent().catch(() => ''), /FICTICIO-NO-GUARDAR/);
+            await context.close();
+        });
+        await t.test('Distribución, información de versión y semáforo de AI en computadora, tablet y celular', async () => {
+            for (const width of [390, 768, 916, 1280]) {
+                const { context, page } = await setup('index.html', width);
+                const bmi = await page.locator('#bmi_display').boundingBox(), window = await page.locator('#ventana').boundingBox();
+                if (width >= 640) { assert.ok(window.x > bmi.x); assert.ok(Math.abs(window.y - bmi.y) < 3); }
+                else assert.ok(window.y > bmi.y);
+                const input = await page.locator('#vol_ai').boundingBox(), badge = await page.locator('#la-volume-status').boundingBox();
+                assert.ok(badge.x > input.x); assert.ok(Math.abs(badge.y - input.y) < 3);
+                assert.equal(await page.locator('#la-volume-status').textContent(), 'Normal');
+                const edition = await page.evaluate(() => EcoBuild.version);
+                assert.match(await page.locator('#release-info summary').textContent(), new RegExp(edition));
+                assert.ok((await page.locator('#app-version').textContent()).includes(edition));
+                await page.click('#release-info summary');
+                assert.match(await page.locator('.release-card').textContent(), /Imprimir y PDF/);
+                assert.notEqual(await page.locator('.release-card').evaluate(el => getComputedStyle(el).backgroundColor), 'rgba(0, 0, 0, 0)');
+                const card = await page.locator('.release-card').boundingBox(); assert.ok(card.x >= 0 && card.x + card.width <= width);
+                for (const [value, label, clinical] of [['34','Dilatación leve','levemente dilatada'], ['41.9','Dilatación leve','levemente dilatada'], ['42','Dilatación moderada','moderadamente dilatada'], ['48','Dilatación moderada','moderadamente dilatada'], ['49','Dilatación severa','severamente dilatada'], ['','Sin dato',null]]) {
+                    await page.fill('#vol_ai', value); assert.equal(await page.locator('#la-volume-status').textContent(), label);
+                    assert.equal(await page.evaluate(() => window.UIController._buildClinicalDataJSON().auricula_izquierda.clasificacion), clinical);
+                }
+                if (uiArtifacts) {
+                    await page.fill('#vol_ai','42');
+                    await page.locator('#vol_ai').evaluate(el=>el.scrollIntoView({block:'center'}));
+                    await page.locator('#vol_ai').locator('xpath=ancestor::section[1]').screenshot({path:path.join(uiArtifacts,'auricula-'+width+'.png')});
+                    await page.locator('#release-info summary').click();
+                    await page.locator('#ventana').locator('xpath=ancestor::section[1]').screenshot({path:path.join(uiArtifacts,'paciente-'+width+'.png')});
+                    await page.evaluate(() => window.scrollTo(0,0));
+                    await page.click('#release-info summary');
+                    await page.screenshot({path:path.join(uiArtifacts,'version-'+width+'.png')});
+                }
+                await context.close();
+            }
+        });
+        await t.test('Desempate se despliega y resalta sin seleccionar contextos ni pisar el cierre manual', async () => {
+            const { context, page } = await setup();
+            assert.equal(await page.locator('#diast_advanced').isVisible(), false);
+            await page.evaluate(() => {
+                for (const [id,value] of Object.entries({onda_e:90,onda_a:60,onda_e_prime_septal:5,onda_e_prime_lateral:10,vol_ai:'',vel_it:1.5,edad:65})) {
+                    const node = document.getElementById(id); node.value=value; node.dispatchEvent(new Event('input',{bubbles:true}));
+                }
+            });
+            await page.waitForSelector('#diast_advanced', {state:'visible'});
+            assert.match(await page.locator('#diast-guidance-reason').textContent(), /parámetros secundarios/);
+            assert.equal(await page.locator('#diast-guidance-toggle').getAttribute('aria-expanded'),'true');
+            assert.equal(await page.locator('#diast_advanced input[type=checkbox]:checked').count(),0);
+            await page.click('#diast-guidance-toggle'); await page.fill('#onda_e','91');
+            await page.waitForTimeout(250); assert.equal(await page.locator('#diast_advanced').isVisible(),false);
+            await page.selectOption('#conduccion','bcri');
+            assert.equal(await page.locator('#diast_advanced').isVisible(),true); assert.equal(await page.locator('#ctx_bcri').isChecked(),false);
+            assert.ok((await page.locator('#ctx_bcri').locator('..').getAttribute('class')).includes('context-review'));
+            if(uiArtifacts) await page.locator('#diast-guidance-toggle').locator('xpath=ancestor::div[contains(@class,"subsection")][1]').screenshot({path:path.join(uiArtifacts,'desempate.png')});
+            await page.selectOption('#conduccion','normal'); await page.fill('#vol_ai','28');
+            await page.waitForTimeout(250); assert.equal(await page.locator('#diast-guidance-indicator').isVisible(),false);
+            await page.selectOption('#im_grado','severa');
+            assert.equal(await page.locator('#diast_advanced').isVisible(),true); assert.equal(await page.locator('#ctx_im').isChecked(),false);
+            await page.selectOption('#im_grado','no'); await page.waitForTimeout(250);
+            if (await page.locator('#diast_advanced').isVisible()) await page.click('#diast-guidance-toggle');
+            await page.click('#diast-guidance-toggle'); await page.locator('#ctx_mac').locator('..').click();
+            assert.ok((await page.locator('#ctx_mac').locator('..').getAttribute('class')).includes('context-present'));
+            assert.equal(await page.locator('#ctx_bcri').isChecked(),false);
+            await page.locator('#ctx_mac').locator('..').click(); await page.waitForTimeout(250);
+            assert.equal(await page.locator('#diast_advanced').isVisible(),true);
+            await context.close();
+        });
+        await t.test('Indicador AI sigue la inyección de Lanús sin modificar el resultado clínico', async () => {
+            const { context, page } = await setup();
+            await page.selectOption('#ai_calc_mode','lanus');
+            await page.fill('#lanus_area_4c','30'); await page.fill('#lanus_longitud','60');
+            await page.evaluate(() => window.UIController.injectLanus());
+            const value = Number(await page.inputValue('#vol_ai'));
+            assert.ok(value > 48); assert.equal(await page.locator('#la-volume-status').textContent(),'Dilatación severa');
+            assert.equal(await page.evaluate(() => window.UIController._buildClinicalDataJSON().auricula_izquierda.clasificacion),'severamente dilatada');
             await context.close();
         });
         await t.test('Fecha automática local en ambas plantillas, editable y sin persistir', async () => {
