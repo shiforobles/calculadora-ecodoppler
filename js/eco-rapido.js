@@ -127,6 +127,12 @@
 
     // ── Salida ───────────────────────────────────────────────────────────────
 
+    const printPreview = window.PrintPreview?.connect({
+        reportId: 'informe', buttonId: 'btn_imprimir',
+        readStudy: () => JSON.stringify(datos),
+        readPatient: () => ({ id: $('p_nombre').value })
+    });
+
     let editadoAMano = false;
     $('informe').addEventListener('input', () => { editadoAMano = true; });
 
@@ -134,6 +140,7 @@
         // Si el operador retocó el texto, no se lo pisamos sin avisar
         if (editadoAMano) return;
         $('informe').value = QuickReport.generate(datos);
+        printPreview?.markCurrent();
     }
 
     $('btn_copiar').addEventListener('click', async () => {

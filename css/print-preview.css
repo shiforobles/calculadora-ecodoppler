@@ -1,0 +1,51 @@
+*{box-sizing:border-box}
+body{margin:0;color:#151515;font-family:Arial,Helvetica,sans-serif;font-size:10pt;line-height:1.5;background:#e8ebee;display:grid;grid-template-columns:300px minmax(0,1fr);gap:28px;padding:24px}
+.controls{background:white;padding:22px;border:1px solid #d6dade;border-radius:10px;font:14px/1.5 Arial;color:#26313b;height:max-content}
+.controls h1{font-size:22px;margin:0 0 10px}
+.controls label{display:block;font-weight:bold;margin:16px 0 0}
+.controls input,.controls select,.controls button{width:100%;padding:10px;font:inherit;border:1px solid #bac2c9;border-radius:5px;margin-top:7px;background:white;color:#26313b}
+.controls button{cursor:pointer;background:#173f53;color:white}
+.controls button.secondary{background:#f3f5f6;color:#26313b}
+.controls button:disabled{opacity:.55;cursor:default}
+.controls :focus-visible{outline:3px solid #29799f;outline-offset:2px}
+.hint{font-size:12px;color:#5e6770}
+#print-status{color:#34546a}
+#print-stale{border:1px solid #b45309;background:#fff7ed;color:#78350f;padding:12px}
+main{min-width:0;overflow:auto}
+.paper{width:210mm;min-height:297mm;padding:17mm 20mm 18mm;background:white;margin:0 auto;box-shadow:0 4px 18px #0002}
+.app-separator{display:none}
+table{border-collapse:collapse;width:100%;table-layout:fixed}
+td{padding:0;vertical-align:top}
+thead{display:table-header-group;break-inside:avoid}
+thead td{padding-bottom:5mm}
+thead tr{break-inside:avoid}
+.report-cell{padding-bottom:7mm}
+.institution{display:grid;grid-template-columns:17mm minmax(0,1fr) 17mm;gap:3mm;align-items:center;border-bottom:1pt solid #333;padding-bottom:4mm;margin-bottom:4mm;overflow-wrap:anywhere}
+.institution img{width:17mm;height:19mm;object-fit:contain;filter:grayscale(1)}
+.name{text-align:center;font:bold 14pt Georgia,serif}
+.service{text-align:center;font-size:8.5pt;margin-top:1mm}
+.address{text-align:center;font-size:7.5pt;color:#444;margin-top:1mm}
+.patient{display:flex;flex-wrap:wrap;gap:1mm 5mm;padding:3mm;border:1px solid #aaa;overflow-wrap:anywhere;font-size:9pt}
+.patient>div:first-child{flex-basis:100%}
+.report{white-space:pre-wrap;overflow-wrap:anywhere;font:10pt/1.5 Arial,Helvetica,sans-serif;orphans:3;widows:3}
+.report::first-line{font-weight:700}
+.professional-row{break-inside:avoid}
+.professional{max-width:75mm;margin-left:auto;border-top:.5pt solid #555;padding-top:3mm;text-align:right;font-size:9pt;break-inside:avoid;overflow-wrap:anywhere}
+.professional strong{display:block}
+.print-guard{display:none}
+.source-changed .paper{opacity:.5}
+@page{size:A4;margin:17mm 20mm 18mm;@bottom-right{content:'Página ' counter(page);font:8pt Arial;color:#555}
+}
+@media(max-width:1100px){body{display:block;padding:12px}
+.controls{max-width:794px;margin:0 auto 20px}
+main{padding-bottom:12px}
+.paper{margin:0}
+}
+@media print{body{display:block;background:white;padding:0;color:#000}
+.controls{display:none}
+main{overflow:visible}
+.paper{padding:0;margin:0;min-height:0;width:auto;box-shadow:none}
+.source-changed .paper{display:none}
+.source-changed .print-guard{display:block}
+.report{color:#000}
+}

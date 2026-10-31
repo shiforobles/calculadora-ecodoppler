@@ -1862,3 +1862,20 @@ input.invalid {
     border-color: var(--color-primary);
     background: var(--color-primary-bg);
 }
+
+/* Study-loading guidance, presentation only. */
+@media (min-width:640px){.grid.patient-grid,.grid.la-summary-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.atrial-input-inline{display:grid;grid-template-columns:minmax(85px,1fr) minmax(130px,1.25fr);gap:.5rem;align-items:stretch}
+.la-volume-status{display:flex;align-items:center;justify-content:center;gap:.4rem;border:1px solid currentColor;border-radius:8px;padding:.55rem;font-size:.85rem;font-weight:600;text-align:center}
+.la-volume-status::before{content:'';width:.6rem;height:.6rem;border-radius:50%;background:currentColor;flex-shrink:0}
+.level-neutral{color:#64748b;background:#f1f5f9}.level-normal{color:#166534;background:#f0fdf4}.level-mild{color:#854d0e;background:#fefce8}.level-moderate{color:#9a3412;background:#fff7ed}.level-severe{color:#991b1b;background:#fef2f2}
+.toggle-advanced-btn.guidance-needed{border:2px solid #b45309;background:#fff7ed;color:#78350f}
+.toggle-advanced-btn.guidance-present{border-color:#0284c7;background:#f0f9ff;color:#075985}
+.guidance-indicator{font-size:.72rem;border:1px solid currentColor;border-radius:12px;padding:.1rem .45rem;margin-left:auto;margin-right:.5rem}
+.guidance-indicator[hidden]{display:none}.guidance-reason{font-size:.82rem;color:var(--color-text-secondary);margin:.5rem 0;line-height:1.5}
+.diast-ctx-btn.context-review{outline:2px solid #b45309;outline-offset:2px;background:#fff7ed}
+.diast-ctx-btn.context-present{outline:2px solid #0284c7;outline-offset:2px}
+.release-info{position:relative;width:fit-content;max-width:100%}.release-info summary{cursor:pointer;font-size:.8rem;list-style-position:inside;line-height:1.6}
+.app-header .release-info{opacity:1}
+.release-card{position:absolute;left:0;top:calc(100% + .5rem);z-index:50;width:min(390px,78vw);background:var(--color-bg-card);color:var(--color-text-primary);border:1px solid var(--color-border);box-shadow:0 8px 24px #0003;padding:1rem;border-radius:10px;font-size:.85rem;line-height:1.5}
+.release-card p{margin:0 0 .6rem}.release-card ul{padding-left:1.2rem;margin:.5rem 0}.release-card li{margin-bottom:.4rem}
