@@ -7,6 +7,13 @@
 <style>
   :root{
     --bg:#f1f5f9; --card:#fff; --border:#cbd5e1; --text:#0f172a; --muted:#64748b;
+    /* Gravedad: misma escala que la barra de grado del bull's-eye. El violeta
+       del bull's-eye queda reservado para disquinesia, que es otra cosa y no
+       "más grave", así que la escala va verde → ámbar → naranja → rojo. */
+    --sev-normal-bg:#047857; --sev-normal-fg:#fff;
+    --sev-leve-bg:#fbbf24; --sev-leve-fg:#1f2937;
+    --sev-moderado-bg:#c2410c; --sev-moderado-fg:#fff;
+    --sev-severo-bg:#b91c1c; --sev-severo-fg:#fff;
     --accent:#0369a1; --accent-soft:#e0f2fe; --warn:#b45309; --ok:#16a34a;
   }
   *{box-sizing:border-box}
@@ -39,6 +46,44 @@
   button.opt:hover{border-color:var(--accent);background:var(--accent-soft);}
   button.opt[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);
                                   color:#fff;font-weight:600;}
+
+  /* ── Gravedad en el chip seleccionado ──────────────────────────────────────
+     Sólo pinta el que está elegido; el texto no cambia. Lo que no es una
+     gravedad (morfología, ritmo, "No valorable", "Indeterminada") se queda con
+     el azul neutro: pintar de verde un "No valorable" afirmaría normalidad.
+     Los intermedios toman el tono del grado MÁS alto, para no subestimar:
+     "Leve-mod" va en naranja y "Mod-severa" en rojo. */
+  button.opt[aria-pressed="true"][data-val="normal"],
+  button.opt[aria-pressed="true"][data-val="normales"],
+  button.opt[aria-pressed="true"][data-val="conservada"],
+  button.opt[aria-pressed="true"][data-val="libre"],
+  button.opt[aria-pressed="true"][data-val="baja"],
+  button.opt[aria-pressed="true"][data-val="no"],
+  button.opt[aria-pressed="true"][data-val="trace"]{
+    background:var(--sev-normal-bg);border-color:var(--sev-normal-bg);color:var(--sev-normal-fg);}
+
+  button.opt[aria-pressed="true"][data-val="leve"],
+  button.opt[aria-pressed="true"][data-val="I"]{
+    background:var(--sev-leve-bg);border-color:var(--sev-leve-bg);color:var(--sev-leve-fg);}
+
+  button.opt[aria-pressed="true"][data-val="moderada"],
+  button.opt[aria-pressed="true"][data-val="moderado"],
+  button.opt[aria-pressed="true"][data-val="leve-moderada"],
+  button.opt[aria-pressed="true"][data-val="intermedia"],
+  button.opt[aria-pressed="true"][data-val="II"]{
+    background:var(--sev-moderado-bg);border-color:var(--sev-moderado-bg);color:var(--sev-moderado-fg);}
+
+  button.opt[aria-pressed="true"][data-val="severa"],
+  button.opt[aria-pressed="true"][data-val="severo"],
+  button.opt[aria-pressed="true"][data-val="muy-severa"],
+  button.opt[aria-pressed="true"][data-val="moderada-severa"],
+  button.opt[aria-pressed="true"][data-val="masiva"],
+  button.opt[aria-pressed="true"][data-val="alta"],
+  button.opt[aria-pressed="true"][data-val="compromiso"],
+  button.opt[aria-pressed="true"][data-val="III"]{
+    background:var(--sev-severo-bg);border-color:var(--sev-severo-bg);color:var(--sev-severo-fg);
+    /* lo severo además pesa más en el borde */
+    border-width:3px;padding:calc(.5rem - 1.5px) calc(.7rem - 1.5px);}
 
   input[type=text],input[type=number],input[type=date]{
     padding:.45rem .55rem;border:1.5px solid var(--border);border-radius:8px;

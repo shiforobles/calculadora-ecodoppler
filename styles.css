@@ -1761,34 +1761,46 @@ input.invalid {
     border: 1px solid transparent;
 }
 
+/* ── Atajos de gravedad (LEVE / MOD / SEV) ───────────────────────────────────
+   Misma escala que los chips de eco rápido y que la barra de grado del
+   bull's-eye. Antes LEVE venía en verde, que acá confunde: el verde queda
+   reservado para lo normal, y la escala arranca en ámbar. */
 .preset-leve {
-    background-color: #dcfce7;
-    color: #166534;
-    border-color: #86efac;
+    background-color: var(--sev-leve-bg);
+    color: var(--sev-leve-fg);
+    border-color: var(--sev-leve-bg);
 }
 
 .preset-leve:hover {
-    background-color: #bbf7d0;
+    background-color: var(--sev-leve-bg);
+    color: var(--sev-leve-fg);
+    filter: brightness(1.08);
 }
 
 .preset-moderada {
-    background-color: #fef9c3;
-    color: #854d0e;
-    border-color: #fde047;
+    background-color: var(--sev-moderado-bg);
+    color: var(--sev-moderado-fg);
+    border-color: var(--sev-moderado-bg);
 }
 
 .preset-moderada:hover {
-    background-color: #fef08a;
+    background-color: var(--sev-moderado-bg);
+    color: var(--sev-moderado-fg);
+    filter: brightness(1.08);
 }
 
 .preset-severa {
-    background-color: #fee2e2;
-    color: #991b1b;
-    border-color: #fca5a5;
+    background-color: var(--sev-severo-bg);
+    color: var(--sev-severo-fg);
+    border-color: var(--sev-severo-bg);
+    /* lo severo además pesa más en el borde */
+    border-width: 3px;
 }
 
 .preset-severa:hover {
-    background-color: #fecaca;
+    background-color: var(--sev-severo-bg);
+    color: var(--sev-severo-fg);
+    filter: brightness(1.08);
 }
 
 .iao-grid {
@@ -2278,7 +2290,8 @@ input.invalid {
     color: var(--tint-info-on);
 }
 
-/* Muestras de color de la leyenda de motilidad */
+/* Muestras de color de la leyenda de motilidad: son la paleta de referencia
+   del bull's-eye, por eso no se tocan ni en claro ni en oscuro. */
 .legend-grado-1 { background: #10b981; }
 .legend-grado-2 { background: #fbbf24; }
 .legend-grado-3 { background: #ef4444; }
