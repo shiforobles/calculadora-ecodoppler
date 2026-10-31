@@ -63,6 +63,10 @@
                 border:1px dashed var(--accent);border-radius:8px;}
   #bullseye_box.visible{display:block}
   #motility-svg-container svg{max-width:270px;display:block;margin:0 auto;}
+  #motility-svg-container .segment-number-bullseye,
+  #motility-svg-container .anatomy-label{pointer-events:none;}
+  #informe_estado{color:var(--warn);font-size:.82rem;}
+  #informe_conflicto{border:1px solid var(--warn);border-radius:8px;padding:.5rem;margin-top:.5rem;}
   .vista-filtro{display:flex;align-items:center;justify-content:center;gap:.35rem;
                 flex-wrap:wrap;margin-bottom:.5rem;font-size:.78rem;color:var(--muted);}
   .btn-vista{min-height:36px;padding:.35rem .7rem;border:1.5px solid var(--border);
@@ -404,9 +408,19 @@
     <section class="card">
       <h2>Informe</h2>
       <textarea id="informe" spellcheck="false" placeholder="El informe se arma solo a medida que cargás los hallazgos."></textarea>
+      <p id="informe_estado" role="status" hidden></p>
       <div class="acciones">
+        <button id="btn_regenerar" type="button">Regenerar informe</button>
         <button id="btn_copiar">📋 Copiar</button>
         <button id="btn_limpiar">🗑️ Limpiar</button>
+      </div>
+      <div id="informe_conflicto" role="group" aria-label="Resolver informe desactualizado antes de copiar" hidden>
+        <p>Hay cambios posteriores a la revisión del texto. Para copiar, elegí regenerar (reemplaza el texto manual) o conservarlo confirmando que ya revisaste los cambios actuales. Cancelar aborta la copia y conserva el texto.</p>
+        <div class="acciones">
+          <button id="btn_regenerar_conflicto" type="button">Regenerar informe y copiar</button>
+          <button id="btn_conservar" type="button">Conservar texto revisado y copiar</button>
+          <button id="btn_cancelar_copia" type="button">Cancelar</button>
+        </div>
       </div>
     </section>
   </div>
@@ -423,7 +437,7 @@
 <script src="js/motility-controller.js?v=17.2"></script>
 <script src="js/motility-svg.js?v=16.2"></script>
 <script src="js/quick-report.js?v=1.0"></script>
-<script src="js/eco-rapido.js?v=1.0"></script>
+<script src="js/eco-rapido.js?v=1.1"></script>
 
 </body>
 </html>
