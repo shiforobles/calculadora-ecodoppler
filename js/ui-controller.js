@@ -39,6 +39,7 @@ class UIController {
      * Initialize all event listeners
      */
     init() {
+        if (window.MCHUI) { this.mch = new MCHUI(this); this.mch.init(); }
         // Expose Quick Fill function globally
         window.setTricuspidValues = (grade) => this.setTricuspidValues(grade);
 
@@ -803,7 +804,7 @@ class UIController {
         // BCRI → e' septal excluido: deshabilitar campo
         const eSeptalEl = document.getElementById('onda_e_prime_septal');
         if (eSeptalEl) {
-            if (bcri) {
+            if (bcri && !mcp) {
                 eSeptalEl.value = '';
                 eSeptalEl.disabled = true;
                 eSeptalEl.placeholder = 'Excluido (BCRI)';
@@ -836,9 +837,9 @@ class UIController {
             }
         }
 
-        // MCP → hint en E/e' label (umbral modificado a 15)
+        // MCH no usa el algoritmo general ni un umbral modificado de 15.
         if (mcp && !mac && !imSevera && eeLabel) {
-            eeLabel.textContent = "E/e' (umbral >15 en MCP)";
+            eeLabel.textContent = "E/e' promedio (referencia MCH >14; requiere ambos sitios)";
         }
     }
 
@@ -848,6 +849,22 @@ class UIController {
     calculateDiastolicFunction() {
         // Apply UI state for special conditions first
         this.updateSpecialConditionsUI();
+
+        if (this.mch) this.mch.refresh();
+        if (this.mch?.active) {
+            const data = this.mch.data();
+            const e = MCH.number(data.E), a = MCH.number(data.A);
+            const septal = MCH.number(data.septal), lateral = MCH.number(data.lateral);
+            const average = septal !== null && lateral !== null ? (septal + lateral) / 2 : null;
+            document.getElementById('onda_e_prime').value = average === null ? '' : average.toFixed(1);
+            document.getElementById('ee_ratio_display').value = e !== null && average !== null ? (e / average).toFixed(2) : '';
+            document.getElementById('ea_ratio_display').value = !['fa','flutter'].includes(data.rhythm) && e !== null && a !== null && !data.limitations.fusion ? (e / a).toFixed(2) : '';
+            const description = this.mch.pressureText() || 'MCH: integración médica pendiente de revisión.';
+            this.state.diastolicResult = { grade: 'MCH', description, severity: 'neutral', manual: true };
+            this.updateDiastolicBadge(this.state.diastolicResult);
+            document.getElementById('diastole_text_hidden').value = this.mch.pressureText();
+            return;
+        }
 
         const E = parseFloat(document.getElementById('onda_e').value);
         const A = parseFloat(document.getElementById('onda_a').value);
@@ -1101,6 +1118,11 @@ class UIController {
             // No consumir un estado anterior al último input.
             this.calculateNow();
 
+            if (this.mch?.active && !this.mch.ready()) {
+                this.showToast('MCH: seleccioná y confirmá la integración de presión media de AI antes de generar el informe.');
+                return false;
+            }
+
             // Run quality control if available - v14.0
             if (this.qc && this.runQualityControl) {
                 if (!this.runQualityControl()) {
@@ -1159,6 +1181,7 @@ class UIController {
             }
             report += `${lvLine}.\n`;
 
+            if (!this.mch?.active) {
             // Systolic function. El WMSI queda acá, como dato objetivo junto a la FEy;
             // la descripción de la motilidad se informa una sola vez, en la conclusión.
             report += `Función Sistólica: FEy ${fevi}% (Simpson biplano)`;
@@ -1168,12 +1191,18 @@ class UIController {
             }
             report += `.\n`;
 
+            }
+
             // Diastolic function — Doppler measurements
             const ondaE = document.getElementById('onda_e').value;
             const ondaA = document.getElementById('onda_a').value;
             const ePrime = document.getElementById('onda_e_prime').value;
 
-            if (ondaE || ePrime) {
+            if (this.mch?.active) {
+                const mchClinical = this.mch.clinicalText();
+                if (mchClinical) report += `${mchClinical}\n`;
+                report += `${this.mch.diastolicText()}\n`;
+            } else if (ondaE || ePrime) {
                 let diastolicText = `Evaluación Doppler Mitral y Tisular:`;
                 if (ondaE) diastolicText += ` Onda E ${ondaE} cm/s`;
                 if (ondaA) {
@@ -1653,7 +1682,7 @@ class UIController {
                 }
             }
 
-            report += `${conclusionNum}. ${viConclusion}\n`;
+            report += `${conclusionNum}. ${this.mch?.active ? this.mch.clinicalText() : viConclusion}\n`;
             conclusionNum++;
 
             // 3. Diastolic Function (ALWAYS include, even if Indeterminado)
@@ -1661,7 +1690,9 @@ class UIController {
                 const diastolicDesc = this.state.diastolicResult.description;
 
                 // Simplify for conclusions
-                if (this._diastolicaSinDatos()) {
+                if (this.mch?.active) {
+                    report += `${conclusionNum}. ${this.mch.pressureText()}\n`;
+                } else if (this._diastolicaSinDatos()) {
                     // "Esperando datos Doppler..." es un texto de pantalla, no una conclusión
                     report += `${conclusionNum}. Función diastólica no valorable por datos insuficientes.\n`;
                 } else if (diastolicDesc.includes('FA:') || diastolicDesc.includes('FA +')) {
@@ -2124,6 +2155,10 @@ class UIController {
     /** No cambia el envío: sólo prepara texto y mediciones de la misma revisión. */
     async _ensureReportCurrent() {
         this.calculateNow();
+        if (this.mch?.active && !this.mch.ready()) {
+            this.showToast("MCH: revisá y confirmá la integración antes de utilizar el informe.");
+            return false;
+        }
         const text = document.getElementById('resultado').value;
         if (!text.trim() || !this.reportEdited && this._isReportStale()) {
             return this.generateReport({ confirmEdits: false });
@@ -2249,6 +2284,7 @@ class UIController {
         });
 
         Object.entries(preset.campos || {}).forEach(([id, val]) => {
+            if (id.startsWith('mch_')) return;
             if (id === 'pattern-selector') return;   // se aplica abajo, por API
             set(id, val);
         });
@@ -2264,6 +2300,7 @@ class UIController {
             this.motility.setPattern(patron);
         }
 
+        this.mch?.invalidatePreset();
         this.calculateAll();
         this._trackStudyChanges();
         this.showToast(`Preset "${preset.label || name.replace(/_/g, ' ')}" aplicado`);
@@ -2333,7 +2370,7 @@ class UIController {
         const campos = {};
         document.querySelectorAll('input, select, textarea').forEach(el => {
             const id = el.id;
-            if (!id || excluidos.has(id)) return;
+            if (!id || excluidos.has(id) || id.startsWith('mch_')) return;
             if (el.disabled || el.readOnly) return;          // displays calculados
             if (id.endsWith('_display') || id.endsWith('_disp')) return;
             if (el.type === 'checkbox') {
@@ -2724,7 +2761,7 @@ class UIController {
         if (siv && pp) viParts.push(`SIV/PP ${siv}/${pp}mm`);
         if (masa) viParts.push(`Masa ${masa}g/m²`);
         if (rwt)  viParts.push(`RWT ${rwt}`);
-        if (fevi) viParts.push(`FEy ${fevi}%`);
+        if (fevi && (!this.mch?.active || this.mch.checked('mch_ef_confirmed'))) viParts.push(`FEy ${fevi}%`);
         if (this.motility) {
             const wmsi = parseFloat(this.motility.calculateWMSI?.());
             if (wmsi && wmsi > 1) viParts.push(`WMSI ${wmsi.toFixed(2)}`);
@@ -2913,10 +2950,12 @@ class UIController {
             else if (fevi >= 30)          p1 += `. La función sistólica global se encuentra moderadamente deprimida (FEy ${fevi}%)`;
             else                          p1 += `. La función sistólica global se encuentra severamente deprimida (FEy ${fevi}%)`;
         }
-        paragraphs.push(p1 + '.');
+        paragraphs.push(this.mch?.active ? this.mch.clinicalText() : p1 + '.');
 
         // ── P2: Diastolic function + LA + CO ──
-        if (this.state.diastolicResult) {
+        if (this.mch?.active) {
+            paragraphs.push(this.mch.diastolicText());
+        } else if (this.state.diastolicResult) {
             const dr   = this.state.diastolicResult;
             const isFA = ritmo === 'fa' || ritmo === 'flutter';
             const valsalvaPos = document.getElementById('ctx_valsalva')?.checked;
@@ -3665,6 +3704,10 @@ class UIController {
      * Builds clinical JSON, calls Gemini, replaces CONCLUSIONES with AI response
      */
     async generateAIReport() {
+        if (this.mch?.active) {
+            this.showToast("MCH: utilizá Lista o Narrativo para conservar la integración clínica revisada.");
+            return;
+        }
         if (!window.GeminiAI) {
             this.showToast('Módulo Gemini no cargado. Recargá la página.');
             return;
@@ -3990,6 +4033,7 @@ class UIController {
             document.getElementById('ant_rvm')?.checked ? 'Si' : 'No',
             document.getElementById('ant_libre')?.value?.trim() || '-',
         ];
+        row.push(this.mch?.active ? JSON.stringify(this.mch.serialize()) : "-");
         return row;
     }
 
@@ -4600,6 +4644,8 @@ class UIController {
                 checked: el.checked,
                 selectedIndex: el.tagName === 'SELECT' ? el.selectedIndex : null
             })),
+            reportSnapshot: this._reportSnapshot,
+            mchRecords: this.mch ? this.mch.value('mch_records') : '',
             motilidad: this.motility ? JSON.parse(JSON.stringify(this.motility.state)) : null,
             patron: this.motility ? this.motility.pattern : null,
             informeEditado: this.reportEdited
@@ -4607,6 +4653,10 @@ class UIController {
     }
 
     _restaurarEstudio(previo) {
+        if (this.mch) {
+            document.getElementById('mch_records').value = previo.mchRecords || '';
+            this.mch.renderRecords();
+        }
         previo.campos.forEach(c => {
             if (!c.el.isConnected) return;
             if (c.el.type === 'checkbox' || c.el.type === 'radio') c.el.checked = c.checked;
@@ -4620,7 +4670,9 @@ class UIController {
         }
         this.reportEdited = previo.informeEditado;
         this.calculateNow();
-        this._acceptCurrentReport(previo.informeEditado);
+        this._reportSnapshot = previo.reportSnapshot;
+        this._reportTextRevision++;
+        this._updateReportStatus();
         this.showToast('Estudio recuperado');
     }
 
