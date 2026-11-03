@@ -3,7 +3,7 @@
 Única fuente de verdad del estado del proyecto. Lo actualiza cada IA al tomar y
 al terminar una tarea (ver `AGENTS.md`).
 
-Última actualización: 03/11/2026 · Claude (Estética v18.7) ·
+Última actualización: 03/11/2026 20:40 · Claude (chat MCH) ·
 `main` publicado en https://shiforobles.github.io/calculadora-ecodoppler/
 
 ## Implementando ahora
@@ -15,7 +15,7 @@ Nadie. (Regla: un solo asistente implementando a la vez.)
 | Tarea | Responsable | Rama / PR | Estado | Pruebas | Próximo paso |
 |---|---|---|---|---|---|
 | Impresión PDF y ayudas visuales de carga | Codex | `codex/imprimir-pdf` · PR #1 (borrador) | 4 commits del 29–30/10, sobre una base vieja: 15 commits detrás de `main` y **con conflictos**. El PR dice "no hacer merge sin aprobación" | Según el PR: 186 + 9 + 15 en verde (sobre la base vieja) | 1) **Quitar nombre y matrícula escritos en el código**: deben salir de ⚙️ (regla desde 69970cd). 2) Rebasar sobre `main` y resolver conflictos. 3) Lucas aprueba. Ojo: el texto del PR #1 en GitHub muestra la matrícula |
-| MCH simplificado | Claude (chat MCH) | `feat/mch` · **PR #7 (borrador)** | Terminado: 9 campos, frase diagnóstica, presión de AI automática por mayoría, guardado en Sheets. Incluye `main` (Borrar todo/Deshacer) | 73/73 en verde; 6 informes sin MCH idénticos | **Lucas prueba la vista previa** (link en el PR) y da el OK; recién ahí merge. Probar Sheets solo con estudio ficticio tras rotar Apps Script |
+| MCH simplificado | Claude (chat MCH) | `feat/mch` · **PR #7 (borrador)** · c66b5a1 | Terminado y ampliado 03/11 tras la prueba de Lucas: síntesis con gradientes y presiones, relación septo/PP con espesor máximo, patrón autocompletado, aviso de espesor (¿valoraste el TSVI?), lista de control, MCH conocida en Antecedentes, frase directa/compatible/sugestivo | 79/79 en verde; informes sin MCH idénticos | Lucas prueba la vista previa; revisión independiente con Claude Code (solo lectura); con su OK, merge. Sheets solo con estudio ficticio tras rotar Apps Script |
 | Módulo MCH (versión amplia) | Codex | `codex/modulo-mch` · sin PR | Reemplazada por `feat/mch` (base de trabajo) | — | Borrar la rama cuando se mergee #7 |
 | Refactor: extraer pericardio del informe | Claude (chat "Refactor") | sin rama: patch en ese chat | Hecho como patch sobre 69970cd, sin commit | 83 en verde según ese chat | Subir el patch a una rama (`refactor/pericardio`), rebasar sobre `main`, revisión de Lucas, merge |
 | Seguridad: planilla e historial Git | Lucas | — | Pendiente | — | Despublicar la planilla y rotar Apps Script (`docs/CONFIGURACION-PRIVADA.md`); después limpiar historial. Sin force-push sin OK de Lucas |
