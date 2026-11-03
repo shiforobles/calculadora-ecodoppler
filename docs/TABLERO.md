@@ -3,28 +3,26 @@
 Única fuente de verdad del estado del proyecto. Lo actualiza cada IA al tomar y
 al terminar una tarea (ver `AGENTS.md`).
 
-Última actualización: 02/11/2026 23:00 · Claude (chat MCH) ·
+Última actualización: 02/11/2026 23:50 · Claude (chat MCH) ·
 `main` publicado en https://shiforobles.github.io/calculadora-ecodoppler/
 
 ## Implementando ahora
 
-| Tarea | Quién | Rama | Desde |
-|---|---|---|---|
-| MCH simplificado (especificación aprobada por Lucas el 02/11: 9 campos, presión de AI automática por mayoría, frase diagnóstica "Hallazgos compatibles con…", guardado en Sheets) | Claude (chat MCH) | `feat/mch`, sobre `codex/modulo-mch` + `main` | 02/11 23:00 |
-
-(Regla: un solo asistente implementando a la vez.)
+Nadie. (Regla: un solo asistente implementando a la vez.)
 
 ## Trabajo existente fuera de `main` (sin terminar)
 
 | Tarea | Responsable | Rama / PR | Estado | Pruebas | Próximo paso |
 |---|---|---|---|---|---|
 | Impresión PDF y ayudas visuales de carga | Codex | `codex/imprimir-pdf` · PR #1 (borrador) | 4 commits del 29–30/10, sobre una base vieja: 15 commits detrás de `main` y **con conflictos**. El PR dice "no hacer merge sin aprobación" | Según el PR: 186 + 9 + 15 en verde (sobre la base vieja) | 1) **Quitar nombre y matrícula escritos en el código**: deben salir de ⚙️ (regla desde 69970cd). 2) Rebasar sobre `main` y resolver conflictos. 3) Lucas aprueba. Ojo: el texto del PR #1 en GitHub muestra la matrícula |
-| Módulo MCH (versión amplia) | Codex | `codex/modulo-mch` · sin PR | Base de trabajo de `feat/mch`. Lucas decidió (02/11) seguir desde esta rama pero **recortada**: se conserva la lógica y los tests, se simplifica el formulario | 62/62 en la rama; al combinar con `main`, 2 tests de MCH fallaban por Borrar todo | Se retoma en `feat/mch` (ver arriba). No tocar esta rama |
+| MCH simplificado | Claude (chat MCH) | `feat/mch` · **PR #7 (borrador)** | Terminado: 9 campos, frase diagnóstica, presión de AI automática por mayoría, guardado en Sheets. Incluye `main` (Borrar todo/Deshacer) | 73/73 en verde; 6 informes sin MCH idénticos | **Lucas prueba la vista previa** (link en el PR) y da el OK; recién ahí merge. Probar Sheets solo con estudio ficticio tras rotar Apps Script |
+| Módulo MCH (versión amplia) | Codex | `codex/modulo-mch` · sin PR | Reemplazada por `feat/mch` (base de trabajo) | — | Borrar la rama cuando se mergee #7 |
 | Refactor: extraer pericardio del informe | Claude (chat "Refactor") | sin rama: patch en ese chat | Hecho como patch sobre 69970cd, sin commit | 83 en verde según ese chat | Subir el patch a una rama (`refactor/pericardio`), rebasar sobre `main`, revisión de Lucas, merge |
 | Seguridad: planilla e historial Git | Lucas | — | Pendiente | — | Despublicar la planilla y rotar Apps Script (`docs/CONFIGURACION-PRIVADA.md`); después limpiar historial. Sin force-push sin OK de Lucas |
 
 ## Decisiones pendientes de Lucas
 
+0. MCH: probar la vista previa de PR #7 y aprobar el merge.
 1. ~~MCH: ¿seguir la rama de Codex o el plan de Claude?~~ Resuelto 02/11: rama de Codex recortada, especificación aprobada en el chat MCH.
 2. Impresión PDF: ¿qué datos van en el membrete y de dónde salen? (hoy, escritos en el código).
 3. AI (Lanús): entre 41 y 42 ml/m² la calculadora Lanús y el informe usan límites distintos para leve/moderada (lo detectó Codex). Es un criterio clínico: decide Lucas.
