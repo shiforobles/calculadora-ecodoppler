@@ -2526,3 +2526,5 @@ body {
 .mch-section button { padding: .6rem .9rem; font: inherit; border: 1px solid var(--color-primary); border-radius: var(--radius-md); background: var(--color-primary-bg); color: var(--color-text-primary); }
 .mch-section button:hover { border-color: var(--color-text-primary); }
 [data-theme="dark"] .mch-section { color-scheme: dark; }
+/* Los accesos opcionales permanecen ocultos aunque su clase use flex. */
+[hidden] { display: none !important; }

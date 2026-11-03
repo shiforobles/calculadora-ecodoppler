@@ -70,6 +70,7 @@ class UIController {
         });
         document.getElementById('btn_admin_presets')?.addEventListener('click', () => this.showPresetManager());
 
+        this.refreshConfiguredAccess();
         this._initReportTracking();
 
         // Button event listeners
@@ -85,7 +86,7 @@ class UIController {
         const btnViewSheet = document.getElementById('btn_view_sheet');
         if (btnViewSheet) btnViewSheet.addEventListener('click', () => {
             const url = window.GoogleSync ? GoogleSync.getSheetUrl() : '';
-            if (url) window.open(url, '_blank');
+            if (GoogleSync.safeWebUrl(url)) window.open(url, '_blank', 'noopener,noreferrer');
             else this.showToast('⚙️ Configurá la URL del Sheet en ⚙️ primero');
         });
 
@@ -2326,36 +2327,50 @@ class UIController {
      * defaultSelected) y no un vacío, porque varios selects arrancan con una opción
      * que no es la primera.
      */
-    _resetStudyFields() {
+    _resetStudyFields({ todo = false } = {}) {
         this._indexedMeasurements.clear();
-        const conservar = new Set([
+        // Con todo=true (Borrar todo) también vuelven los datos del paciente y el
+        // informe. Los modales quedan afuera: tienen configuración, no estudio.
+        const conservar = new Set(todo ? [] : [
             ...(window.CAMPOS_PACIENTE || []),
             'paciente_id', 'resultado', 'preset_selector',
         ]);
 
-        document.querySelectorAll('input, select, textarea').forEach(el => {
-            if (!el.id || conservar.has(el.id) || el.type === 'file') return;
+        const campos = [...document.querySelectorAll('input, select, textarea')].filter(el =>
+            el.id && !conservar.has(el.id) && el.type !== 'file' &&
+            !el.closest('.modal, dialog, #undo-reset'));
 
-            let cambio = false;
+        const restaurar = el => {
             if (el.type === 'checkbox' || el.type === 'radio') {
-                if (el.checked !== el.defaultChecked) { el.checked = el.defaultChecked; cambio = true; }
+                if (el.checked === el.defaultChecked) return false;
+                el.checked = el.defaultChecked;
             } else if (el.tagName === 'SELECT') {
                 const idx = [...el.options].findIndex(o => o.defaultSelected);
                 const destino = idx >= 0 ? idx : 0;
-                if (el.selectedIndex !== destino) { el.selectedIndex = destino; cambio = true; }
-            } else if (el.value !== el.defaultValue) {
+                if (el.selectedIndex === destino) return false;
+                el.selectedIndex = destino;
+            } else {
+                if (el.value === el.defaultValue) return false;
                 el.value = el.defaultValue;
-                cambio = true;
             }
+            return true;
+        };
 
+        // Primero se ponen TODOS los valores y después se avisa a los módulos: si se
+        // avisara campo por campo, un módulo que gradúa solo (p. ej. IM por VC) vuelve
+        // a escribir un campo ya restaurado con datos que todavía no se borraron. Por
+        // la misma razón se repite hasta que nada cambie (tope de 3 vueltas).
+        for (let vuelta = 0; vuelta < 3; vuelta++) {
+            const cambiados = campos.filter(restaurar);
+            if (!cambiados.length) break;
             // Sólo se notifica lo que cambió: así los módulos que escuchan (secciones
             // que se muestran u ocultan, badges de severidad) quedan sincronizados.
-            if (cambio) {
+            cambiados.forEach(el => {
                 const evento = (el.tagName === 'SELECT' || el.type === 'checkbox' || el.type === 'radio')
                     ? 'change' : 'input';
                 el.dispatchEvent(new Event(evento, { bubbles: true }));
-            }
-        });
+            });
+        }
     }
 
     /**
@@ -4056,7 +4071,7 @@ class UIController {
             const hc  = document.getElementById('paciente_id').value || '(sin ID)';
 
             if (!window.GoogleSync || !GoogleSync.isConfigured()) {
-                this.showToast('⚙️ Configurá Google Sheets primero con el botón ⚙️');
+                this.showToast('⚠️ No se envió el estudio: falta la URL de Apps Script. Cargala en ⚙️ Configuración. El informe sigue disponible para copiar.');
                 return;
             }
 
@@ -4076,6 +4091,28 @@ class UIController {
         }
     }
 
+    refreshConfiguredAccess() {
+        const sheet = document.getElementById('btn_view_sheet');
+        if (sheet) sheet.hidden = !GoogleSync.safeWebUrl(GoogleSync.getSheetUrl());
+        const gemini = document.getElementById('mode_ia');
+        if (gemini) gemini.hidden = !window.GeminiAI?.getKey();
+        const groqKey = GoogleSync.getOptional('groq_api_key');
+        if (groqKey && !window.aiAssistant && window.AIAssistant) window.aiAssistant = new AIAssistant();
+        if (window.aiAssistant) {
+            window.aiAssistant.apiKey = groqKey;
+            const button = document.getElementById('ai-assistant-btn');
+            if (button) button.hidden = !groqKey;
+            if (!groqKey) window.aiAssistant.panel.style.display = 'none';
+        }
+        for (const id of ['personal_ai_1', 'personal_ai_2']) {
+            const link = document.getElementById(id);
+            if (!link) continue;
+            const url = GoogleSync.safeWebUrl(GoogleSync.getOptional(id));
+            link.hidden = !url;
+            if (url) link.href = url; else link.removeAttribute('href');
+        }
+    }
+
     showSyncSetupModal() {
         document.getElementById('sync-setup-modal')?.remove();
 
@@ -4086,6 +4123,7 @@ class UIController {
             display:flex;align-items:center;justify-content:center;padding:1rem;
         `;
 
+        const escape = value => String(value).replace(/[&<>"']/g, c => ({'&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;'}[c]));
         const currentUrl      = window.GoogleSync ? GoogleSync.getUrl() : '';
         const currentSheetUrl = window.GoogleSync ? GoogleSync.getSheetUrl() : '';
         const currentDoctor   = window.GoogleSync ? GoogleSync.getDoctor() : '';
@@ -4103,7 +4141,7 @@ class UIController {
                 URL del Web App (Apps Script)
             </label>
             <div style="display:flex;gap:0.5rem;margin-bottom:1rem;">
-                <input id="sync-url-input" type="text" value="${currentUrl}"
+                <input id="sync-url-input" type="text" value="${escape(currentUrl)}"
                     placeholder="https://script.google.com/macros/s/.../exec"
                     style="flex:1;border:1px solid #d1d5db;border-radius:6px;padding:0.5rem 0.75rem;font-size:0.875rem;">
             </div>
@@ -4112,11 +4150,21 @@ class UIController {
                 URL de tu Google Sheet (para abrir directo)
             </label>
             <div style="display:flex;gap:0.5rem;margin-bottom:1.25rem;">
-                <input id="sync-sheet-url-input" type="text" value="${currentSheetUrl}"
+                <input id="sync-sheet-url-input" type="text" value="${escape(currentSheetUrl)}"
                     placeholder="https://docs.google.com/spreadsheets/d/.../edit"
                     style="flex:1;border:1px solid #d1d5db;border-radius:6px;padding:0.5rem 0.75rem;font-size:0.875rem;">
             </div>
 
+            <p>Configuración local de este navegador. No se comparte con otros equipos.</p>
+            <label for="sheet-csv-url">URL CSV del dashboard (opcional)</label>
+            <input id="sheet-csv-url" type="url" value="${escape(GoogleSync.getOptional('ecodoppler_sheet_csv_url'))}">
+            <p>No publiques una planilla con datos identificatorios para obtener esta URL. Podés importar un archivo local en el dashboard.</p>
+            <label for="groq-config-key">API key de Groq (opcional)</label>
+            <input id="groq-config-key" type="password" autocomplete="off" value="${escape(GoogleSync.getOptional('groq_api_key'))}">
+            <label for="personal-ai-1">Enlace personal de IA 1 (opcional, HTTPS)</label>
+            <input id="personal-ai-1" type="url" value="${escape(GoogleSync.getOptional('personal_ai_1'))}">
+            <label for="personal-ai-2">Enlace personal de IA 2 (opcional, HTTPS)</label>
+            <input id="personal-ai-2" type="url" value="${escape(GoogleSync.getOptional('personal_ai_2'))}">
             <hr style="border:none;border-top:1px solid #e5e7eb;margin:1rem 0;">
             <p style="margin:0 0 0.5rem;font-size:0.875rem;font-weight:600;color:#374151;">Gemini IA</p>
             <p style="margin:0 0 0.5rem;font-size:0.8rem;color:#6b7280;">
@@ -4125,7 +4173,7 @@ class UIController {
             </p>
             <div style="display:flex;gap:0.5rem;margin-bottom:1.25rem;">
                 <input id="gemini-key-input" type="password"
-                    value="${window.GeminiAI ? GeminiAI.getKey() : ''}"
+                    value="${escape(window.GeminiAI ? GeminiAI.getKey() : '')}"
                     placeholder="AIza..."
                     style="flex:1;border:1px solid #d1d5db;border-radius:6px;padding:0.5rem 0.75rem;font-size:0.875rem;">
                 <button id="gemini-toggle-key"
@@ -4147,14 +4195,14 @@ class UIController {
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;margin-bottom:1.25rem;">
                 <div>
                     <label style="font-size:0.8rem;color:#6b7280;display:block;margin-bottom:0.3rem;">Nombre y apellido</label>
-                    <input id="firma-nombre" type="text" value="${currentDoctor}"
-                        placeholder="Ej: Lucas Robles"
+                    <input id="firma-nombre" type="text" value="${escape(currentDoctor)}"
+                        placeholder="Nombre del profesional"
                         style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:0.5rem 0.75rem;font-size:0.875rem;box-sizing:border-box;">
                 </div>
                 <div>
                     <label style="font-size:0.8rem;color:#6b7280;display:block;margin-bottom:0.3rem;">Matrícula</label>
-                    <input id="firma-matricula" type="text" value="${currentMat}"
-                        placeholder="Ej: 366.452"
+                    <input id="firma-matricula" type="text" value="${escape(currentMat)}"
+                        placeholder="Matrícula profesional"
                         style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:0.5rem 0.75rem;font-size:0.875rem;box-sizing:border-box;">
                 </div>
             </div>
@@ -4223,19 +4271,32 @@ class UIController {
 
         document.getElementById('sync-save-btn').addEventListener('click', () => {
             const url = document.getElementById('sync-url-input').value.trim();
-            if (url && !url.startsWith('https://script.google.com')) {
+            if (url && !GoogleSync.validScriptUrl(url)) {
                 alert('⚠️ La URL del script debe ser de Google Apps Script (https://script.google.com/...)');
                 return;
             }
+            const optionalUrls = [
+                ['ecodoppler_sheet_csv_url', 'sheet-csv-url'],
+                ['personal_ai_1', 'personal-ai-1'], ['personal_ai_2', 'personal-ai-2']
+            ];
+            const sheetValue = document.getElementById('sync-sheet-url-input').value.trim();
+            if ([sheetValue, ...optionalUrls.map(([, id]) => document.getElementById(id).value.trim())]
+                .some(value => value && !GoogleSync.safeWebUrl(value))) {
+                alert('Usá enlaces HTTPS válidos, sin usuario ni contraseña en la URL.');
+                return;
+            }
             if (url) GoogleSync.setUrl(url);
+            optionalUrls.forEach(([key, id]) => GoogleSync.setOptional(key, document.getElementById(id).value));
+            GoogleSync.setOptional('groq_api_key', document.getElementById('groq-config-key').value);
             const sheetUrl = document.getElementById('sync-sheet-url-input').value.trim();
-            if (sheetUrl) GoogleSync.setSheetUrl(sheetUrl);
+            GoogleSync.setSheetUrl(sheetUrl);
             GoogleSync.setDoctor(document.getElementById('firma-nombre').value);
             GoogleSync.setMatricula(document.getElementById('firma-matricula').value);
             GoogleSync.setFirmaEnabled(document.getElementById('firma-enabled').checked);
             // Save Gemini API key
             const geminiKey = document.getElementById('gemini-key-input')?.value?.trim();
-            if (geminiKey && window.GeminiAI) GeminiAI.setKey(geminiKey);
+            if (window.GeminiAI) GeminiAI.setKey(geminiKey || '');
+            this.refreshConfiguredAccess();
             this.showToast('✅ Configuración guardada.');
             modal.remove();
         });
@@ -4250,12 +4311,17 @@ class UIController {
                 return;
             }
 
+            if (!GoogleSync.validScriptUrl(urlInput)) {
+                resultDiv.style.display = 'block';
+                resultDiv.textContent = 'Ingresá una URL válida de Apps Script terminada en /exec.';
+                return;
+            }
             GoogleSync.setUrl(urlInput);
             const testUrl = GoogleSync.testUrl();
-            window.open(testUrl, '_blank');
+            window.open(testUrl, '_blank', 'noopener,noreferrer');
 
             resultDiv.style.cssText = 'display:block;padding:0.5rem 0.75rem;border-radius:6px;background:#dbeafe;color:#1e40af;font-size:0.83rem;margin-top:0.75rem;line-height:1.5;';
-            resultDiv.innerHTML = '🔗 Se abrió una pestaña con la URL de prueba.<br>Si ves <code style="background:#e0e7ff;padding:0 3px;border-radius:3px;">{"ok":true}</code> → el script funciona correctamente.<br>Si ves un error → copiá el texto y compartilo.';
+            resultDiv.innerHTML = '🔗 Se abrió una pestaña con la URL de prueba.<br>Si ves <code style="background:#e0e7ff;padding:0 3px;border-radius:3px;">{"status":"ok"}</code> → el script responde; esto no confirma un guardado.<br>Si ves un error → copiá el texto y compartilo.';
         });
 
         document.getElementById('sync-copy-code').addEventListener('click', async () => {
@@ -4609,30 +4675,56 @@ class UIController {
     /**
      * Borra el estudio en un solo clic, sin confirmación.
      *
-     * Antes preguntaba y después recargaba la página. Preguntar en cada borrado
-     * cuesta un clic en todos los estudios para evitar un accidente raro; y la
-     * recarga hacía imposible volver atrás. Ahora borra directo y deja unos
-     * segundos un "Deshacer" que devuelve el estudio tal como estaba.
+     * Borra directo, sin preguntar, y deja la página como recién abierta: cada
+     * campo vuelve a su valor de carga (no a vacío, porque varios arrancan con un
+     * valor normal o una opción que no es la primera), se avisa a cada módulo para
+     * que oculte sus cajas y badges, se vacía el informe y se sube al principio.
+     * Unos segundos queda un "Deshacer" que devuelve el estudio tal como estaba.
      */
     resetAll() {
         const previo = this._snapshotEstudio();
 
+        document.getElementById('report-conflict-dialog')?.remove();
         if (this.motility) this.motility.reset();
         sessionStorage.removeItem('motility-state');
         sessionStorage.removeItem('motility-pattern');
 
-        document.querySelectorAll('input, select, textarea').forEach(el => {
-            if (el.type === 'checkbox' || el.type === 'radio') el.checked = false;
-            else if (el.tagName === 'SELECT') el.selectedIndex = 0;
-            else el.value = '';
-        });
+        this._resetStudyFields({ todo: true });
+        // Avisar a los módulos deja coherente cada caja con su valor, pero algunas
+        // se abren por un valor que viene de fábrica (IT "leve") y al abrir la app
+        // están cerradas. Se vuelve a la vista exacta de la carga.
+        this._restaurarVistaInicial();
 
-        this._indexedMeasurements.clear();
         this.reportEdited = false;
         this._reportSnapshot = null;
         this.calculateNow();
 
+        window.scrollTo({ top: 0, behavior: 'smooth' });
         this._ofrecerDeshacerBorrado(previo);
+    }
+
+    /**
+     * Foto de cómo se ve la página recién abierta: qué está visible, qué clases
+     * tiene cada elemento y qué desplegables están abiertos. Se toma una sola vez,
+     * al terminar de cargar, antes de que se toque nada.
+     */
+    _capturarVistaInicial() {
+        if (this._vistaInicial) return;
+        // Sólo el formulario del estudio: la botonera y el informe guardan
+        // preferencias (modo Lista/Narrativo) que borrar no debe tocar.
+        this._vistaInicial = [...document.querySelectorAll('section.card [id], section.card details')]
+            .filter(el => !el.closest('.modal, dialog, section.action-buttons') &&
+                          !el.closest('section.card')?.querySelector('#resultado'))
+            .map(el => ({ el, display: el.style.display, clase: el.className, abierto: el.open }));
+    }
+
+    _restaurarVistaInicial() {
+        (this._vistaInicial || []).forEach(v => {
+            if (!v.el.isConnected) return;
+            v.el.style.display = v.display;
+            if (typeof v.clase === 'string' && v.el.className !== v.clase) v.el.className = v.clase;
+            if (v.el.tagName === 'DETAILS') v.el.open = v.abierto;
+        });
     }
 
     /** Guarda lo justo para poder devolver el estudio: campos y motilidad. */
@@ -4645,7 +4737,6 @@ class UIController {
                 selectedIndex: el.tagName === 'SELECT' ? el.selectedIndex : null
             })),
             reportSnapshot: this._reportSnapshot,
-            mchRecords: this.mch ? this.mch.value('mch_records') : '',
             motilidad: this.motility ? JSON.parse(JSON.stringify(this.motility.state)) : null,
             patron: this.motility ? this.motility.pattern : null,
             informeEditado: this.reportEdited
@@ -4653,16 +4744,31 @@ class UIController {
     }
 
     _restaurarEstudio(previo) {
-        if (this.mch) {
-            document.getElementById('mch_records').value = previo.mchRecords || '';
-            this.mch.renderRecords();
+        // Igual que al borrar: primero todos los valores, después los avisos, y se
+        // repite porque un módulo que gradúa solo puede pisar lo recién devuelto.
+        const devolver = c => {
+            if (!c.el.isConnected) return false;
+            if (c.el.type === 'checkbox' || c.el.type === 'radio') {
+                if (c.el.checked === c.checked) return false;
+                c.el.checked = c.checked;
+            } else if (c.el.tagName === 'SELECT') {
+                if (c.el.selectedIndex === c.selectedIndex) return false;
+                c.el.selectedIndex = c.selectedIndex;
+            } else {
+                if (c.el.value === c.value) return false;
+                c.el.value = c.value;
+            }
+            return true;
+        };
+        for (let vuelta = 0; vuelta < 3; vuelta++) {
+            const cambiados = previo.campos.filter(devolver).map(c => c.el);
+            if (!cambiados.length) break;
+            cambiados.forEach(el => {
+                const evento = (el.tagName === 'SELECT' || el.type === 'checkbox' || el.type === 'radio')
+                    ? 'change' : 'input';
+                el.dispatchEvent(new Event(evento, { bubbles: true }));
+            });
         }
-        previo.campos.forEach(c => {
-            if (!c.el.isConnected) return;
-            if (c.el.type === 'checkbox' || c.el.type === 'radio') c.el.checked = c.checked;
-            else if (c.el.tagName === 'SELECT') c.el.selectedIndex = c.selectedIndex;
-            else c.el.value = c.value;
-        });
         if (this.motility && previo.motilidad) {
             this.motility.state = previo.motilidad;
             this.motility.pattern = previo.patron;

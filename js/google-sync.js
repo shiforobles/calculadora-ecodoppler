@@ -1,8 +1,8 @@
 /**
  * GoogleSync — Send study rows to a Google Apps Script Web App
  *
- * Uses POST + no-cors: the body is always delivered to doPost()
- * regardless of CORS headers. POST avoids the URL-length limit that
+ * Uses POST + no-cors: the response is opaque; delivery and persistence
+ * cannot be confirmed by the browser. POST avoids the URL-length limit that
  * broke the previous GET approach with 64 columns of data.
  *
  * Key: do NOT set Content-Type header manually in no-cors mode.
@@ -30,6 +30,21 @@ class GoogleSync {
     static isFirmaEnabled()  { return localStorage.getItem(this.FIRMA_KEY) === '1'; }
     static setFirmaEnabled(v){ localStorage.setItem(this.FIRMA_KEY, v ? '1' : '0'); }
 
+    static getOptional(key) { return localStorage.getItem(key) || ''; }
+    static setOptional(key, value) { localStorage.setItem(key, value.trim()); }
+    static safeWebUrl(value) {
+        try {
+            const url = new URL(value);
+            return url.protocol === 'https:' && !url.username && !url.password ? url.href : '';
+        } catch { return ''; }
+    }
+
+    static validScriptUrl(value) {
+        if (!this.safeWebUrl(value)) return false;
+        const url = new URL(value);
+        return url.hostname === 'script.google.com' && /^\/macros\/s\/[^/]+\/exec$/.test(url.pathname);
+    }
+
     static getFirma() {
         if (!this.isFirmaEnabled()) return '';
         const name = this.getDoctor();
@@ -38,7 +53,7 @@ class GoogleSync {
         return (name ? name + '\n' : '') + (mat ? 'MN: ' + mat : '');
     }
 
-    /** Send one study row via POST no-cors — body always reaches doPost() */
+    /** Send a row; no-cors does not confirm that it was persisted. */
     static async send(row) {
         const base = this.getUrl();
         if (!base) throw new Error('URL del script no configurada');
