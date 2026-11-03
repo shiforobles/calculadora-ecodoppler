@@ -147,3 +147,42 @@ test('MCH: el patrón se autocompleta sin pisar una elección manual', options, 
         assert.deepEqual(errors, []);
     } finally { await browser.close(); }
 });
+
+test('MCH: aviso de espesor, MCH conocida en Antecedentes y encabezado', options, async () => {
+    const { open, out } = require('./helpers/mch-browser.cjs'); const { browser, page, errors } = await open();
+    try {
+        assert.equal(await page.locator('#mch_hint').isVisible(), false);
+        await cargar(page, { siv: '18', pp: '10' });
+        assert.equal(await page.locator('#mch_hint').isVisible(), true);
+        assert.match(await page.textContent('#mch_hint_text'), /¿Valoraste la velocidad en el TSVI/);
+        if (out) await page.locator('#mch_hint').screenshot({ path: path.join(out, 'mch-aviso.png') });
+        // El aviso no va al informe
+        assert.doesNotMatch(await report(page, 'lista'), /Valoraste/);
+        await page.locator('#mch_hint_open').click();
+        assert.equal(await page.isChecked('#ctx_mcp'), true);
+        assert.equal(await page.locator('#mch_section').isVisible(), true);
+        assert.equal(await page.locator('#mch_hint').isVisible(), false);
+        assert.match(await page.textContent('#mch_checklist'), /velocidad en el TSVI en reposo/);
+        await set(page, 'ctx_mcp', false);
+
+        // MCH conocida: abre el bloque, frase directa y figura en datos clínicos
+        await set(page, 'ant_mch', true);
+        assert.equal(await page.isChecked('#ctx_mcp'), true);
+        await cargar(page, { mch_thickness: '22', mch_location: 'septum basal', mch_rest: '12', mch_valsalva: '20', mch_sam: 'no', mch_apical: 'no' });
+        const lista = await report(page, 'lista');
+        assert.match(lista, /\d\. Miocardiopatía hipertrófica septal asimétrica no obstructiva \(gradiente pico/);
+        assert.match(lista, /antecedentes de miocardiopatía hipertrófica/);
+        const narr = await report(page, 'narrativo');
+        assert.match(narr, /SIV\/PP 18\/10mm \| Esp\. máx 22mm \(septum basal\)/);
+        assert.match(narr, /En síntesis, miocardiopatía hipertrófica septal asimétrica no obstructiva/);
+        if (out) await page.locator('#mch_section').screenshot({ path: path.join(out, 'mch-caja-control.png') });
+
+        // Primer hallazgo con HTA: sugestivo
+        await set(page, 'ant_mch', false);
+        assert.equal(await page.isChecked('#ctx_mcp'), false);
+        await set(page, 'ctx_mcp', true);
+        await set(page, 'ant_hta', true);
+        assert.match(await report(page, 'lista'), /Hallazgos sugestivos de miocardiopatía hipertrófica .*a correlacionar con el contexto clínico \(hipertensión arterial\)\./);
+        assert.deepEqual(errors, []);
+    } finally { await browser.close(); }
+});

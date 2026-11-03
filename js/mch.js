@@ -56,10 +56,49 @@ class MCH {
         }
     }
 
-    /** Frase diagnóstica: "Hallazgos compatibles con miocardiopatía hipertrófica septal asimétrica no obstructiva." */
+    // ─── Certeza de la frase (aprobado por Lucas 03/11) ───────────────────
+    // MCH conocida (Antecedentes) → diagnóstico directo.
+    // Primer hallazgo → "Hallazgos compatibles con".
+    // Primer hallazgo con HTA, estenosis aórtica ≥ moderada o espesor <15 mm →
+    // "Hallazgos sugestivos de …, a correlacionar con el contexto clínico (…)".
+    static EA_SIGNIFICATIVA = ['moderada', 'moderada-severa', 'severa'];
+
+    /** Espesor que se usa para el umbral de 15 mm: el máximo cargado o, si no hay, el mayor de SIV/PP. */
+    static maxWall(d) {
+        const t = this.number(d.thickness);
+        if (t !== null) return t;
+        const w = [this.number(d.siv), this.number(d.pp)].filter(v => v !== null);
+        return w.length ? Math.max(...w) : null;
+    }
+
+    static confounders(d) {
+        if (d.known) return [];
+        const c = [];
+        if (d.hta) c.push('hipertensión arterial');
+        if (this.EA_SIGNIFICATIVA.includes(d.eaGrade)) c.push(`estenosis aórtica ${this.MR_LABEL[d.eaGrade] || d.eaGrade}`);
+        const w = this.maxWall(d);
+        if (w !== null && w < 15) c.push(`espesor máximo de ${this.fmt(w, 0)} mm`);
+        return c;
+    }
+
+    /** "Miocardiopatía hipertrófica septal asimétrica no obstructiva" (sin punto ni cola). */
+    static diagnosisCore(d) {
+        const o = this.obstruction(d.rest, d.valsalva);
+        const lead = d.known ? 'Miocardiopatía hipertrófica'
+            : this.confounders(d).length ? 'Hallazgos sugestivos de miocardiopatía hipertrófica'
+            : 'Hallazgos compatibles con miocardiopatía hipertrófica';
+        return `${lead}${d.pattern ? ' ' + d.pattern : ''}${this.obstructionPhrase(o)}`;
+    }
+
+    static correlateTail(d) {
+        const c = this.confounders(d);
+        return c.length ? `, a correlacionar con el contexto clínico (${c.join(', ')})` : '';
+    }
+
+    /** Frase diagnóstica completa; con conclusion=true agrega gradientes y SAM. */
     static diagnosis(d, { conclusion = false } = {}) {
         const o = this.obstruction(d.rest, d.valsalva);
-        let s = `Hallazgos compatibles con miocardiopatía hipertrófica${d.pattern ? ' ' + d.pattern : ''}${this.obstructionPhrase(o)}`;
+        let s = this.diagnosisCore(d);
         if (conclusion) {
             const g = this.gradientDetail(o);
             if (g) s += ` (${g})`;
@@ -67,7 +106,7 @@ class MCH {
             else if (d.sam === 'si') s += ', con SAM sin contacto septal';
             else if (d.sam === 'no') s += ', sin SAM';
         }
-        return s + '.';
+        return s + this.correlateTail(d) + '.';
     }
 
     /** "gradiente pico del TSVI de 30 mmHg en reposo y de 45 mmHg con Valsalva" */
@@ -186,7 +225,8 @@ class MCH {
     /** Párrafo de cierre del Narrativo: diagnóstico con gradientes + presiones de llenado. */
     static narrativeSummary(d, r, systolic) {
         const o = this.obstruction(d.rest, d.valsalva);
-        let s = this.diagnosis(d).replace(/^Hallazgos/, 'En síntesis, hallazgos').replace(/\.$/, '');
+        const core = this.diagnosisCore(d);
+        let s = `En síntesis, ${core.charAt(0).toLowerCase()}${core.slice(1)}`;
         const g = this.gradientDetail(o);
         if (g) s += ` (${g})`;
         const extras = [];
@@ -195,13 +235,40 @@ class MCH {
         if (d.apical === 'si') extras.push('aneurisma apical');
         if (systolic) extras.push(systolic);
         if (extras.length) s += `, con ${join2(extras)}`;
-        s += '.';
+        s += this.correlateTail(d) + '.';
         if (r) {
             if (r.result === 'no-valorable') s += ' Presiones de llenado del ventrículo izquierdo no valorables por datos insuficientes.';
             else s += ` Presiones de llenado del ventrículo izquierdo ${{ 'elevada': 'elevadas', 'no-elevada': 'no elevadas', 'indeterminada': 'indeterminadas' }[r.result]} según los criterios específicos para miocardiopatía hipertrófica (${r.pos} de ${r.measured} criterios positivos).`;
         }
         return s;
         function join2(l) { return l.length > 1 ? `${l.slice(0, -1).join(', ')} y ${l.at(-1)}` : l[0]; }
+    }
+
+    // ─── Ayudas al operador (solo pantalla) ────────────────────────────────
+
+    /** El espesor amerita pensar en MCH: SIV o PP ≥15 mm, o SIV ≥13 mm con SIV/PP ≥1.3. */
+    static thickWall(siv, pp) {
+        const s = this.number(siv), p = this.number(pp);
+        if (s === null && p === null) return false;
+        if ((s ?? 0) >= 15 || (p ?? 0) >= 15) return true;
+        return s !== null && s >= 13 && p > 0 && s / p >= 1.3;
+    }
+
+    /** Recordatorios de lo que falta evaluar en una MCH. */
+    static checklist(d) {
+        const l = [];
+        const o = this.obstruction(d.rest, d.valsalva);
+        if (o.rest === null) l.push('¿Valoraste la velocidad en el TSVI en reposo? (Doppler continuo, curva en daga de pico tardío; no confundir con el jet de IM)');
+        if (o.valsalva === null && (o.rest === null || o.rest < 50)) l.push('¿Hiciste Valsalva? Con gradiente en reposo <50 mmHg la guía recomienda provocación.');
+        if (!d.sam) l.push('¿Evaluaste SAM y contacto mitroseptal?');
+        if ((d.sam === 'si' || d.sam === 'contacto') && d.hasMr && !d.jet) l.push('Hay IM con SAM: indicá la dirección del jet (posterior esperable; anterior o central sugiere revisar la válvula).');
+        if (!d.apical) l.push(d.pattern === 'apical' ? '¿Descartaste aneurisma apical? Considerá contraste si la ventana no es buena.' : '¿Evaluaste el ápex (aneurisma apical)?');
+        if (this.number(d.thickness) === null) l.push('Cargá el espesor máximo y dónde está (puede no coincidir con el SIV del modo M).');
+        const t = this.number(d.thickness), siv = this.number(d.siv);
+        if (t !== null && siv !== null && /^septum/.test(d.location || '') && t < siv) l.push(`El espesor máximo septal (${this.fmt(t, 0)} mm) es menor que el SIV (${this.fmt(siv, 0)} mm): revisá la carga.`);
+        if (this.number(d.mid) === null && d.pattern === 'medioventricular') l.push('Patrón medioventricular: ¿registraste el gradiente medioventricular?');
+        if ((t ?? 0) >= 30) l.push('Espesor ≥30 mm: marcador de riesgo de muerte súbita, a integrar en la evaluación clínica.');
+        return l;
     }
 
     // ─── Morfología ────────────────────────────────────────────────────────

@@ -49,6 +49,7 @@ class MCHUI {
             ${this.num('mch_ar_duration', 'Duración de Ar (ms)')}
             ${this.num('mch_a_duration', 'Duración de A mitral (ms)')}
             </div></details>
+            <div id="mch_checklist" class="mch-checklist" hidden></div>
             <div id="mch_summary" class="mch-summary" role="status" aria-live="polite"></div>`;
         document.getElementById('motility-regional-section').before(section);
         this.section = section;
@@ -57,6 +58,28 @@ class MCHUI {
         const recalc = () => this.controller.calculateAll();
         section.addEventListener('input', recalc);
         section.addEventListener('change', recalc);
+
+        // Aviso junto a los espesores: sugiere valorar el TSVI y abrir el bloque (nunca va al informe)
+        const hint = document.createElement('div');
+        hint.id = 'mch_hint';
+        hint.className = 'mch-hint';
+        hint.hidden = true;
+        hint.innerHTML = `<p id="mch_hint_text"></p><button type="button" id="mch_hint_open" class="preset-btn">Abrir bloque MCH</button>`;
+        document.getElementById('siv').closest('.grid').after(hint);
+        document.getElementById('mch_hint_open').addEventListener('click', () => {
+            const ctx = document.getElementById('ctx_mcp');
+            ctx.checked = true;
+            ctx.dispatchEvent(new Event('change', { bubbles: true }));
+            this.controller.calculateNow();
+            this.section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        });
+
+        // "MCH conocida" en Antecedentes abre el bloque; destildar MCH en la diástole la desmarca
+        const ant = document.getElementById('ant_mch'), ctx = document.getElementById('ctx_mcp');
+        ant?.addEventListener('change', () => { ctx.checked = ant.checked; this.controller.calculateAll(); });
+        ctx.addEventListener('change', () => { if (!ctx.checked && ant) ant.checked = false; this.controller.calculateAll(); });
+        // Datos de contexto que cambian la frase diagnóstica
+        for (const id of ['ant_hta', 'ea_grado', 'im_grado', 'ctx_mac']) document.getElementById(id)?.addEventListener('change', recalc);
     }
 
     /** Datos que usa la lógica de MCH (campos propios + compartidos). */
@@ -73,6 +96,9 @@ class MCHUI {
             tr: v('vel_it'), lavi: v('vol_ai'), mr,
             hasMr: !!mr && mr !== 'no', mrLabel: MCH.MR_LABEL[mr] || '',
             mac: !!document.getElementById('ctx_mac')?.checked,
+            known: !!document.getElementById('ant_mch')?.checked,
+            hta: !!document.getElementById('ant_hta')?.checked,
+            eaGrade: v('ea_grado'),
         };
     }
 
@@ -89,6 +115,7 @@ class MCHUI {
     refresh() {
         if (!this.section) return;
         this.section.hidden = !this.active;
+        this.refreshHint();
         if (!this.active) return;
         this.autoPattern();
         const d = this.data(), o = MCH.obstruction(d.rest, d.valsalva);
@@ -113,6 +140,26 @@ class MCHUI {
         const t = MCH.number(d.thickness);
         if (t !== null && t < 15) lines.push('', 'Espesor máximo <15 mm: revisar contexto (antecedente familiar, genética, estudios previos).');
         document.getElementById('mch_summary').textContent = lines.join('\n');
+
+        const checks = MCH.checklist(this.data());
+        const box = document.getElementById('mch_checklist');
+        box.hidden = !checks.length;
+        box.replaceChildren(...(checks.length ? [Object.assign(document.createElement('strong'), { textContent: 'Para completar la valoración' })] : []),
+            ...checks.map(t => Object.assign(document.createElement('p'), { textContent: '• ' + t })));
+    }
+
+    /** Aviso junto a SIV/PP cuando el espesor amerita pensar en MCH y el bloque está cerrado. */
+    refreshHint() {
+        const hint = document.getElementById('mch_hint');
+        if (!hint) return;
+        const siv = this.value('siv'), pp = this.value('pp');
+        const show = !this.active && MCH.thickWall(siv, pp);
+        hint.hidden = !show;
+        if (!show) return;
+        const s = MCH.number(siv), p = MCH.number(pp);
+        const asim = s > 0 && p > 0 && s / p >= 1.3 ? ` (relación SIV/PP ${MCH.fmt(s / p, 1)})` : '';
+        document.getElementById('mch_hint_text').textContent =
+            `Septum ${MCH.fmt(s ?? 0, 0)} mm / pared posterior ${MCH.fmt(p ?? 0, 0)} mm${asim}. ¿Valoraste la velocidad en el TSVI (SAM, obstrucción en reposo y con Valsalva)? Si sospechás miocardiopatía hipertrófica, abrí el bloque MCH.`;
     }
 
     /** Completa el patrón cuando las mediciones lo definen, sin pisar una elección manual. */
@@ -132,7 +179,7 @@ class MCHUI {
         const fields = {};
         this.section.querySelectorAll('input[id], select[id]').forEach(el => { fields[el.id.replace(/^mch_/, '')] = el.value; });
         const r = this.applies() ? this.diastolic() : null;
-        return { version: 1, ...fields, presionAI: r ? r.result : 'algoritmo-general', criterios: r ? `${r.pos}/${r.measured}` : '' };
+        return { version: 1, conocida: this.data().known, ...fields, presionAI: r ? r.result : 'algoritmo-general', criterios: r ? `${r.pos}/${r.measured}` : '' };
     }
 }
 window.MCHUI = MCHUI;

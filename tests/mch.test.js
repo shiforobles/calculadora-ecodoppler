@@ -116,3 +116,36 @@ test('patrón sugerido: septo/PP ≥1.3 en septum → septal asimétrica; ápex 
     assert.equal(MCH.suggestedPattern({ thickness: '18', location: 'pared lateral', siv: '9', pp: '9' }), '');
     assert.equal(MCH.suggestedPattern({ location: 'septum basal' }), '');
 });
+
+test('frase según contexto: conocida directa, primer hallazgo compatible, con confusores sugestivo', () => {
+    const b = { pattern: 'septal asimétrica', thickness: '18', rest: '10', valsalva: '15' };
+    assert.equal(MCH.diagnosis({ ...b, known: true }), 'Miocardiopatía hipertrófica septal asimétrica no obstructiva.');
+    assert.equal(MCH.diagnosis(b), 'Hallazgos compatibles con miocardiopatía hipertrófica septal asimétrica no obstructiva.');
+    assert.equal(MCH.diagnosis({ ...b, hta: true }),
+        'Hallazgos sugestivos de miocardiopatía hipertrófica septal asimétrica no obstructiva, a correlacionar con el contexto clínico (hipertensión arterial).');
+    assert.equal(MCH.diagnosis({ ...b, eaGrade: 'moderada-severa' }),
+        'Hallazgos sugestivos de miocardiopatía hipertrófica septal asimétrica no obstructiva, a correlacionar con el contexto clínico (estenosis aórtica moderada a severa).');
+    assert.equal(MCH.diagnosis({ ...b, eaGrade: 'leve' }), MCH.diagnosis(b));                       // EAo leve no cambia la frase
+    assert.match(MCH.diagnosis({ ...b, thickness: '14' }), /^Hallazgos sugestivos.*\(espesor máximo de 14 mm\)\.$/);
+    assert.equal(MCH.diagnosis({ ...b, thickness: '14', hta: true, known: true }), 'Miocardiopatía hipertrófica septal asimétrica no obstructiva.');
+    const r = MCH.diastolic({ tr: '2', lavi: '30' });
+    assert.match(MCH.narrativeSummary({ ...b, known: true }, r, ''), /^En síntesis, miocardiopatía hipertrófica septal asimétrica no obstructiva \(gradiente pico/);
+    assert.match(MCH.narrativeSummary({ ...b, hta: true }, r, ''), /^En síntesis, hallazgos sugestivos de .*Valsalva\), a correlacionar con el contexto clínico \(hipertensión arterial\)\./);
+});
+
+test('aviso de espesor y lista de control', () => {
+    assert.equal(MCH.thickWall('15', '9'), true);
+    assert.equal(MCH.thickWall('9', '15'), true);
+    assert.equal(MCH.thickWall('13', '10'), true);     // 1.3
+    assert.equal(MCH.thickWall('13', '11'), false);    // 1.18
+    assert.equal(MCH.thickWall('12', '9'), false);     // asimétrico pero <13
+    assert.equal(MCH.thickWall('', ''), false);
+    const vacia = MCH.checklist({});
+    assert.ok(vacia.some(t => /velocidad en el TSVI en reposo/.test(t)));
+    assert.ok(vacia.some(t => /Valsalva/.test(t)));
+    assert.ok(vacia.some(t => /SAM/.test(t)));
+    assert.equal(MCH.checklist({ rest: '60', sam: 'no', apical: 'no', thickness: '18' }).length, 0);  // reposo ≥50: no pide Valsalva
+    assert.ok(MCH.checklist({ rest: '20', valsalva: '30', sam: 'contacto', hasMr: true, apical: 'no', thickness: '18' }).some(t => /dirección del jet/.test(t)));
+    assert.ok(MCH.checklist({ thickness: '12', siv: '15', location: 'septum basal' }).some(t => /menor que el SIV/.test(t)));
+    assert.ok(MCH.checklist({ thickness: '31' }).some(t => /≥30 mm/.test(t)));
+});

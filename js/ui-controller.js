@@ -2260,7 +2260,7 @@ class UIController {
 
         // Campos que arrastran del estudio anterior y deben volver a su base
         ['ant_hta','ant_isquemia','ant_crm','ant_epoc','ant_fa','ant_marcapasos','ant_dm','ant_irc',
-         'ant_valvulopatia','ant_atc','ant_rva','ant_rvm'].forEach(id => set(id, false));
+         'ant_valvulopatia','ant_atc','ant_rva','ant_rvm','ant_mch'].forEach(id => set(id, false));
         set('motilidad_global', 'conservada');
         set('vd_estado', 'normal');
         set('ad_estado', 'normal');
@@ -2279,7 +2279,7 @@ class UIController {
         });
 
         Object.entries(preset.campos || {}).forEach(([id, val]) => {
-            if (id.startsWith('mch_')) return;
+            if (id.startsWith('mch_') || id === 'ant_mch') return;
             if (id === 'pattern-selector') return;   // se aplica abajo, por API
             set(id, val);
         });
@@ -2378,7 +2378,7 @@ class UIController {
         const campos = {};
         document.querySelectorAll('input, select, textarea').forEach(el => {
             const id = el.id;
-            if (!id || excluidos.has(id) || id.startsWith('mch_')) return;
+            if (!id || excluidos.has(id) || id.startsWith('mch_') || id === 'ant_mch') return;
             if (el.disabled || el.readOnly) return;          // displays calculados
             if (id.endsWith('_display') || id.endsWith('_disp')) return;
             if (el.type === 'checkbox') {
@@ -2709,6 +2709,7 @@ class UIController {
             c('ant_dm')           && 'diabetes mellitus',
             c('ant_irc')          && 'insuficiencia renal crónica',
             c('ant_epoc')         && 'enfermedad pulmonar obstructiva crónica',
+            c('ant_mch')          && 'miocardiopatía hipertrófica',
         ].filter(Boolean);
 
         const obs = document.getElementById('ant_libre')?.value?.trim() || '';
@@ -2767,6 +2768,10 @@ class UIController {
         if (ddvi) viParts.push(`DD ${ddvi}mm`);
         if (dsvi) viParts.push(`DS ${dsvi}mm`);
         if (siv && pp) viParts.push(`SIV/PP ${siv}/${pp}mm`);
+        if (this.mch?.active) {
+            const t = MCH.number(this.mch.value('mch_thickness')), loc = this.mch.value('mch_location');
+            if (t !== null) viParts.push(`Esp. máx ${MCH.fmt(t, 0)}mm${loc ? ` (${loc})` : ''}`);
+        }
         if (masa) viParts.push(`Masa ${masa}g/m²`);
         if (rwt)  viParts.push(`RWT ${rwt}`);
         if (fevi) viParts.push(`FEy ${fevi}%`);

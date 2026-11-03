@@ -16,6 +16,25 @@ dinámicas.
    lateral, Vmax IT, volumen de AI, grado de IM, ritmo, prótesis, MAC.
 4. El informe se escribe solo. Al destildar MCH, el informe vuelve a ser el de siempre.
 
+## Activación y ayudas (desde 03/11)
+
+- **Antecedentes → "Miocardiopatía Hipertrófica"** (MCH conocida): abre el bloque, figura en
+  datos clínicos y el informe usa el diagnóstico directo. Destildar MCH en la diástole la desmarca.
+- **Aviso junto a SIV/PP** (bloque cerrado): SIV o PP ≥15 mm, o SIV ≥13 mm con SIV/PP ≥1.3 →
+  "¿Valoraste la velocidad en el TSVI…?" + botón "Abrir bloque MCH". Nunca se activa solo ni va al informe.
+- **Lista de control dentro del bloque** (solo pantalla): TSVI en reposo, Valsalva si reposo <50,
+  SAM, dirección del jet si hay IM con SAM, ápex/aneurisma, espesor máximo y dónde, espesor máximo
+  septal menor que el SIV, gradiente medioventricular en patrón medioventricular, espesor ≥30 mm.
+- **Encabezado del Narrativo:** agrega "Esp. máx X mm (localización)".
+
+## Certeza de la frase (aprobado 03/11)
+
+| Situación | Frase |
+|---|---|
+| MCH conocida (Antecedentes) | Miocardiopatía hipertrófica {patrón} {obstrucción}. |
+| Primer hallazgo | Hallazgos compatibles con miocardiopatía hipertrófica… |
+| Primer hallazgo con HTA, estenosis aórtica ≥ moderada o espesor máximo <15 mm | Hallazgos sugestivos de miocardiopatía hipertrófica…, a correlacionar con el contexto clínico (…). |
+
 ## Obstrucción del TSVI (AHA/ACC 2024)
 
 | Lo cargado | Frase |
