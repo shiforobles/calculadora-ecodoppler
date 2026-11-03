@@ -1,56 +1,70 @@
-# MCH: registro e integración médica
+# MCH — miocardiopatía hipertrófica
 
-El contexto MCH se activa explícitamente con la casilla del formulario diastólico.
-No diagnostica MCH por espesor ni calcula riesgo de muerte súbita. El ejercicio
-se evalúa fuera de esta aplicación.
+Especificación aprobada por Lucas el 02/11/2026. Versión simplificada de la rama
+`codex/modulo-mch` (Codex, 01/11): se conserva la idea y los tests de regresión;
+se quitan las confirmaciones manuales, los selectores de calidad y las maniobras
+dinámicas.
 
-## Comportamiento
+## Cómo se usa
 
-- El TSVI se clasifica con registros revisados e interpretables: obstrucción
-  desde 30 mmHg y destaque en pantalla desde 50 mmHg. Se conserva cada maniobra,
-  su postura y su calidad. Un registro inválido no participa del máximo.
-- El máximo de reposo/Valsalva para evaluación externa se distingue del máximo
-  global, que puede incluir bipedestación. No constituye un score.
-- El motor general de diástole no se utiliza cuando MCH está activo. Se muestran
-  mediciones y límites descriptivos, sin contar positivos ni asignar grados.
-- E/e′ promedio requiere ambas mediciones anulares. Los datos compartidos
-  precargados no se consideran revisados por tener un número visible.
-- Venas pulmonares es un bloque opcional. Su ausencia no cuenta como normalidad.
-- La presión media AI debe seleccionarse y confirmarse antes de generar/copiar/
-  guardar. «Pendiente» es un estado de trabajo; «indeterminada» es una conclusión
-  elegida por el médico. PTD VI y grado diastólico son decisiones separadas.
-- Las conclusiones se invalidan si cambian sus datos de sustento. Editar el TSVI
-  no invalida por sí solo la integración diastólica. Editar FEVI anula su revisión
-  y la del grado diastólico, pero no la estimación de presión AI.
-- Los presets conservan datos comunes del formulario. No guardan ni inyectan campos específicos MCH, para no trasladar hallazgos o confirmaciones de otro estudio.
-- Deshacer restaura maniobras y procedencia; también conserva si el informe
-  estaba desactualizado antes del borrado. Esa última corrección resuelve un
-  defecto previo, que afectaba asimismo a estudios sin MCH.
-- En MCH se utilizan Lista y Narrativo; la generación por IA no reemplaza la
-  integración médica revisada.
+1. Tildar **MCH** en los contextos diastólicos. Se abre la caja "Miocardiopatía hipertrófica".
+2. Cargar lo que se midió (vacío = no evaluado, nunca se informa como normal):
+   espesor máximo y localización, patrón, SAM, gradiente TSVI en reposo y con
+   Valsalva, gradiente medioventricular (opcional), aneurisma apical, dirección
+   del jet de IM. Venas pulmonares (duración de Ar y de A) va plegado y es opcional.
+3. Se reutiliza lo que ya está en la calculadora: SIV/PP, FEy, E, e′ septal y
+   lateral, Vmax IT, volumen de AI, grado de IM, ritmo, prótesis, MAC.
+4. El informe se escribe solo. Al destildar MCH, el informe vuelve a ser el de siempre.
+
+## Obstrucción del TSVI (AHA/ACC 2024)
+
+| Lo cargado | Frase |
+|---|---|
+| Reposo ≥30 | … obstructiva en reposo |
+| Reposo <30 y Valsalva ≥30 | … con obstrucción provocable |
+| Reposo <30 y Valsalva <30 | … no obstructiva |
+| Reposo <30 sin Valsalva | …, sin obstrucción del TSVI en reposo (no se realizó maniobra de Valsalva) |
+| Sin gradiente | sin calificar la obstrucción |
+
+Gradiente máximo ≥50 mmHg en una forma obstructiva: se agrega "hemodinámicamente
+significativa". Formato: **"Hallazgos compatibles con miocardiopatía hipertrófica {patrón} {obstrucción}."**
+
+## Presión de AI — automática
+
+Criterios de MCH de la ASE (tabla 7, vigente en 2025): E/e′ promedio >14 (exige e′
+septal y lateral; no cuenta con MAC) · Vmax IT >2,8 m/s · LAVi >34 mL/m² · Ar−A ≥30 ms.
+
+Integración por mayoría de los criterios medidos (regla de la ASE 2016; la ASE
+2025 no define conteo, por eso el informe no cita año):
+más positivos → elevadas; más negativos → no elevadas; empate → indeterminadas;
+menos de 2 medidos → no valorable. Con IM moderada o mayor se cuenta igual y se
+agrega una advertencia. En FA/flutter o con prótesis mitral se usa el algoritmo
+general de la app.
+
+## Informe
+
+- **Lista:** se mantienen las líneas del VI y de FEy; se agregan "MCH:", "TSVI:" y
+  "Diástole (criterios MCH):". Conclusión del VI = frase diagnóstica (con gradiente
+  máximo y SAM) + motilidad si está alterada + función sistólica. Conclusión
+  diastólica = presión de llenado con "(n de m criterios para MCH)".
+- **Narrativo:** el párrafo del VI empieza con la frase diagnóstica, sigue el texto
+  habitual (diámetros, motilidad, FEy; sin afirmar "espesores conservados") y termina
+  con espesor máximo, relación septo/PP, aneurisma, SAM/IM y gradientes. El párrafo
+  diastólico enumera los criterios y concluye la presión de llenado.
+- El modo IA queda bloqueado con MCH (todavía no incorpora estos datos).
 
 ## Guardado
 
-Se agrega `MCH JSON v1` al final de los encabezados y de la fila enviada, sin
-desplazar las columnas históricas. Incluye datos compartidos, FEVI, registros
-individuales y procedencia de la integración. No se envían estudios durante las
-pruebas. Una planilla ya existente conserva su cabecera anterior: la columna
-adicional debe titularse `MCH JSON v1` si se desea identificarla al exportar.
+Columna `MCH JSON v1` al final de la fila de Sheets (aprobado por Lucas): campos de
+la caja MCH + resultado automático. Sin MCH se guarda "-". Las columnas históricas
+no se corren. Probar solo con un estudio ficticio.
 
-No se incorpora una interfaz de recuperación del formulario desde Sheets. Guardar
-el informe o sus datos no equivale a disponer de esa función de recuperación.
+Los presets no guardan ni aplican campos MCH (son de cada paciente).
 
 ## Verificación
 
-- `tests/mch.test.js`: límites, datos faltantes, condiciones de interpretación y
-  distinción de presiones.
-- `tests/mch-browser.test.js`: seis informes sin MCH comparados carácter por
-  carácter con referencias previas; operación del módulo, JSON, presets, FEVI,
-  reinicio, Deshacer y ancho de teléfono. Requiere Playwright.
-- Las referencias de `tests/fixtures/mch-without-baseline.json` corresponden a
-  pacientes ficticios, con el estado previo a esta implementación y los cambios
-  locales de configuración que ya existían.
-
-Fuentes de diseño clínico: ASE 2025, tabla 7/sección MCH; AHA/ACC 2024. La
-decisión operativa de advertir desde IM moderada no se presenta como una regla
-automática de diagnóstico.
+- `tests/mch.test.js`: bordes 29/30/49/50, Valsalva ausente/negativo/positivo,
+  regla de mayoría, umbrales exactos, MAC, IM, campos vacíos.
+- `tests/mch-browser.test.js`: 6 informes sin MCH idénticos letra por letra
+  (`tests/fixtures/mch-without-baseline.json`); caso aprobado en Lista y Narrativo;
+  Sheets; FA; destildar MCH sin arrastre; Borrar todo, Deshacer y presets; teléfono.

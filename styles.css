@@ -7,12 +7,7 @@
 .mch-section[hidden] { display: none; }
 .mch-section details { margin: 1rem 0; padding: 1rem; border: 1px solid var(--color-border); border-radius: var(--radius-md); min-width: 0; }
 .mch-section summary { font-weight: 600; margin-bottom: .75rem; }
-.mch-help { color: var(--color-text-secondary); font-size: .875rem; margin: .75rem 0; }
 .mch-summary { white-space: pre-line; overflow-wrap: anywhere; background: var(--color-bg-main); border-radius: var(--radius-md); padding: .75rem; margin: .75rem 0; }
-.mch-section .mch-check { display: flex; align-items: center; gap: .5rem; margin: .75rem 0; }
-.mch-section .mch-check input { width: auto; }
-.mch-checks { display: flex; flex-wrap: wrap; gap: 1rem; }
-.mch-maneuver { border: 1px solid var(--color-border); padding: .75rem; margin: .75rem 0; min-width: 0; }
 .mch-section input, .mch-section select { min-width: 0; }
 /* CSS Variables - Medical Design System */
 :root {
@@ -2523,8 +2518,6 @@ body {
 /* Controles propios de MCH: contraste y tamaño cómodos en ambos temas. */
 .mch-section label { color: var(--color-text-secondary); }
 .mch-section input, .mch-section select { background: var(--color-bg-card); color: var(--color-text-primary); border: 1px solid var(--color-border); }
-.mch-section button { padding: .6rem .9rem; font: inherit; border: 1px solid var(--color-primary); border-radius: var(--radius-md); background: var(--color-primary-bg); color: var(--color-text-primary); }
-.mch-section button:hover { border-color: var(--color-text-primary); }
 [data-theme="dark"] .mch-section { color-scheme: dark; }
 /* Los accesos opcionales permanecen ocultos aunque su clase use flex. */
 [hidden] { display: none !important; }

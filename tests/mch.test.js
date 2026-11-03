@@ -1,56 +1,96 @@
-const {test}=require('node:test');
-const assert=require('node:assert/strict');
-const MCH=require('../js/mch');
-const valid=g=>({gradient:g,quality:'valid',posture:'semisupina'});
-const prov=g=>({...valid(g),maneuver:'Valsalva'});
-test('TSVI: límites exactos, incluido gradiente cero',()=>{
-    for(const [g,type,significant] of [[0,'not-documented',false],[29,'not-documented',false],[30,'rest',false],[49,'rest',false],[50,'rest',true]]){
-        const o=MCH.obstruction(valid(g)); assert.equal(o.type,type); assert.equal(o.significant,significant);
-    }
+/** MCH: lógica pura (js/mch.js). Especificación aprobada 02/11/2026. */
+const { test } = require('node:test');
+const assert = require('node:assert/strict');
+const MCH = require('../js/mch.js');
+
+const dx = (rest, valsalva, extra = {}) => MCH.diagnosis({ pattern: 'septal asimétrica', rest, valsalva, ...extra });
+const dxc = (rest, valsalva, extra = {}) => MCH.diagnosis({ pattern: 'septal asimétrica', rest, valsalva, ...extra }, { conclusion: true });
+
+test('TSVI: bordes 29 / 30 / 49 / 50 mmHg en reposo', () => {
+    assert.equal(dx('29', '20'), 'Hallazgos compatibles con miocardiopatía hipertrófica septal asimétrica no obstructiva.');
+    assert.equal(dx('30', '30'), 'Hallazgos compatibles con miocardiopatía hipertrófica septal asimétrica obstructiva en reposo.');
+    assert.equal(dx('49', '49'), 'Hallazgos compatibles con miocardiopatía hipertrófica septal asimétrica obstructiva en reposo.');
+    assert.equal(dx('50', '50'), 'Hallazgos compatibles con miocardiopatía hipertrófica septal asimétrica obstructiva en reposo, hemodinámicamente significativa.');
 });
-test('sin reposo no se afirma obstrucción únicamente provocada',()=>{
-    assert.equal(MCH.obstruction({},[prov(55)]).type,'provoked-rest-unknown');
-    assert.equal(MCH.obstruction(valid(20),[prov(55)]).type,'provoked-only');
-    assert.doesNotMatch(MCH.obstructionText({},[prov(55)]),/únicamente|reposo/);
+
+test('TSVI: provocación ausente, negativa y positiva', () => {
+    assert.equal(dx('20', ''), 'Hallazgos compatibles con miocardiopatía hipertrófica septal asimétrica, sin obstrucción del TSVI en reposo (no se realizó maniobra de Valsalva).');
+    assert.equal(dx('20', '29'), 'Hallazgos compatibles con miocardiopatía hipertrófica septal asimétrica no obstructiva.');
+    assert.equal(dx('20', '30'), 'Hallazgos compatibles con miocardiopatía hipertrófica septal asimétrica con obstrucción provocable.');
+    assert.equal(dx('20', '49'), 'Hallazgos compatibles con miocardiopatía hipertrófica septal asimétrica con obstrucción provocable.');
+    assert.equal(dx('20', '50'), 'Hallazgos compatibles con miocardiopatía hipertrófica septal asimétrica con obstrucción provocable, hemodinámicamente significativa.');
 });
-test('señales inválidas, vacías y no identificadas no definen máximos',()=>{
-    const o=MCH.obstruction(valid(20),[{...prov(80),quality:'invalid'},{...prov(90),posture:''},{...prov(100),maneuver:''},prov('')]);
-    assert.equal(o.max,20);assert.equal(o.significant,false);assert.equal(o.provoked.length,0);
+
+test('sin Valsalva nunca se escribe "no obstructiva"', () => {
+    for (const rest of ['0', '10', '29']) assert.doesNotMatch(dx(rest, ''), /no obstructiva/);
+    assert.equal(dx('', ''), 'Hallazgos compatibles con miocardiopatía hipertrófica septal asimétrica.');
+    assert.equal(dx('', '20'), 'Hallazgos compatibles con miocardiopatía hipertrófica septal asimétrica.');
 });
-test('se conservan maniobras y máximo para Risk-SCD excluye bipedestación',()=>{
-    const rows=[prov(25),{...prov(80),maneuver:'De pie',posture:'de pie'}];
-    const o=MCH.obstruction(valid(20),rows);assert.equal(o.max,80);assert.equal(o.riskDataMax,25);assert.equal(o.provoked.length,2);
+
+test('conclusión: gradiente máximo solo si es obstructiva, y SAM', () => {
+    assert.equal(dxc('18', '62', { sam: 'contacto' }),
+        'Hallazgos compatibles con miocardiopatía hipertrófica septal asimétrica con obstrucción provocable, hemodinámicamente significativa (gradiente máximo 62 mmHg), con SAM y contacto septal.');
+    assert.equal(dxc('10', '15', { sam: 'no' }), 'Hallazgos compatibles con miocardiopatía hipertrófica septal asimétrica no obstructiva.');
+    assert.equal(MCH.diagnosis({ pattern: '', rest: '', valsalva: '' }), 'Hallazgos compatibles con miocardiopatía hipertrófica.');
 });
-test('sin provocación no se afirma no obstructiva',()=>{
-    assert.match(MCH.obstructionText(valid(20),[]),/No se evaluaron/);
-    assert.doesNotMatch(MCH.obstructionText(valid(20),[]),/no obstructiva|No se documenta/);
+
+const base = { E: '96', septal: '5', lateral: '7', tr: '3.0', lavi: '41', mr: 'no' };   // E/e′ 16
+
+test('presión de AI: mayoría de los criterios medidos', () => {
+    assert.equal(MCH.diastolic(base).result, 'elevada');                                     // 3/3
+    assert.equal(MCH.diastolic({ ...base, tr: '2.5' }).result, 'elevada');                   // 2/3
+    assert.equal(MCH.diastolic({ ...base, tr: '2.5', lavi: '30' }).result, 'no-elevada');    // 1/3
+    assert.equal(MCH.diastolic({ E: '60', septal: '8', lateral: '10', tr: '2.2', lavi: '28' }).result, 'no-elevada'); // 0/3
+    assert.equal(MCH.diastolic({ ...base, tr: '2.5', lavi: '30', arDuration: '170', aDuration: '130' }).result, 'indeterminada'); // 2/4
 });
-const base=()=>({E:140,septal:10,lateral:10,tr:2.8,lavi:34,arDuration:150,aDuration:120,qualities:{ee:'valid',tr:'valid',lavi:'valid',arA:'valid'},rhythm:'sinusal'});
-test('diástole: operadores estrictos y Ar−A inclusivo',()=>{
-    const p=MCH.diastolic(base());assert.equal(p.ee.state,'not-above');assert.equal(p.tr.state,'not-above');assert.equal(p.lavi.state,'not-above');assert.equal(p.arA.state,'above');
-    const q=MCH.diastolic({...base(),E:140.1,tr:2.81,lavi:34.1,arDuration:149});assert.equal(q.ee.state,'above');assert.equal(q.tr.state,'above');assert.equal(q.lavi.state,'above');assert.equal(q.arA.state,'not-above');
+
+test('presión de AI: menos de 2 criterios = no valorable; vacío no cuenta como normal', () => {
+    const r = MCH.diastolic({ tr: '3.2' });
+    assert.equal(r.measured, 1); assert.equal(r.result, 'no-valorable');
+    assert.equal(MCH.diastolicConclusion(r), 'Función diastólica no valorable por datos insuficientes (criterios para MCH).');
+    assert.equal(MCH.diastolic({}).result, 'no-valorable');
 });
-test('sin venas pulmonares no se genera mayoría ni normalidad',()=>{
-    const p=MCH.diastolic({...base(),arDuration:'',aDuration:''});assert.equal(p.arA.state,'not-measured');assert.equal(p.arA.value,null);assert.equal(p.grade,undefined);assert.equal(p.pressure,undefined);
+
+test('umbrales exactos: estrictos para E/e′, IT y LAVi; Ar−A inclusivo', () => {
+    const st = d => Object.fromEntries(MCH.diastolic(d).criteria.map(c => [c.key, c.state]));
+    assert.deepEqual(st({ E: '84', septal: '6', lateral: '6', tr: '2.8', lavi: '34', arDuration: '160', aDuration: '130' }),
+        { ee: 'neg', tr: 'neg', lavi: 'neg', arA: 'pos' });                                  // 14 / 2.8 / 34 / 30
+    assert.deepEqual(st({ E: '85', septal: '6', lateral: '6', tr: '2.81', lavi: '34.1', arDuration: '159', aDuration: '130' }),
+        { ee: 'pos', tr: 'pos', lavi: 'pos', arA: 'neg' });
 });
-test('sin dos sitios no se presenta E/e′ promedio',()=>{
-    assert.equal(MCH.diastolic({...base(),lateral:''}).ee.state,'not-measured');
-    assert.equal(MCH.diastolic({...base(),septal:0}).ee.value,null);
+
+test('E/e′ promedio exige e′ septal y lateral; con MAC no cuenta', () => {
+    assert.equal(MCH.diastolic({ E: '96', septal: '5', tr: '3', lavi: '41' }).criteria[0].state, 'na');
+    const r = MCH.diastolic({ ...base, mac: true });
+    assert.equal(r.criteria[0].excluded, 'MAC'); assert.equal(r.measured, 2);
+    assert.match(MCH.diastolicNarrative(r), /no se consideró por la presencia de MAC/);
 });
-test('un valor precargado sin calidad revisada no es un criterio confirmado',()=>{
-    const p=MCH.diastolic({...base(),qualities:{}});for(const r of Object.values(p))assert.equal(r.state,'not-measured');
+
+test('IM moderada o mayor: se cuenta igual y se advierte', () => {
+    const r = MCH.diastolic({ ...base, mr: 'moderada' });
+    assert.equal(r.result, 'elevada');
+    assert.equal(MCH.diastolicConclusion(r),
+        'Presiones de llenado del VI elevadas (3 de 3 criterios para MCH). En presencia de insuficiencia mitral moderada, el volumen auricular y la velocidad tricuspídea pueden estar influidos por la regurgitación.');
+    assert.doesNotMatch(MCH.diastolicConclusion(MCH.diastolic({ ...base, mr: 'leve' })), /insuficiencia mitral/);
 });
-test('FA, BAV, miopatía auricular y fusión impiden interpretar Ar−A',()=>{
-    assert.equal(MCH.diastolic({...base(),rhythm:'fa'}).arA.state,'not-interpretable');
-    for(const key of ['avBlock','atrial','fusion'])assert.equal(MCH.diastolic({...base(),limitations:{[key]:true}}).arA.state,'not-interpretable');
+
+test('líneas de Lista y párrafo narrativo del caso aprobado', () => {
+    const d = { pattern: 'septal asimétrica', thickness: '21', location: 'septum basal', siv: '21', pp: '10', sam: 'contacto',
+        jet: 'posterior', hasMr: true, mrLabel: 'moderada', apical: 'no', rest: '18', valsalva: '62', ...base, mr: 'moderada' };
+    assert.equal(MCH.morphologyListLine(d), 'MCH: Hipertrofia septal asimétrica, espesor máximo 21 mm (septum basal), relación SIV/PP 2.1. SAM con contacto septal. IM de jet posterior. Sin aneurisma apical.');
+    assert.equal(MCH.obstructionListLine(d), 'TSVI: gradiente pico 18 mmHg en reposo; 62 mmHg con Valsalva.');
+    assert.equal(MCH.obstructionListLine({ rest: '18' }), 'TSVI: gradiente pico 18 mmHg en reposo; Valsalva no realizado.');
+    assert.equal(MCH.diastolicListLine(MCH.diastolic(d)), 'Diástole (criterios MCH): E/e′ promedio 16 (>14); Vmax IT 3.0 m/s (>2.8); Vol. AI 41 mL/m² (>34).');
+    assert.equal(MCH.morphologyNarrative(d),
+        'El espesor parietal máximo es de 21 mm a nivel del septum basal, con una relación septo/pared posterior de 2.1, sin aneurisma apical. ' +
+        'Se observa movimiento anterior sistólico de la valva mitral con contacto septal, asociado a insuficiencia mitral moderada de jet posterior. ' +
+        'El gradiente pico del tracto de salida del ventrículo izquierdo es de 18 mmHg en reposo y aumenta a 62 mmHg con la maniobra de Valsalva.');
+    assert.match(MCH.diastolicNarrative(MCH.diastolic(d)), /todos por encima de los valores de referencia, hallazgos compatibles con presiones de llenado del ventrículo izquierdo elevadas/);
 });
-test('IM limita E/e′; no convierte AI e IT elevados en falsos',()=>{
-    const p=MCH.diastolic({...base(),tr:3,lavi:40,limitations:{mr:true}});assert.equal(p.ee.state,'not-interpretable');assert.equal(p.tr.state,'above');assert.equal(p.lavi.state,'above');assert.equal(p.arA.state,'above');
-});
-test('pendiente no equivale a indeterminada',()=>{
-    assert.equal(MCH.pressureText(''),'');assert.match(MCH.pressureText('indeterminate'),/no permite definir/);assert.match(MCH.pressureText('not-elevated'),/no sugiere/);
-});
-test('no inventa morfología ni FEVI desde valores por defecto',()=>{
-    assert.equal(MCH.morphology({ef:60}),'');assert.equal(MCH.morphology({ef:60,efConfirmed:true}),'FEVI de 60%.');
-    assert.doesNotMatch(MCH.morphology({sam:'ausente',contact:'presente'}),/contacto/);
+
+test('no inventa morfología: campos vacíos no aparecen', () => {
+    assert.equal(MCH.morphologyListLine({}), '');
+    assert.equal(MCH.obstructionListLine({}), '');
+    assert.equal(MCH.morphologyNarrative({}), '');
+    assert.equal(MCH.diastolicListLine(MCH.diastolic({})), '');
 });
