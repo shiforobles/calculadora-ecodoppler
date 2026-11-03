@@ -3,16 +3,12 @@
 Única fuente de verdad del estado del proyecto. Lo actualiza cada IA al tomar y
 al terminar una tarea (ver `AGENTS.md`).
 
-Última actualización: 03/11/2026 00:05 · Claude (Estética v18.7) ·
+Última actualización: 03/11/2026 · Claude (Estética v18.7) ·
 `main` publicado en https://shiforobles.github.io/calculadora-ecodoppler/
 
 ## Implementando ahora
 
 Nadie. (Regla: un solo asistente implementando a la vez.)
-
-| Tarea | Responsable | Rama / PR | Estado |
-|---|---|---|---|
-| Estética v18.7 | Claude (Estética) | `estetica/v18.7` · **PR #9** | Terminado, esperando que Lucas lo pruebe. Sólo visual: informe idéntico verificado por hash, 42/42 en verde, contraste 0 bajo 4.5:1 en ambos temas. El PR anota 5 decisiones conservadoras y un bug previo en `ui-aorta-display.js` (`--color-danger` no existe) |
 
 ## Trabajo existente fuera de `main` (sin terminar)
 
@@ -40,6 +36,7 @@ aórtica → mitral → VI/diástole (después de MCH).
 
 | Fecha | Qué | Commit / PR | Quién | Verificado |
 |---|---|---|---|---|
+| 03/11 | Estética v18.7: paleta verde azulada más profunda, campos más altos, barra de 11 chips pegada arriba, botonera anclada abajo con BORRAR TODO en rojo (`.btn-dock-clear`) | #9 · 412a765 | Claude (Estética) | Publicado en Pages (build 412a765). Sólo visual: informe idéntico verificado por hash, 42/42 en verde, contraste 0 bajo 4.5:1 en claro y oscuro. El PR anota 5 decisiones conservadoras, el choque previsible con `codex/imprimir-pdf` y un bug previo en `ui-aorta-display.js` (`--color-danger` no existe) |
 | 31/10 | Coherencia informe–datos: el informe no se copia ni se guarda con datos de otra revisión; diálogo de conflicto visible en claro y oscuro (rama `codex/coherencia-informe-ediciones`, ya borrada) | bd8d165 (d74f28c + b1e3200) | Codex + Claude | En `main` y publicado. 02/11: `report-browser`, `report-consistency`, `eco-rapido-editing` → 40/40 en verde |
 | 31/10 | Retiro de datos personales y configuración en el navegador | 69970cd | — | Publicado |
 | 02/11 | Borrar todo: sin preguntar, página como recién abierta, sube arriba, cierra IT/motilidad | #2, #3 · dee019b | Claude (Coordinación) | Publicado; `tests/reset-all.test.js` |
