@@ -106,7 +106,8 @@ test('interacción de informes y siglas en ambas pantallas (sin red)', { skip: !
             await page.click('#btn_copy'); assert.equal(await page.locator('#report-conflict-dialog').count(), 0);
             await page.fill('#fevi', '30'); await page.click('#btn_save_study'); await page.click('[data-decision="regenerate"]');
             assert.equal(await page.evaluate(() => window.__sent.length), 1);
-            assert.equal(await page.evaluate(() => window.__sent[0].length), 88);
+            assert.equal(await page.evaluate(() => window.__sent[0].length), await page.evaluate(() => StudyStorage.HEADERS.length));
+            assert.equal(await page.evaluate(() => window.__sent[0].at(-1)), '-');
             assert.ok(await page.evaluate(() => window.__sent[0].some(v => typeof v === 'string' && v.includes('FEy 30%'))));
         });
         await t.test('click real sobre sigla en calculadora completa', async () => {

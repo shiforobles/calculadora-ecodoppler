@@ -39,6 +39,7 @@ class UIController {
      * Initialize all event listeners
      */
     init() {
+        if (window.MCHUI) { this.mch = new MCHUI(this); this.mch.init(); }
         // Expose Quick Fill function globally
         window.setTricuspidValues = (grade) => this.setTricuspidValues(grade);
 
@@ -804,7 +805,7 @@ class UIController {
         // BCRI → e' septal excluido: deshabilitar campo
         const eSeptalEl = document.getElementById('onda_e_prime_septal');
         if (eSeptalEl) {
-            if (bcri) {
+            if (bcri && !mcp) {
                 eSeptalEl.value = '';
                 eSeptalEl.disabled = true;
                 eSeptalEl.placeholder = 'Excluido (BCRI)';
@@ -837,9 +838,9 @@ class UIController {
             }
         }
 
-        // MCP → hint en E/e' label (umbral modificado a 15)
+        // MCH no usa el algoritmo general ni un umbral modificado de 15.
         if (mcp && !mac && !imSevera && eeLabel) {
-            eeLabel.textContent = "E/e' (umbral >15 en MCP)";
+            eeLabel.textContent = "E/e' promedio (referencia MCH >14; requiere ambos sitios)";
         }
     }
 
@@ -921,6 +922,10 @@ class UIController {
         this.state.diastolicResult = this.calc.classifyDiastolicFunction({
             E, A, ePrime, eSeptal, eLateral, LAVolIndex, TRVel, LVEF, wallMotion, ritmo, context, TRIV, TD, LARS, PVSD, age, fc
         });
+
+        // MCH: criterios específicos y presión de AI automática (salvo FA/flutter o prótesis mitral)
+        if (this.mch) this.mch.refresh();
+        if (this.mch?.applies()) this.state.diastolicResult = this.mch.diastolicResult();
 
         // Update semaphore display
         this.updateDiastolicBadge(this.state.diastolicResult);
@@ -1169,6 +1174,15 @@ class UIController {
             }
             report += `.\n`;
 
+            // MCH: morfología y obstrucción del TSVI
+            const mchData = this.mch?.active ? this.mch.data() : null;
+            if (mchData) {
+                const morf = MCH.morphologyListLine(mchData);
+                if (morf) report += `${morf}\n`;
+                const tsvi = MCH.obstructionListLine(mchData);
+                if (tsvi) report += `${tsvi}\n`;
+            }
+
             // Diastolic function — Doppler measurements
             const ondaE = document.getElementById('onda_e').value;
             const ondaA = document.getElementById('onda_a').value;
@@ -1203,6 +1217,10 @@ class UIController {
                 if (pvsdVal) diastolicText += `. Venas Pulmonares S/D ${pvsdVal}`;
                 if (document.getElementById('ctx_valsalva')?.checked) diastolicText += `. Valsalva (+)`;
                 report += `${diastolicText}.\n`;
+            }
+            if (this.state.diastolicResult?.grade === 'MCH') {
+                const mchDiast = MCH.diastolicListLine(this.state.diastolicResult.mch);
+                if (mchDiast) report += `${mchDiast}\n`;
             }
 
             // Cardiac Output — abbreviated in VI description
@@ -1632,6 +1650,7 @@ class UIController {
             }
 
             // Systolic function (ASE/EACVI Guidelines v14.9.2) — use parsed number
+            const viAntesSistolica = viConclusion;
             if (sexo === 'M') {
                 if (feviNum >= 52) {
                     viConclusion += `Función sistólica del VI conservada.`;
@@ -1654,6 +1673,14 @@ class UIController {
                 }
             }
 
+            if (mchData) {
+                // MCH: la frase diagnóstica reemplaza la geometría; se conservan motilidad y función sistólica
+                const partes = [MCH.diagnosis(mchData, { conclusion: true })];
+                const mot = this.motility?.getMotilityTexts();
+                if (mot?.alterada && mot.descripcionMinuscula) partes.push(`Se observa ${mot.descripcionMinuscula}${mot.territorio ? `, ${mot.territorio}` : ''}.`);
+                partes.push(viConclusion.slice(viAntesSistolica.length));
+                viConclusion = partes.join(' ');
+            }
             report += `${conclusionNum}. ${viConclusion}\n`;
             conclusionNum++;
 
@@ -1662,7 +1689,9 @@ class UIController {
                 const diastolicDesc = this.state.diastolicResult.description;
 
                 // Simplify for conclusions
-                if (this._diastolicaSinDatos()) {
+                if (this.state.diastolicResult.grade === 'MCH') {
+                    report += `${conclusionNum}. ${diastolicDesc}\n`;
+                } else if (this._diastolicaSinDatos()) {
                     // "Esperando datos Doppler..." es un texto de pantalla, no una conclusión
                     report += `${conclusionNum}. Función diastólica no valorable por datos insuficientes.\n`;
                 } else if (diastolicDesc.includes('FA:') || diastolicDesc.includes('FA +')) {
@@ -2250,6 +2279,7 @@ class UIController {
         });
 
         Object.entries(preset.campos || {}).forEach(([id, val]) => {
+            if (id.startsWith('mch_')) return;
             if (id === 'pattern-selector') return;   // se aplica abajo, por API
             set(id, val);
         });
@@ -2348,7 +2378,7 @@ class UIController {
         const campos = {};
         document.querySelectorAll('input, select, textarea').forEach(el => {
             const id = el.id;
-            if (!id || excluidos.has(id)) return;
+            if (!id || excluidos.has(id) || id.startsWith('mch_')) return;
             if (el.disabled || el.readOnly) return;          // displays calculados
             if (id.endsWith('_display') || id.endsWith('_disp')) return;
             if (el.type === 'checkbox') {
@@ -2883,6 +2913,9 @@ class UIController {
             if (this.state.lvMassIndex > 0) geomParams.push(`masa indexada ${Math.round(this.state.lvMassIndex)} g/m²`);
             if (this.state.rwt > 0) geomParams.push(`RWT ${this.state.rwt.toFixed(2)}`);
             if (geomParams.length) p1 += ` (${geomParams.join(', ')})`;
+        } else if (this.mch?.active) {
+            // Con MCH no se pueden afirmar espesores conservados: el espesor va en la frase de MCH
+            p1 += `, el ventrículo izquierdo presenta diámetros conservados`;
         } else {
             p1 += `, el ventrículo izquierdo presenta dimensiones y espesores parietales conservados`;
         }
@@ -2928,7 +2961,13 @@ class UIController {
             else if (fevi >= 30)          p1 += `. La función sistólica global se encuentra moderadamente deprimida (FEy ${fevi}%)`;
             else                          p1 += `. La función sistólica global se encuentra severamente deprimida (FEy ${fevi}%)`;
         }
-        paragraphs.push(p1 + '.');
+        if (this.mch?.active) {
+            // MCH: la frase diagnóstica encabeza el párrafo del VI y la morfología se agrega al final
+            const mchData = this.mch.data();
+            paragraphs.push([MCH.diagnosis(mchData), p1 + '.', MCH.morphologyNarrative(mchData)].filter(Boolean).join(' '));
+        } else {
+            paragraphs.push(p1 + '.');
+        }
 
         // ── P2: Diastolic function + LA + CO ──
         if (this.state.diastolicResult) {
@@ -2971,7 +3010,12 @@ class UIController {
             const _indParts = [..._rPartsEA, ..._pParts.filter(p => !p.startsWith('IT '))];
             const _indStr   = _indParts.length ? ` (${_indParts.join(', ')})` : '';
 
-            let p2 = `Desde el punto de vista hemodinámico`;
+            let p2;
+            if (dr.grade === 'MCH') {
+                // MCH: criterios específicos; el volumen de AI ya va entre los criterios
+                p2 = MCH.diastolicNarrative(dr.mch);
+            } else {
+            p2 = `Desde el punto de vista hemodinámico`;
             if (ctxNotes.length) p2 += ` (considerando que ${ctxNotes.join(' y ')})`;
             p2 += `, `;
 
@@ -3003,6 +3047,7 @@ class UIController {
             else if (volAi >= 42) p2 += `, asociado a dilatación moderada de la aurícula izquierda (LAVI ${volAi} ml/m²)`;
             else if (volAi >= 34) p2 += `, asociado a dilatación leve de la aurícula izquierda (LAVI ${volAi} ml/m²)`;
             else if (volAi > 0)   p2 += `; la aurícula izquierda presenta volumen indexado conservado (LAVI ${volAi} ml/m²)`;
+            }
 
             if (this.state.cardiacOutput) {
                 const { sv, co, ci } = this.state.cardiacOutput;
@@ -3457,7 +3502,7 @@ class UIController {
                 // If filling pressures are elevated (grade II/III diastolic dysfunction),
                 // the PH most likely has a post-capillary (left heart) component.
                 const _dr = this.state.diastolicResult;
-                if (_dr && (_dr.grade === 'II' || _dr.grade === 'III') && htpResult.probability !== 'Baja') {
+                if (_dr && (_dr.grade === 'II' || _dr.grade === 'III' || _dr.mch?.result === 'elevada') && htpResult.probability !== 'Baja') {
                     p4 += `, compatible con componente postcapilar en el contexto de las presiones de llenado elevadas`;
                 }
             }
@@ -3498,6 +3543,18 @@ class UIController {
             paragraphs.push(peStr + '.');
         } else {
             paragraphs.push('El pericardio se encuentra libre, sin derrame ni engrosamientos.');
+        }
+
+        // MCH: párrafo de síntesis con los gradientes y las presiones de llenado valoradas
+        if (this.mch?.active) {
+            let sist = '';
+            if (fevi) {
+                const lim = sexo === 'M' ? 52 : 54;
+                const grado = fevi >= lim ? 'preservada' : fevi >= 41 ? 'levemente deprimida' : fevi >= 30 ? 'moderadamente deprimida' : 'severamente deprimida';
+                sist = `función sistólica global ${grado} (FEy ${fevi}%)`;
+            }
+            const drM = this.state.diastolicResult?.grade === 'MCH' ? this.state.diastolicResult.mch : null;
+            paragraphs.push(MCH.narrativeSummary(this.mch.data(), drM, sist));
         }
 
         return `IMPRESIÓN DIAGNÓSTICA:\n${paragraphs.join('\n\n')}`;
@@ -3680,6 +3737,10 @@ class UIController {
      * Builds clinical JSON, calls Gemini, replaces CONCLUSIONES with AI response
      */
     async generateAIReport() {
+        if (this.mch?.active) {
+            this.showToast("MCH: usá Lista o Narrativo; el modo IA todavía no incorpora los datos de MCH.");
+            return;
+        }
         if (!window.GeminiAI) {
             this.showToast('Módulo Gemini no cargado. Recargá la página.');
             return;
@@ -4005,6 +4066,7 @@ class UIController {
             document.getElementById('ant_rvm')?.checked ? 'Si' : 'No',
             document.getElementById('ant_libre')?.value?.trim() || '-',
         ];
+        row.push(this.mch?.active ? JSON.stringify(this.mch.serialize()) : "-");
         return row;
     }
 
@@ -4692,6 +4754,7 @@ class UIController {
                 checked: el.checked,
                 selectedIndex: el.tagName === 'SELECT' ? el.selectedIndex : null
             })),
+            reportSnapshot: this._reportSnapshot,
             motilidad: this.motility ? JSON.parse(JSON.stringify(this.motility.state)) : null,
             patron: this.motility ? this.motility.pattern : null,
             informeEditado: this.reportEdited
@@ -4731,7 +4794,9 @@ class UIController {
         }
         this.reportEdited = previo.informeEditado;
         this.calculateNow();
-        this._acceptCurrentReport(previo.informeEditado);
+        this._reportSnapshot = previo.reportSnapshot;
+        this._reportTextRevision++;
+        this._updateReportStatus();
         this.showToast('Estudio recuperado');
     }
 
