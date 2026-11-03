@@ -55,6 +55,10 @@ general de la app.
   con los gradientes en reposo y con Valsalva, SAM, aneurisma, función sistólica y las
   presiones de llenado ("n de m criterios positivos"). En Lista, las conclusiones 2 y 3
   llevan el detalle de los gradientes y de cada criterio diastólico con su valor y umbral.
+- Patrón autocompletado (desde 03/11): espesor máximo en septum con relación septo/PP ≥1.3 →
+  "septal asimétrica"; espesor máximo en ápex → "apical". Concéntrica y medioventricular las
+  elige el médico. Una elección manual no se pisa; si no coincide con las mediciones, aparece
+  un aviso en pantalla (no en el informe). Opciones ordenadas por frecuencia.
 - Relación septo/pared posterior: si el espesor máximo está en el septum, se calcula con
   ese espesor; si no, con SIV/PP.
 - El modo IA queda bloqueado con MCH (todavía no incorpora estos datos).

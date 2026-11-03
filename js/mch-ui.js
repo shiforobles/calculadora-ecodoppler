@@ -52,6 +52,8 @@ class MCHUI {
             <div id="mch_summary" class="mch-summary" role="status" aria-live="polite"></div>`;
         document.getElementById('motility-regional-section').before(section);
         this.section = section;
+        // Si el médico elige el patrón a mano, deja de autocompletarse
+        document.getElementById('mch_pattern').addEventListener('change', e => { e.target.dataset.auto = ''; });
         const recalc = () => this.controller.calculateAll();
         section.addEventListener('input', recalc);
         section.addEventListener('change', recalc);
@@ -88,6 +90,7 @@ class MCHUI {
         if (!this.section) return;
         this.section.hidden = !this.active;
         if (!this.active) return;
+        this.autoPattern();
         const d = this.data(), o = MCH.obstruction(d.rest, d.valsalva);
         const lines = [MCH.diagnosis(d, { conclusion: true })];
         if (o.kind === 'sin-valsalva') lines.push('Sin Valsalva no se puede afirmar que sea no obstructiva.');
@@ -103,9 +106,24 @@ class MCHUI {
         } else {
             lines.push('', 'FA o prótesis mitral: la diástole sigue el algoritmo general de la app.');
         }
+        const sug = MCH.suggestedPattern(d);
+        if (sug && d.pattern && d.pattern !== sug) {
+            lines.push('', `Patrón elegido "${d.pattern}", pero las mediciones sugieren "${sug}" (${sug === 'apical' ? 'espesor máximo en ápex' : 'relación septo/PP ≥1.3'}). Revisalo.`);
+        }
         const t = MCH.number(d.thickness);
         if (t !== null && t < 15) lines.push('', 'Espesor máximo <15 mm: revisar contexto (antecedente familiar, genética, estudios previos).');
         document.getElementById('mch_summary').textContent = lines.join('\n');
+    }
+
+    /** Completa el patrón cuando las mediciones lo definen, sin pisar una elección manual. */
+    autoPattern() {
+        const el = document.getElementById('mch_pattern');
+        const sug = MCH.suggestedPattern(this.data());
+        const auto = el.dataset.auto === '1';
+        if (!el.value || auto) {
+            el.value = sug;
+            el.dataset.auto = sug ? '1' : '';
+        }
     }
 
     /** Para Sheets: solo los campos de la caja MCH y el resultado automático. */

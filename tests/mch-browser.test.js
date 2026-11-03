@@ -129,3 +129,21 @@ test('MCH: Borrar todo, Deshacer y presets', options, async () => {
         assert.deepEqual(errors, []);
     } finally { await browser.close(); }
 });
+
+test('MCH: el patrón se autocompleta sin pisar una elección manual', options, async () => {
+    const { open } = require('./helpers/mch-browser.cjs'); const { browser, page, errors } = await open();
+    try {
+        await cargar(page, { siv: '9', pp: '9', ctx_mcp: true, mch_thickness: '17', mch_location: 'septum basal' });
+        assert.equal(await page.inputValue('#mch_pattern'), 'septal asimétrica');
+        await set(page, 'mch_location', 'ápex');
+        assert.equal(await page.inputValue('#mch_pattern'), 'apical');
+        await set(page, 'mch_location', 'pared lateral');
+        assert.equal(await page.inputValue('#mch_pattern'), '');
+        // Elección manual: no se pisa y se avisa la discordancia
+        await set(page, 'mch_pattern', 'concéntrica');
+        await set(page, 'mch_location', 'septum basal');
+        assert.equal(await page.inputValue('#mch_pattern'), 'concéntrica');
+        assert.match(await page.textContent('#mch_summary'), /las mediciones sugieren "septal asimétrica"/);
+        assert.deepEqual(errors, []);
+    } finally { await browser.close(); }
+});

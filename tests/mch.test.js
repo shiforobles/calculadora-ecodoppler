@@ -107,3 +107,12 @@ test('no inventa morfología: campos vacíos no aparecen', () => {
     assert.equal(MCH.morphologyNarrative({}), '');
     assert.equal(MCH.diastolicListLine(MCH.diastolic({})), '');
 });
+
+test('patrón sugerido: septo/PP ≥1.3 en septum → septal asimétrica; ápex → apical', () => {
+    assert.equal(MCH.suggestedPattern({ thickness: '17', location: 'septum basal', siv: '9', pp: '9' }), 'septal asimétrica'); // 1.9
+    assert.equal(MCH.suggestedPattern({ thickness: '13', location: 'septum medio', siv: '13', pp: '10' }), 'septal asimétrica'); // 1.3
+    assert.equal(MCH.suggestedPattern({ thickness: '12', location: 'septum basal', siv: '12', pp: '10' }), '');                  // 1.2
+    assert.equal(MCH.suggestedPattern({ thickness: '18', location: 'ápex', siv: '9', pp: '9' }), 'apical');
+    assert.equal(MCH.suggestedPattern({ thickness: '18', location: 'pared lateral', siv: '9', pp: '9' }), '');
+    assert.equal(MCH.suggestedPattern({ location: 'septum basal' }), '');
+});

@@ -206,6 +206,17 @@ class MCH {
 
     // ─── Morfología ────────────────────────────────────────────────────────
 
+    /** Patrón que se deduce de las mediciones, o '' si no se puede deducir.
+     * Septum con relación septo/PP ≥1.3 → septal asimétrica; espesor máximo en ápex → apical.
+     * Concéntrica y medioventricular no se deducen: las elige el médico. */
+    static suggestedPattern(d) {
+        const loc = d.location || '';
+        if (loc === 'ápex' && this.number(d.thickness) !== null) return 'apical';
+        const r = this.ratio(d.siv, d.pp, d.thickness, loc);
+        if (/^septum/.test(loc) && r !== null && r >= 1.3) return 'septal asimétrica';
+        return '';
+    }
+
     /** Relación septo/pared posterior: con el espesor máximo si está en el septum; si no, SIV/PP. */
     static ratio(siv, pp, thickness = null, location = '') {
         const p = this.number(pp), t = this.number(thickness);
