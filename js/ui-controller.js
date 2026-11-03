@@ -4646,6 +4646,10 @@ class UIController {
         sessionStorage.removeItem('motility-pattern');
 
         this._resetStudyFields({ todo: true });
+        // Avisar a los módulos deja coherente cada caja con su valor, pero algunas
+        // se abren por un valor que viene de fábrica (IT "leve") y al abrir la app
+        // están cerradas. Se vuelve a la vista exacta de la carga.
+        this._restaurarVistaInicial();
 
         this.reportEdited = false;
         this._reportSnapshot = null;
@@ -4653,6 +4657,30 @@ class UIController {
 
         window.scrollTo({ top: 0, behavior: 'smooth' });
         this._ofrecerDeshacerBorrado(previo);
+    }
+
+    /**
+     * Foto de cómo se ve la página recién abierta: qué está visible, qué clases
+     * tiene cada elemento y qué desplegables están abiertos. Se toma una sola vez,
+     * al terminar de cargar, antes de que se toque nada.
+     */
+    _capturarVistaInicial() {
+        if (this._vistaInicial) return;
+        // Sólo el formulario del estudio: la botonera y el informe guardan
+        // preferencias (modo Lista/Narrativo) que borrar no debe tocar.
+        this._vistaInicial = [...document.querySelectorAll('section.card [id], section.card details')]
+            .filter(el => !el.closest('.modal, dialog, section.action-buttons') &&
+                          !el.closest('section.card')?.querySelector('#resultado'))
+            .map(el => ({ el, display: el.style.display, clase: el.className, abierto: el.open }));
+    }
+
+    _restaurarVistaInicial() {
+        (this._vistaInicial || []).forEach(v => {
+            if (!v.el.isConnected) return;
+            v.el.style.display = v.display;
+            if (typeof v.clase === 'string' && v.el.className !== v.clase) v.el.className = v.clase;
+            if (v.el.tagName === 'DETAILS') v.el.open = v.abierto;
+        });
     }
 
     /** Guarda lo justo para poder devolver el estudio: campos y motilidad. */

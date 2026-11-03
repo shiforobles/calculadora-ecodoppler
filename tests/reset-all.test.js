@@ -35,7 +35,11 @@ test('Borrar todo', { skip: !chromium && 'Playwright no disponible' }, async t =
         const errores = []; page.on('pageerror', e => errores.push(e.message));
         const dialogos = []; page.on('dialog', d => { dialogos.push(d.message()); d.accept(); });
         await page.goto(origin + '/index.html', { waitUntil: 'load' });
+        await page.waitForTimeout(200);
         const inicial = await leerCampos(page);
+        const visibles = () => page.evaluate(() => [...document.querySelectorAll('section.card [id]')]
+            .filter(el => el.getClientRects().length > 0).map(el => el.id).sort());
+        const vistaInicial = await visibles();
 
         // Estudio ficticio con valvulopatías graduadas, derrame y antecedentes.
         await page.fill('#edad', '70'); await page.fill('#peso', '80'); await page.fill('#altura', '170');
@@ -44,6 +48,9 @@ test('Borrar todo', { skip: !chromium && 'Playwright no disponible' }, async t =
         await page.selectOption('#it_grado', { index: 0 });
         await page.fill('#vel_it', '3.6');
         await page.check('#pe_presente'); await page.fill('#pe_tamano', '15');
+        await page.selectOption('#motilidad_global', 'alterada');
+        await page.selectOption('#it_grado', 'severa');
+        await page.click('#mode_lista');
         await page.click('#btn_generate');
         await page.waitForTimeout(300);
         assert.ok((await page.inputValue('#resultado')).trim().length > 0);
@@ -63,6 +70,13 @@ test('Borrar todo', { skip: !chromium && 'Playwright no disponible' }, async t =
         });
         await t.test('el informe queda vacío', async () => assert.equal(await page.inputValue('#resultado'), ''));
         await t.test('las cajas de IM se ocultan', async () => assert.equal(await page.locator('#im_fields').isVisible(), false));
+        await t.test('ninguna caja queda abierta que no lo esté al abrir la app (IT, motilidad…)', async () => {
+            const ahora = await visibles();
+            assert.deepEqual(ahora.filter(id => !vistaInicial.includes(id)), []);
+            assert.deepEqual(vistaInicial.filter(id => !ahora.includes(id)), []);
+        });
+        await t.test('respeta el modo de informe elegido', async () =>
+            assert.match(await page.getAttribute('#mode_lista', 'class'), /mode-btn-active/));
         await t.test('lleva arriba de todo', async () => assert.equal(await page.evaluate(() => window.scrollY), 0));
 
         await t.test('Deshacer devuelve el estudio', async () => {
@@ -71,6 +85,7 @@ test('Borrar todo', { skip: !chromium && 'Playwright no disponible' }, async t =
             const distintos = estudio.filter(([id, v]) => id !== 'it_vel_max' && devuelto.get(id) !== v);
             assert.deepEqual(distintos.map(([id]) => id), []);
             assert.equal(await page.locator('#im_fields').isVisible(), true);
+            assert.equal(await page.locator('#motility-regional-section').isVisible(), true);
         });
         assert.deepEqual(errores, []);
     } finally { await browser.close(); }

@@ -33,6 +33,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Initialize UI controller (sets up event listeners)
     uiController.init();
+    // La vista "recién abierta" se fotografía cuando terminó de cargar todo
+    // (extensiones incluidas); Borrar todo vuelve exactamente a eso.
+    const capturar = () => setTimeout(() => uiController._capturarVistaInicial(), 0);
+    if (document.readyState === 'complete') capturar();
+    else window.addEventListener('load', capturar, { once: true });
 
     // Store reference for debugging
     app = {
