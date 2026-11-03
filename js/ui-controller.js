@@ -2290,36 +2290,50 @@ class UIController {
      * defaultSelected) y no un vacío, porque varios selects arrancan con una opción
      * que no es la primera.
      */
-    _resetStudyFields() {
+    _resetStudyFields({ todo = false } = {}) {
         this._indexedMeasurements.clear();
-        const conservar = new Set([
+        // Con todo=true (Borrar todo) también vuelven los datos del paciente y el
+        // informe. Los modales quedan afuera: tienen configuración, no estudio.
+        const conservar = new Set(todo ? [] : [
             ...(window.CAMPOS_PACIENTE || []),
             'paciente_id', 'resultado', 'preset_selector',
         ]);
 
-        document.querySelectorAll('input, select, textarea').forEach(el => {
-            if (!el.id || conservar.has(el.id) || el.type === 'file') return;
+        const campos = [...document.querySelectorAll('input, select, textarea')].filter(el =>
+            el.id && !conservar.has(el.id) && el.type !== 'file' &&
+            !el.closest('.modal, dialog, #undo-reset'));
 
-            let cambio = false;
+        const restaurar = el => {
             if (el.type === 'checkbox' || el.type === 'radio') {
-                if (el.checked !== el.defaultChecked) { el.checked = el.defaultChecked; cambio = true; }
+                if (el.checked === el.defaultChecked) return false;
+                el.checked = el.defaultChecked;
             } else if (el.tagName === 'SELECT') {
                 const idx = [...el.options].findIndex(o => o.defaultSelected);
                 const destino = idx >= 0 ? idx : 0;
-                if (el.selectedIndex !== destino) { el.selectedIndex = destino; cambio = true; }
-            } else if (el.value !== el.defaultValue) {
+                if (el.selectedIndex === destino) return false;
+                el.selectedIndex = destino;
+            } else {
+                if (el.value === el.defaultValue) return false;
                 el.value = el.defaultValue;
-                cambio = true;
             }
+            return true;
+        };
 
+        // Primero se ponen TODOS los valores y después se avisa a los módulos: si se
+        // avisara campo por campo, un módulo que gradúa solo (p. ej. IM por VC) vuelve
+        // a escribir un campo ya restaurado con datos que todavía no se borraron. Por
+        // la misma razón se repite hasta que nada cambie (tope de 3 vueltas).
+        for (let vuelta = 0; vuelta < 3; vuelta++) {
+            const cambiados = campos.filter(restaurar);
+            if (!cambiados.length) break;
             // Sólo se notifica lo que cambió: así los módulos que escuchan (secciones
             // que se muestran u ocultan, badges de severidad) quedan sincronizados.
-            if (cambio) {
+            cambiados.forEach(el => {
                 const evento = (el.tagName === 'SELECT' || el.type === 'checkbox' || el.type === 'radio')
                     ? 'change' : 'input';
                 el.dispatchEvent(new Event(evento, { bubbles: true }));
-            }
-        });
+            });
+        }
     }
 
     /**
@@ -4617,29 +4631,27 @@ class UIController {
     /**
      * Borra el estudio en un solo clic, sin confirmación.
      *
-     * Antes preguntaba y después recargaba la página. Preguntar en cada borrado
-     * cuesta un clic en todos los estudios para evitar un accidente raro; y la
-     * recarga hacía imposible volver atrás. Ahora borra directo y deja unos
-     * segundos un "Deshacer" que devuelve el estudio tal como estaba.
+     * Borra directo, sin preguntar, y deja la página como recién abierta: cada
+     * campo vuelve a su valor de carga (no a vacío, porque varios arrancan con un
+     * valor normal o una opción que no es la primera), se avisa a cada módulo para
+     * que oculte sus cajas y badges, se vacía el informe y se sube al principio.
+     * Unos segundos queda un "Deshacer" que devuelve el estudio tal como estaba.
      */
     resetAll() {
         const previo = this._snapshotEstudio();
 
+        document.getElementById('report-conflict-dialog')?.remove();
         if (this.motility) this.motility.reset();
         sessionStorage.removeItem('motility-state');
         sessionStorage.removeItem('motility-pattern');
 
-        document.querySelectorAll('input, select, textarea').forEach(el => {
-            if (el.type === 'checkbox' || el.type === 'radio') el.checked = false;
-            else if (el.tagName === 'SELECT') el.selectedIndex = 0;
-            else el.value = '';
-        });
+        this._resetStudyFields({ todo: true });
 
-        this._indexedMeasurements.clear();
         this.reportEdited = false;
         this._reportSnapshot = null;
         this.calculateNow();
 
+        window.scrollTo({ top: 0, behavior: 'smooth' });
         this._ofrecerDeshacerBorrado(previo);
     }
 
@@ -4659,12 +4671,31 @@ class UIController {
     }
 
     _restaurarEstudio(previo) {
-        previo.campos.forEach(c => {
-            if (!c.el.isConnected) return;
-            if (c.el.type === 'checkbox' || c.el.type === 'radio') c.el.checked = c.checked;
-            else if (c.el.tagName === 'SELECT') c.el.selectedIndex = c.selectedIndex;
-            else c.el.value = c.value;
-        });
+        // Igual que al borrar: primero todos los valores, después los avisos, y se
+        // repite porque un módulo que gradúa solo puede pisar lo recién devuelto.
+        const devolver = c => {
+            if (!c.el.isConnected) return false;
+            if (c.el.type === 'checkbox' || c.el.type === 'radio') {
+                if (c.el.checked === c.checked) return false;
+                c.el.checked = c.checked;
+            } else if (c.el.tagName === 'SELECT') {
+                if (c.el.selectedIndex === c.selectedIndex) return false;
+                c.el.selectedIndex = c.selectedIndex;
+            } else {
+                if (c.el.value === c.value) return false;
+                c.el.value = c.value;
+            }
+            return true;
+        };
+        for (let vuelta = 0; vuelta < 3; vuelta++) {
+            const cambiados = previo.campos.filter(devolver).map(c => c.el);
+            if (!cambiados.length) break;
+            cambiados.forEach(el => {
+                const evento = (el.tagName === 'SELECT' || el.type === 'checkbox' || el.type === 'radio')
+                    ? 'change' : 'input';
+                el.dispatchEvent(new Event(evento, { bubbles: true }));
+            });
+        }
         if (this.motility && previo.motilidad) {
             this.motility.state = previo.motilidad;
             this.motility.pattern = previo.patron;
