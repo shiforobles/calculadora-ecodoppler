@@ -45,15 +45,15 @@ test('MCH: Lista y Narrativo del caso aprobado, Sheets y FA', options, async () 
         assert.equal(await page.locator('#mch_section').isVisible(), true);
         await cargar(page, MCH_CAMPOS);
         assert.equal(await page.evaluate(() => window.UIController.state.diastolicResult.mch.result), 'elevada');
-        assert.match(await page.textContent('#mch_summary'), /Resultado automático: Presiones de llenado del VI elevadas \(3 de 3/);
+        assert.match(await page.textContent('#mch_summary'), /Resultado automático: Presiones de llenado del VI elevadas según criterios para MCH \(3 de 3/);
 
         const lista = await report(page, 'lista');
         assert.match(lista, /Función Sistólica: FEy 68%/);
-        assert.match(lista, /MCH: Hipertrofia septal asimétrica, espesor máximo 21 mm \(septum basal\), relación SIV\/PP 2\.1\. SAM con contacto septal\. IM de jet posterior\. Sin aneurisma apical\./);
+        assert.match(lista, /MCH: Hipertrofia septal asimétrica, espesor máximo 21 mm \(septum basal\), relación septo\/PP 2\.1\. SAM con contacto septal\. IM de jet posterior\. Sin aneurisma apical\./);
         assert.match(lista, /TSVI: gradiente pico 18 mmHg en reposo; 62 mmHg con Valsalva\./);
         assert.match(lista, /Diástole \(criterios MCH\): E\/e′ promedio 16 \(>14\); Vmax IT 3\.0 m\/s \(>2\.8\); Vol\. AI 41 mL\/m² \(>34\)\./);
-        assert.match(lista, /\d\. Hallazgos compatibles con miocardiopatía hipertrófica septal asimétrica con obstrucción provocable, hemodinámicamente significativa \(gradiente máximo 62 mmHg\), con SAM y contacto septal\. Función sistólica del VI conservada\./);
-        assert.match(lista, /\d\. Presiones de llenado del VI elevadas \(3 de 3 criterios para MCH\)\. En presencia de insuficiencia mitral moderada/);
+        assert.match(lista, /\d\. Hallazgos compatibles con miocardiopatía hipertrófica septal asimétrica con obstrucción provocable, hemodinámicamente significativa \(gradiente pico del TSVI de 18 mmHg en reposo y de 62 mmHg con Valsalva\), con SAM y contacto septal\. Función sistólica del VI conservada\./);
+        assert.match(lista, /\d\. Presiones de llenado del VI elevadas según criterios para MCH \(3 de 3 positivos: E\/e′ promedio 16 >14; Vmax IT 3\.0 m\/s >2\.8; Vol\. AI 41 mL\/m² >34\)\. En presencia de insuficiencia mitral moderada/);
         assert.doesNotMatch(lista, /Disfunción Diastólica Grado|Función Diastólica Normal/);
 
         const narr = await report(page, 'narrativo');
@@ -63,6 +63,7 @@ test('MCH: Lista y Narrativo del caso aprobado, Sheets y FA', options, async () 
         assert.match(narr, /La función diastólica se evaluó con criterios específicos para miocardiopatía hipertrófica: E\/e′ promedio de 16/);
         assert.doesNotMatch(narr, /se identifica disfunción diastólica grado/);
         assert.doesNotMatch(narr, /espesores parietales conservados/);
+        assert.match(narr, /En síntesis, hallazgos compatibles con miocardiopatía hipertrófica septal asimétrica con obstrucción provocable, hemodinámicamente significativa \(gradiente pico del TSVI de 18 mmHg en reposo y de 62 mmHg con Valsalva\), con movimiento anterior sistólico mitral con contacto septal y función sistólica global preservada \(FEy 68%\)\. Presiones de llenado del ventrículo izquierdo elevadas según los criterios específicos para miocardiopatía hipertrófica \(3 de 3 criterios positivos\)\./);
         assert.match(narr, /el ventrículo izquierdo presenta diámetros conservados/);
         if (out) fs.writeFileSync(path.join(out, 'mch-informes.txt'), `LISTA\n\n${lista}\n\nNARRATIVO\n\n${narr}\n`);
 

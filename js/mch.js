@@ -61,11 +61,23 @@ class MCH {
         const o = this.obstruction(d.rest, d.valsalva);
         let s = `Hallazgos compatibles con miocardiopatía hipertrófica${d.pattern ? ' ' + d.pattern : ''}${this.obstructionPhrase(o)}`;
         if (conclusion) {
-            if (o.obstructive) s += ` (gradiente máximo ${this.fmt(o.max, 0)} mmHg)`;
+            const g = this.gradientDetail(o);
+            if (g) s += ` (${g})`;
             if (d.sam === 'contacto') s += ', con SAM y contacto septal';
             else if (d.sam === 'si') s += ', con SAM sin contacto septal';
+            else if (d.sam === 'no') s += ', sin SAM';
         }
         return s + '.';
+    }
+
+    /** "gradiente pico del TSVI de 30 mmHg en reposo y de 45 mmHg con Valsalva" */
+    static gradientDetail(o) {
+        const r = o.rest !== null ? `${this.fmt(o.rest, 0)} mmHg en reposo` : '';
+        const v = o.valsalva !== null ? `${this.fmt(o.valsalva, 0)} mmHg con Valsalva` : '';
+        if (r && v) return `gradiente pico del TSVI de ${r} y de ${v}`;
+        if (r) return `gradiente pico del TSVI de ${r}; Valsalva no realizado`;
+        if (v) return `gradiente pico del TSVI de ${v}`;
+        return '';
     }
 
     // ─── Diástole: criterios de MCH y presión media de AI ──────────────────
@@ -104,7 +116,8 @@ class MCH {
 
     /** Conclusión numerada (Lista y Narrativo). */
     static diastolicConclusion(r) {
-        const n = `(${r.pos} de ${r.measured} criterios para MCH)`;
+        const detalle = this.criteriaDetail(r, { bare: true });
+        const n = `según criterios para MCH (${r.pos} de ${r.measured} positivos${detalle ? ': ' + detalle : ''})`;
         const base = {
             'elevada': `Presiones de llenado del VI elevadas ${n}.`,
             'no-elevada': `Presiones de llenado del VI no elevadas ${n}.`,
@@ -123,14 +136,19 @@ class MCH {
         return `${c.inclusive ? '≥' : '>'}${String(c.threshold)}`;
     }
 
-    /** Línea del cuerpo en Lista: "E/e′ promedio 16 (>14); Vmax IT 3 m/s (>2.8); …" */
-    static diastolicListLine(r) {
-        const parts = r.criteria.filter(c => c.value !== null).map(c => {
-            if (c.excluded) return `${c.label} ${this.criterionValue(c)} (no válido por ${c.excluded})`;
+    /** "E/e′ promedio 16 (>14); Vmax IT 3.0 m/s (>2.8); …" — solo los criterios cargados */
+    static criteriaDetail(r, { bare = false } = {}) {
+        return r.criteria.filter(c => c.value !== null).map(c => {
+            if (c.excluded) return `${c.label} ${this.criterionValue(c)} ${bare ? '— ' : '('}no válido por ${c.excluded}${bare ? '' : ')'}`;
             const rel = c.state === 'pos' ? this.threshold(c) : `${c.inclusive ? '<' : '≤'}${c.threshold}`;
-            return `${c.label} ${this.criterionValue(c)} (${rel})`;
-        });
-        return parts.length ? `Diástole (criterios MCH): ${parts.join('; ')}.` : '';
+            return bare ? `${c.label} ${this.criterionValue(c)} ${rel}` : `${c.label} ${this.criterionValue(c)} (${rel})`;
+        }).join('; ');
+    }
+
+    /** Línea del cuerpo en Lista. */
+    static diastolicListLine(r) {
+        const d = this.criteriaDetail(r);
+        return d ? `Diástole (criterios MCH): ${d}.` : '';
     }
 
     /** Párrafo diastólico del Narrativo (sin punto final). */
@@ -145,12 +163,14 @@ class MCH {
         if (r.result === 'no-valorable') {
             return 'La función diastólica no resulta valorable con los criterios específicos para miocardiopatía hipertrófica por datos insuficientes';
         }
-        const list = usable.map(c => names[c.key](c));
-        const joined = list.length > 1 ? `${list.slice(0, -1).join(', ')} y ${list.at(-1)}` : list[0];
-        let s = `La función diastólica se evaluó con criterios específicos para miocardiopatía hipertrófica: ${joined}`;
-        if (r.pos === usable.length) s += usable.length > 1 ? ', todos por encima de los valores de referencia' : ', por encima del valor de referencia';
-        else if (r.pos === 0) s += usable.length > 1 ? ', todos dentro de los valores de referencia' : ', dentro del valor de referencia';
-        else s += ` (${r.pos} de ${usable.length} por encima de los valores de referencia)`;
+        const join = l => l.length > 1 ? `${l.slice(0, -1).join(', ')} y ${l.at(-1)}` : l[0];
+        const ref = (n, dentro) => (dentro ? 'dentro ' : 'por encima ') + (n > 1 ? 'de los valores de referencia' : 'del valor de referencia');
+        const P = usable.filter(c => c.state === 'pos').map(c => names[c.key](c));
+        const N = usable.filter(c => c.state === 'neg').map(c => names[c.key](c));
+        let s = 'La función diastólica se evaluó con criterios específicos para miocardiopatía hipertrófica: ';
+        if (!N.length) s += `${join(P)}, ${P.length > 1 ? 'todos ' : ''}${ref(P.length, false)}`;
+        else if (!P.length) s += `${join(N)}, ${N.length > 1 ? 'todos ' : ''}${ref(N.length, true)}`;
+        else s += `${join(P)} ${ref(P.length, false)}, con ${join(N)} ${ref(N.length, true)}`;
         s += {
             'elevada': ', hallazgos compatibles con presiones de llenado del ventrículo izquierdo elevadas',
             'no-elevada': ', hallazgos compatibles con presiones de llenado del ventrículo izquierdo no elevadas',
@@ -163,10 +183,33 @@ class MCH {
         return s;
     }
 
+    /** Párrafo de cierre del Narrativo: diagnóstico con gradientes + presiones de llenado. */
+    static narrativeSummary(d, r, systolic) {
+        const o = this.obstruction(d.rest, d.valsalva);
+        let s = this.diagnosis(d).replace(/^Hallazgos/, 'En síntesis, hallazgos').replace(/\.$/, '');
+        const g = this.gradientDetail(o);
+        if (g) s += ` (${g})`;
+        const extras = [];
+        if (d.sam === 'contacto') extras.push('movimiento anterior sistólico mitral con contacto septal');
+        else if (d.sam === 'si') extras.push('movimiento anterior sistólico mitral sin contacto septal');
+        if (d.apical === 'si') extras.push('aneurisma apical');
+        if (systolic) extras.push(systolic);
+        if (extras.length) s += `, con ${join2(extras)}`;
+        s += '.';
+        if (r) {
+            if (r.result === 'no-valorable') s += ' Presiones de llenado del ventrículo izquierdo no valorables por datos insuficientes.';
+            else s += ` Presiones de llenado del ventrículo izquierdo ${{ 'elevada': 'elevadas', 'no-elevada': 'no elevadas', 'indeterminada': 'indeterminadas' }[r.result]} según los criterios específicos para miocardiopatía hipertrófica (${r.pos} de ${r.measured} criterios positivos).`;
+        }
+        return s;
+        function join2(l) { return l.length > 1 ? `${l.slice(0, -1).join(', ')} y ${l.at(-1)}` : l[0]; }
+    }
+
     // ─── Morfología ────────────────────────────────────────────────────────
 
-    static ratio(siv, pp) {
-        const s = this.number(siv), p = this.number(pp);
+    /** Relación septo/pared posterior: con el espesor máximo si está en el septum; si no, SIV/PP. */
+    static ratio(siv, pp, thickness = null, location = '') {
+        const p = this.number(pp), t = this.number(thickness);
+        const s = t > 0 && /^septum/.test(location || '') ? t : this.number(siv);
         return s > 0 && p > 0 ? s / p : null;
     }
 
@@ -176,8 +219,8 @@ class MCH {
         if (d.pattern) parts.push(`hipertrofia ${d.pattern}`);
         const t = this.number(d.thickness);
         if (t !== null) parts.push(`espesor máximo ${this.fmt(t, 0)} mm${d.location ? ` (${d.location})` : ''}`);
-        const r = this.ratio(d.siv, d.pp);
-        if (r !== null) parts.push(`relación SIV/PP ${this.fmt(r, 1)}`);
+        const r = this.ratio(d.siv, d.pp, d.thickness, d.location);
+        if (r !== null) parts.push(`relación septo/PP ${this.fmt(r, 1)}`);
         const s = [];
         if (parts.length) s.push(parts.join(', ').replace(/^./, c => c.toUpperCase()) + '.');
         if (d.sam === 'contacto') s.push('SAM con contacto septal.');
@@ -205,7 +248,7 @@ class MCH {
     /** Oraciones de MCH que se agregan al párrafo del VI en Narrativo (después de la FEy). */
     static morphologyNarrative(d) {
         const s = [];
-        const t = this.number(d.thickness), r = this.ratio(d.siv, d.pp);
+        const t = this.number(d.thickness), r = this.ratio(d.siv, d.pp, d.thickness, d.location);
         if (t !== null) {
             let x = `El espesor parietal máximo es de ${this.fmt(t, 0)} mm${d.location ? ` a nivel del ${d.location}` : ''}`;
             if (r !== null) x += `, con una relación septo/pared posterior de ${this.fmt(r, 1)}`;

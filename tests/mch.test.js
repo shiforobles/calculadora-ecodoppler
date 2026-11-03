@@ -29,8 +29,9 @@ test('sin Valsalva nunca se escribe "no obstructiva"', () => {
 
 test('conclusión: gradiente máximo solo si es obstructiva, y SAM', () => {
     assert.equal(dxc('18', '62', { sam: 'contacto' }),
-        'Hallazgos compatibles con miocardiopatía hipertrófica septal asimétrica con obstrucción provocable, hemodinámicamente significativa (gradiente máximo 62 mmHg), con SAM y contacto septal.');
-    assert.equal(dxc('10', '15', { sam: 'no' }), 'Hallazgos compatibles con miocardiopatía hipertrófica septal asimétrica no obstructiva.');
+        'Hallazgos compatibles con miocardiopatía hipertrófica septal asimétrica con obstrucción provocable, hemodinámicamente significativa (gradiente pico del TSVI de 18 mmHg en reposo y de 62 mmHg con Valsalva), con SAM y contacto septal.');
+    assert.equal(dxc('10', '15', { sam: 'no' }), 'Hallazgos compatibles con miocardiopatía hipertrófica septal asimétrica no obstructiva (gradiente pico del TSVI de 10 mmHg en reposo y de 15 mmHg con Valsalva), sin SAM.');
+    assert.equal(dxc('20', ''), 'Hallazgos compatibles con miocardiopatía hipertrófica septal asimétrica, sin obstrucción del TSVI en reposo (no se realizó maniobra de Valsalva) (gradiente pico del TSVI de 20 mmHg en reposo; Valsalva no realizado).');
     assert.equal(MCH.diagnosis({ pattern: '', rest: '', valsalva: '' }), 'Hallazgos compatibles con miocardiopatía hipertrófica.');
 });
 
@@ -70,14 +71,14 @@ test('IM moderada o mayor: se cuenta igual y se advierte', () => {
     const r = MCH.diastolic({ ...base, mr: 'moderada' });
     assert.equal(r.result, 'elevada');
     assert.equal(MCH.diastolicConclusion(r),
-        'Presiones de llenado del VI elevadas (3 de 3 criterios para MCH). En presencia de insuficiencia mitral moderada, el volumen auricular y la velocidad tricuspídea pueden estar influidos por la regurgitación.');
+        'Presiones de llenado del VI elevadas según criterios para MCH (3 de 3 positivos: E/e′ promedio 16 >14; Vmax IT 3.0 m/s >2.8; Vol. AI 41 mL/m² >34). En presencia de insuficiencia mitral moderada, el volumen auricular y la velocidad tricuspídea pueden estar influidos por la regurgitación.');
     assert.doesNotMatch(MCH.diastolicConclusion(MCH.diastolic({ ...base, mr: 'leve' })), /insuficiencia mitral/);
 });
 
 test('líneas de Lista y párrafo narrativo del caso aprobado', () => {
     const d = { pattern: 'septal asimétrica', thickness: '21', location: 'septum basal', siv: '21', pp: '10', sam: 'contacto',
         jet: 'posterior', hasMr: true, mrLabel: 'moderada', apical: 'no', rest: '18', valsalva: '62', ...base, mr: 'moderada' };
-    assert.equal(MCH.morphologyListLine(d), 'MCH: Hipertrofia septal asimétrica, espesor máximo 21 mm (septum basal), relación SIV/PP 2.1. SAM con contacto septal. IM de jet posterior. Sin aneurisma apical.');
+    assert.equal(MCH.morphologyListLine(d), 'MCH: Hipertrofia septal asimétrica, espesor máximo 21 mm (septum basal), relación septo/PP 2.1. SAM con contacto septal. IM de jet posterior. Sin aneurisma apical.');
     assert.equal(MCH.obstructionListLine(d), 'TSVI: gradiente pico 18 mmHg en reposo; 62 mmHg con Valsalva.');
     assert.equal(MCH.obstructionListLine({ rest: '18' }), 'TSVI: gradiente pico 18 mmHg en reposo; Valsalva no realizado.');
     assert.equal(MCH.diastolicListLine(MCH.diastolic(d)), 'Diástole (criterios MCH): E/e′ promedio 16 (>14); Vmax IT 3.0 m/s (>2.8); Vol. AI 41 mL/m² (>34).');
@@ -86,6 +87,18 @@ test('líneas de Lista y párrafo narrativo del caso aprobado', () => {
         'Se observa movimiento anterior sistólico de la valva mitral con contacto septal, asociado a insuficiencia mitral moderada de jet posterior. ' +
         'El gradiente pico del tracto de salida del ventrículo izquierdo es de 18 mmHg en reposo y aumenta a 62 mmHg con la maniobra de Valsalva.');
     assert.match(MCH.diastolicNarrative(MCH.diastolic(d)), /todos por encima de los valores de referencia, hallazgos compatibles con presiones de llenado del ventrículo izquierdo elevadas/);
+});
+
+test('caso de Lucas (03/11): relación con espesor máximo septal, síntesis con presiones valoradas', () => {
+    const d = { pattern: 'concéntrica', thickness: '17', location: 'septum basal', siv: '9', pp: '9', sam: 'si',
+        rest: '30', valsalva: '45', E: '100', septal: '6', lateral: '7', tr: '1.5', lavi: '28' };
+    assert.match(MCH.morphologyNarrative(d), /relación septo\/pared posterior de 1\.9/);
+    assert.equal(MCH.ratio('9', '9', '17', 'ápex'), 1);   // espesor máximo fuera del septum: SIV/PP
+    const r = MCH.diastolic(d);
+    assert.match(MCH.diastolicNarrative(r), /E\/e′ promedio de 15\.4 por encima del valor de referencia, con velocidad de la insuficiencia tricuspídea de 1\.5 m\/s y volumen indexado de la aurícula izquierda de 28 mL\/m² dentro de los valores de referencia, hallazgos compatibles con presiones de llenado del ventrículo izquierdo no elevadas/);
+    assert.equal(MCH.narrativeSummary(d, r, 'función sistólica global preservada (FEy 60%)'),
+        'En síntesis, hallazgos compatibles con miocardiopatía hipertrófica concéntrica obstructiva en reposo (gradiente pico del TSVI de 30 mmHg en reposo y de 45 mmHg con Valsalva), con movimiento anterior sistólico mitral sin contacto septal y función sistólica global preservada (FEy 60%). ' +
+        'Presiones de llenado del ventrículo izquierdo no elevadas según los criterios específicos para miocardiopatía hipertrófica (1 de 3 criterios positivos).');
 });
 
 test('no inventa morfología: campos vacíos no aparecen', () => {

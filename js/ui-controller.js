@@ -3545,6 +3545,18 @@ class UIController {
             paragraphs.push('El pericardio se encuentra libre, sin derrame ni engrosamientos.');
         }
 
+        // MCH: párrafo de síntesis con los gradientes y las presiones de llenado valoradas
+        if (this.mch?.active) {
+            let sist = '';
+            if (fevi) {
+                const lim = sexo === 'M' ? 52 : 54;
+                const grado = fevi >= lim ? 'preservada' : fevi >= 41 ? 'levemente deprimida' : fevi >= 30 ? 'moderadamente deprimida' : 'severamente deprimida';
+                sist = `función sistólica global ${grado} (FEy ${fevi}%)`;
+            }
+            const drM = this.state.diastolicResult?.grade === 'MCH' ? this.state.diastolicResult.mch : null;
+            paragraphs.push(MCH.narrativeSummary(this.mch.data(), drM, sist));
+        }
+
         return `IMPRESIÓN DIAGNÓSTICA:\n${paragraphs.join('\n\n')}`;
     }
 

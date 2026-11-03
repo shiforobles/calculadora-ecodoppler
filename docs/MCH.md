@@ -51,6 +51,12 @@ general de la app.
   habitual (diámetros, motilidad, FEy; sin afirmar "espesores conservados") y termina
   con espesor máximo, relación septo/PP, aneurisma, SAM/IM y gradientes. El párrafo
   diastólico enumera los criterios y concluye la presión de llenado.
+- **Síntesis (Narrativo, desde 03/11):** párrafo final "En síntesis, hallazgos compatibles con…"
+  con los gradientes en reposo y con Valsalva, SAM, aneurisma, función sistólica y las
+  presiones de llenado ("n de m criterios positivos"). En Lista, las conclusiones 2 y 3
+  llevan el detalle de los gradientes y de cada criterio diastólico con su valor y umbral.
+- Relación septo/pared posterior: si el espesor máximo está en el septum, se calcula con
+  ese espesor; si no, con SIV/PP.
 - El modo IA queda bloqueado con MCH (todavía no incorpora estos datos).
 
 ## Guardado
