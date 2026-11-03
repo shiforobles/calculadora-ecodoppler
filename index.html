@@ -16,7 +16,7 @@
         rel="stylesheet">
 
     <!-- Styles -->
-    <link rel="stylesheet" href="styles.css?v=18.5">
+    <link rel="stylesheet" href="styles.css?v=18.7">
 </head>
 
 <body>
@@ -53,8 +53,36 @@
             </div>
         </header>
 
+        <nav class="quick-nav" aria-label="Ir a una sección">
+            <a class="quick-nav__chip" href="#sec-presets">Presets</a>
+            <a class="quick-nav__chip" href="#sec-paciente">Paciente</a>
+            <a class="quick-nav__chip" href="#sec-vi">VI y Diástole</a>
+            <a class="quick-nav__chip" href="#sec-ai">AI</a>
+            <a class="quick-nav__chip" href="#sec-septum">Septum / CIA</a>
+            <a class="quick-nav__chip" href="#sec-mitral">Mitral</a>
+            <a class="quick-nav__chip" href="#protesis_section">Prótesis</a>
+            <a class="quick-nav__chip" href="#sec-aortica">Aórtica y Aorta</a>
+            <a class="quick-nav__chip" href="#sec-derechas">Cav. Derechas</a>
+            <a class="quick-nav__chip" href="#sec-pericardio">Pericardio</a>
+            <a class="quick-nav__chip" href="#sec-informe">Informe</a>
+        </nav>
+
         <!-- Datos Físicos y Filiación -->
-        <section class="card">
+        <section class="card preset-section" id="sec-presets">
+            <h2 class="section-title">Carga Rápida — Presets</h2>
+            <div class="preset-row">
+                <select id="preset_selector" class="preset-select">
+                    <option value="">Elegir preset…</option>
+                </select>
+                <button type="button" id="btn_aplicar_preset" class="preset-btn preset-btn-green">Aplicar</button>
+                <button type="button" id="btn_admin_presets" class="preset-btn" title="Guardar, crear, restaurar o respaldar presets">⚙️ Administrar</button>
+            </div>
+            <p class="preset-help">
+                El preset completa el estudio y respeta los datos del paciente que ya cargaste.
+            </p>
+        </section>
+
+        <section class="card" id="sec-paciente">
             <h2 class="section-title">Datos del Paciente</h2>
             <div class="grid">
                 <div class="form-group">
@@ -88,19 +116,19 @@
                     <label for="bmi_display">IMC (Riesgo)</label>
                     <input type="text" id="bmi_display" class="calculated-value" disabled placeholder="—">
                 </div>
-                <div class="form-group" style="grid-column: 1 / -1;">
-                    <div id="bsa_alert_container"
-                        style="display:none; margin-top: 0.5rem; padding: 0.75rem; border-radius: 6px; font-weight: 500; font-size: 0.9rem; display: flex; align-items: center; gap: 0.5rem;">
-                        <span id="bsa_alert_icon"></span>
-                        <span id="bsa_alert_text"></span>
-                    </div>
-                </div>
                 <div class="form-group">
                     <label for="ventana">Calidad Ventana Acústica</label>
                     <select id="ventana">
                         <option value="no">Buena</option>
                         <option value="si">Mala Ventana (Limita evaluación)</option>
                     </select>
+                </div>
+                <div class="form-group" style="grid-column: 1 / -1;">
+                    <div id="bsa_alert_container"
+                        style="display:none; margin-top: 0.5rem; padding: 0.75rem; border-radius: 6px; font-weight: 500; font-size: 0.9rem; display: flex; align-items: center; gap: 0.5rem;">
+                        <span id="bsa_alert_icon"></span>
+                        <span id="bsa_alert_text"></span>
+                    </div>
                 </div>
             </div>
         </section>
@@ -175,22 +203,8 @@
         </section>
 
         <!-- Presets de carga rápida -->
-        <section class="card preset-section">
-            <h2 class="section-title">Carga Rápida — Presets</h2>
-            <div style="display:flex; gap:.5rem; align-items:center; flex-wrap:wrap;">
-                <select id="preset_selector" style="flex:1; min-width:200px; padding:.45rem .6rem; border:1px solid var(--color-border); border-radius:6px; font-family:inherit; font-size:.9rem;">
-                    <option value="">Elegir preset…</option>
-                </select>
-                <button type="button" id="btn_aplicar_preset" class="preset-btn preset-btn-green">Aplicar</button>
-                <button type="button" id="btn_admin_presets" class="preset-btn" title="Guardar, crear, restaurar o respaldar presets">⚙️ Administrar</button>
-            </div>
-            <p style="margin:.5rem 0 0; font-size:.78rem; opacity:.7;">
-                El preset completa el estudio y respeta los datos del paciente que ya cargaste.
-            </p>
-        </section>
-
         <!-- VI y Motilidad Parietal -->
-        <section class="card">
+        <section class="card" id="sec-vi">
             <h2 class="section-title">1. Ventrículo Izquierdo y Motilidad</h2>
 
             <div class="grid">
@@ -527,7 +541,7 @@
         </section>
 
         <!-- Aurícula Izquierda -->
-        <section class="card">
+        <section class="card" id="sec-ai">
             <h2 class="section-title">2. Aurícula Izquierda</h2>
             <div class="grid">
                 <div class="form-group">
@@ -568,7 +582,7 @@
         </section>
 
         <!-- Septum Interauricular (ASIA/FOP) -->
-        <section class="card">
+        <section class="card" id="sec-septum">
             <h2 class="section-title">3. Septum Interauricular</h2>
 
             <div class="checkbox-group" style="margin-bottom: 1rem;">
@@ -598,7 +612,7 @@
         </section>
 
         <!-- Válvula Mitral -->
-        <section class="card">
+        <section class="card" id="sec-mitral">
             <h2 class="section-title">4. Válvula Mitral</h2>
             <div class="grid">
                 <div class="form-group grid-span-2">
@@ -888,7 +902,7 @@
         </section>
 
         <!-- Válvula Aórtica y Aorta -->
-        <section class="card">
+        <section class="card" id="sec-aortica">
             <h2 class="section-title">6. Válvula Aórtica y Aorta</h2>
             <div class="grid">
                 <div class="form-group grid-span-2">
@@ -1122,7 +1136,7 @@
         </section>
 
         <!-- Cavidades Derechas y Válvulas -->
-        <section class="card">
+        <section class="card" id="sec-derechas">
             <h2 class="section-title">7. Cavidades Derechas y Válvulas</h2>
             <div class="grid">
                 <div class="form-group">
@@ -1388,7 +1402,7 @@
         </section>
 
         <!-- 6. Válvula Tricúspide (New Module v14.7) -->
-        <section class="card">
+        <section class="card" id="sec-pericardio">
             <h2 class="section-title">8. Pericardio</h2>
 
             <div class="checkbox-container"
@@ -1532,9 +1546,26 @@
                 <div id="qc_alerts"></div>
             </div>
         </section>
+        <!-- Área de Resultado -->
+        <section class="card" id="sec-informe">
+            <div class="report-header">
+                <h2 class="section-title" style="margin:0;">Informe Generado</h2>
+                <div class="report-mode-selector">
+                    <button id="mode_lista" class="mode-btn">Lista</button>
+                    <button id="mode_narrativo" class="mode-btn mode-btn-active">Narrativo</button>
+                    <button hidden id="mode_ia" class="mode-btn mode-btn-ia" title="Generar conclusión con Gemini AI">Gemini IA</button>
+                </div>
+            </div>
+            <textarea id="resultado" class="report-output"
+                placeholder="El informe compacto se generará aquí...&#10;&#10;Complete los datos del paciente y presione 'GENERAR INFORME'"></textarea>
+            <p id="report_status" class="report-status" role="status" hidden></p>
+        </section>
 
         <!-- Botones de Acción -->
         <section class="action-buttons">
+            <button id="btn_reset" class="btn btn-dock-clear">
+                <span>🗑️</span> BORRAR TODO
+            </button>
             <button id="btn_generate" class="btn btn-primary">
                 <span>📋</span> GENERAR INFORME
             </button>
@@ -1550,24 +1581,6 @@
             <button id="btn_sync_setup" class="btn btn-secondary" title="Configurar la sincronización con Google Sheets">
                 <span>⚙️</span> SINCRONIZAR
             </button>
-            <button id="btn_reset" class="btn btn-danger">
-                <span>🗑️</span> BORRAR TODO
-            </button>
-        </section>
-
-        <!-- Área de Resultado -->
-        <section class="card">
-            <div class="report-header">
-                <h2 class="section-title" style="margin:0;">Informe Generado</h2>
-                <div class="report-mode-selector">
-                    <button id="mode_lista" class="mode-btn">Lista</button>
-                    <button id="mode_narrativo" class="mode-btn mode-btn-active">Narrativo</button>
-                    <button hidden id="mode_ia" class="mode-btn mode-btn-ia" title="Generar conclusión con Gemini AI">Gemini IA</button>
-                </div>
-            </div>
-            <textarea id="resultado" class="report-output"
-                placeholder="El informe compacto se generará aquí...&#10;&#10;Complete los datos del paciente y presione 'GENERAR INFORME'"></textarea>
-            <p id="report_status" class="report-status" role="status" hidden></p>
         </section>
 
         <footer class="app-footer">
