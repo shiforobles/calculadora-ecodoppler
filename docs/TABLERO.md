@@ -1,33 +1,41 @@
 # Tablero — quién está tocando qué
 
 Única fuente de verdad del estado del proyecto. Lo actualiza cada IA al tomar y
-al terminar una tarea (ver `AGENTS.md`). Última actualización: 02/11/2026.
+al terminar una tarea (ver `AGENTS.md`).
 
-## Tareas abiertas
+Última actualización: 02/11/2026 22:40 · Claude (Coordinación) ·
+`main` publicado en https://shiforobles.github.io/calculadora-ecodoppler/
 
-| Tarea | Sección que toca | Quién | Rama | Estado / por dónde seguir |
-|---|---|---|---|---|
-| Refactor: extraer pericardio del informe | Pericardio (informe) | Claude (chat "Refactor") | sin rama: patch en ese chat | Hecho como patch sobre 69970cd, sin commit. Falta: rebasar sobre `main` actual, que Lucas lo revise, mergear |
-| Sección MCH | VI / diástole | Claude (chat "MCH") | — | Planificación. Prompt en el Project de Claude (`claude/prompt-mch.md`). Implementa después del pericardio |
-| Seguridad: planilla e historial Git | — (fuera del código) | Lucas | — | Despublicar la planilla y rotar Apps Script (`docs/CONFIGURACION-PRIVADA.md`); después limpiar historial. Sin force-push sin OK de Lucas |
+## Implementando ahora
 
-## Secciones ocupadas
+Nadie. (Regla: un solo asistente implementando a la vez.)
 
-Mientras una tarea esté abierta, nadie más toca su sección:
+## Trabajo existente fuera de `main` (sin terminar)
 
-- **VI / diástole / `hemodynamics.js`** → MCH
-- **Pericardio** y la estructura de `js/report/` → Refactor
+| Tarea | Responsable | Rama / PR | Estado | Pruebas | Próximo paso |
+|---|---|---|---|---|---|
+| Impresión PDF y ayudas visuales de carga | Codex | `codex/imprimir-pdf` · PR #1 (borrador) | 4 commits del 29–30/10, sobre una base vieja: 15 commits detrás de `main` y **con conflictos**. El PR dice "no hacer merge sin aprobación" | Según el PR: 186 + 9 + 15 en verde (sobre la base vieja) | 1) **Quitar nombre y matrícula escritos en el código**: deben salir de ⚙️ (regla desde 69970cd). 2) Rebasar sobre `main` y resolver conflictos. 3) Lucas aprueba. Ojo: el texto del PR #1 en GitHub muestra la matrícula |
+| Módulo MCH | Codex | `codex/modulo-mch` · sin PR | 1 commit del 01/11, base 3f03dfa: 4 commits detrás de `main` y **con conflictos** (`ui-controller.js`, `index.html`) | No verificadas en `main` | **Decidir con Lucas** si se sigue desde esta rama o desde el plan del chat "MCH" de Claude (`claude/prompt-mch.md`). No hacer las dos. Cambia criterios clínicos: requiere su revisión |
+| Refactor: extraer pericardio del informe | Claude (chat "Refactor") | sin rama: patch en ese chat | Hecho como patch sobre 69970cd, sin commit | 83 en verde según ese chat | Subir el patch a una rama (`refactor/pericardio`), rebasar sobre `main`, revisión de Lucas, merge |
+| Seguridad: planilla e historial Git | Lucas | — | Pendiente | — | Despublicar la planilla y rotar Apps Script (`docs/CONFIGURACION-PRIVADA.md`); después limpiar historial. Sin force-push sin OK de Lucas |
 
-Libres: todo lo demás, incluida la estética (`styles.css`).
+## Decisiones pendientes de Lucas
+
+1. MCH: ¿seguir la rama de Codex o el plan de Claude?
+2. Impresión PDF: ¿qué datos van en el membrete y de dónde salen? (hoy, escritos en el código).
+3. AI (Lanús): entre 41 y 42 ml/m² la calculadora Lanús y el informe usan límites distintos para leve/moderada (lo detectó Codex). Es un criterio clínico: decide Lucas.
 
 ## Orden previsto del refactor
 
 pericardio → septum → aurícula izquierda → cavidades derechas/IT → prótesis →
 aórtica → mitral → VI/diástole (después de MCH).
 
-## Hecho recientemente
+## Hecho y publicado
 
-| Fecha | Qué | PR | Quién |
-|---|---|---|---|
-| 02/11 | Borrar todo: sin preguntar, deja la página como recién abierta, sube arriba, cierra IT/motilidad | #2, #3 | Claude (Coordinación) |
-| 02/11 | Reglas comunes para todas las IAs (`AGENTS.md`) y este tablero | #4 | Claude (Coordinación) |
+| Fecha | Qué | Commit / PR | Quién | Verificado |
+|---|---|---|---|---|
+| 31/10 | Coherencia informe–datos: el informe no se copia ni se guarda con datos de otra revisión; diálogo de conflicto visible en claro y oscuro (rama `codex/coherencia-informe-ediciones`, ya borrada) | bd8d165 (d74f28c + b1e3200) | Codex + Claude | En `main` y publicado. 02/11: `report-browser`, `report-consistency`, `eco-rapido-editing` → 40/40 en verde |
+| 31/10 | Retiro de datos personales y configuración en el navegador | 69970cd | — | Publicado |
+| 02/11 | Borrar todo: sin preguntar, página como recién abierta, sube arriba, cierra IT/motilidad | #2, #3 · dee019b | Claude (Coordinación) | Publicado; `tests/reset-all.test.js` |
+| 02/11 | Reglas comunes (`AGENTS.md`) y este tablero | #4 · e35a007 | Claude (Coordinación) | Publicado (e35a007 en Pages) |
+| 02/11 | Reglas ampliadas (límites, borradores WIP, verificar despliegue) y estado real de las ramas | #5 | Claude (Coordinación) | ver PR |
