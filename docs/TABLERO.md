@@ -3,12 +3,16 @@
 Única fuente de verdad del estado del proyecto. Lo actualiza cada IA al tomar y
 al terminar una tarea (ver `AGENTS.md`).
 
-Última actualización: 02/11/2026 23:50 · Claude (chat MCH) ·
+Última actualización: 03/11/2026 00:05 · Claude (Estética v18.7) ·
 `main` publicado en https://shiforobles.github.io/calculadora-ecodoppler/
 
 ## Implementando ahora
 
 Nadie. (Regla: un solo asistente implementando a la vez.)
+
+| Tarea | Responsable | Rama / PR | Estado |
+|---|---|---|---|
+| Estética v18.7 | Claude (Estética) | `estetica/v18.7` · **PR #9** | Terminado, esperando que Lucas lo pruebe. Sólo visual: informe idéntico verificado por hash, 42/42 en verde, contraste 0 bajo 4.5:1 en ambos temas. El PR anota 5 decisiones conservadoras y un bug previo en `ui-aorta-display.js` (`--color-danger` no existe) |
 
 ## Trabajo existente fuera de `main` (sin terminar)
 
