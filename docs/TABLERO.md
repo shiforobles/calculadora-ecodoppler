@@ -3,21 +3,18 @@
 Única fuente de verdad del estado del proyecto. Lo actualiza cada IA al tomar y
 al terminar una tarea (ver `AGENTS.md`).
 
-Última actualización: 08/11/2026 02:35 · Claude (chat Diástole) ·
+Última actualización: 08/11/2026 03:05 · Claude (chat Diástole) ·
 `main` publicado en https://shiforobles.github.io/calculadora-ecodoppler/
 
 ## Implementando ahora
 
-| Tarea | Responsable | Rama | Desde |
-|---|---|---|---|
-| Diástole: alinear `classifyDiastolicFunction` con la Figura 3 ASE 2025 (ruta a parámetros adicionales, ≥1 positivo, grado III por E/A, PSAP, datos faltantes, exclusiones) — aprobado por Lucas 08/11 | Claude (chat Diástole) | `fix/diastole-ase2025` | 08/11 02:35 |
-
-(Regla: un solo asistente implementando a la vez.)
+Nadie. (Regla: un solo asistente implementando a la vez.)
 
 ## Trabajo existente fuera de `main` (sin terminar)
 
 | Tarea | Responsable | Rama / PR | Estado | Pruebas | Próximo paso |
 |---|---|---|---|---|---|
+| Diástole ASE 2025 (Figura 3): ruta a parámetros adicionales, ≥1 positivo, grado III por E/A, PSAP ≥35, exclusiones → "No valorable" | Claude (chat Diástole) | `fix/diastole-ase2025` · PR (ver GitHub) | Terminado 08/11, aprobado el cambio de criterio por Lucas | 67/67 diástole; suite 59/59 con navegador (Playwright); flujo probado con datos ficticios; informes de referencia sin cambios | Lucas prueba la vista previa y da OK → merge squash. Pendiente aparte: el narrativo de grado II dice "relajación alterada" aunque e′ sea normal (texto del informe, no se tocó) |
 | Impresión PDF y ayudas visuales de carga | Codex | `codex/imprimir-pdf` · PR #1 (borrador) | 4 commits del 29–30/10, sobre una base vieja: 15 commits detrás de `main` y **con conflictos**. El PR dice "no hacer merge sin aprobación" | Según el PR: 186 + 9 + 15 en verde (sobre la base vieja) | 1) **Quitar nombre y matrícula escritos en el código**: deben salir de ⚙️ (regla desde 69970cd). 2) Rebasar sobre `main` y resolver conflictos. 3) Lucas aprueba. Ojo: el texto del PR #1 en GitHub muestra la matrícula |
 | MCH simplificado | Claude (chat MCH) | `feat/mch` · **PR #7 (borrador)** · c66b5a1 | Terminado y ampliado 03/11 tras la prueba de Lucas: síntesis con gradientes y presiones, relación septo/PP con espesor máximo, patrón autocompletado, aviso de espesor (¿valoraste el TSVI?), lista de control, MCH conocida en Antecedentes, frase directa/compatible/sugestivo | 79/79 en verde; informes sin MCH idénticos | Lucas prueba la vista previa; revisión independiente con Claude Code (solo lectura); con su OK, merge. Sheets solo con estudio ficticio tras rotar Apps Script |
 | Módulo MCH (versión amplia) | Codex | `codex/modulo-mch` · sin PR | Reemplazada por `feat/mch` (base de trabajo) | — | Borrar la rama cuando se mergee #7 |
