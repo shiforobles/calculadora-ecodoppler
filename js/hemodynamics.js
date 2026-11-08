@@ -121,8 +121,8 @@ class HemodynamicsCalculator {
      * @returns {Object} { grade, description, severity }
      */
     classifyDiastolicFunction(params) {
-        const { E, A, ePrime, eSeptal, eLateral, LAVolIndex, TRVel = 0, LVEF = 60, ritmo = 'sinusal', context = {}, TRIV, TD, LARS, PVSD, age = 0, fc = 0 } = params;
-        const { bcri = false, mac = false, imSevera = false, mcp = false, valsalva = false, protesisMitral = false } = context;
+        const { E, A, ePrime, eSeptal, eLateral, LAVolIndex, TRVel = 0, PSAP, LVEF = 60, ritmo = 'sinusal', context = {}, TRIV, TD, LARS, PVSD, age = 0, fc = 0 } = params;
+        const { bcri = false, mac = false, imSevera = false, mcp = false, valsalva = false, protesisMitral = false, estenosisMitral = false, exclusion = '' } = context;
         const isFA = (ritmo === 'fa' || ritmo === 'flutter');
 
         // Prótesis mitral: el algoritmo diastólico general (flujo mitral, E/e') no es
@@ -132,6 +132,25 @@ class HemodynamicsCalculator {
             return {
                 grade: "No valorable",
                 description: "No valorable por el algoritmo general (prótesis mitral).",
+                severity: "neutral"
+            };
+        }
+
+        // Otras situaciones en las que la ASE 2025 excluye el algoritmo (Figura 3):
+        // estenosis mitral de cualquier grado, reparación mitral / TEER, constricción
+        // pericárdica, HP no cardíaca, trasplante cardíaco y asistencia ventricular.
+        const EXCLUSIONES = {
+            reparacion_mitral: 'reparación mitral o TEER',
+            constriccion:      'constricción pericárdica',
+            hp_no_cardiaca:    'hipertensión pulmonar no cardíaca',
+            trasplante:        'trasplante cardíaco',
+            lvad:              'asistencia ventricular izquierda',
+        };
+        const motivoExclusion = estenosisMitral ? 'estenosis mitral' : (EXCLUSIONES[exclusion] || null);
+        if (motivoExclusion) {
+            return {
+                grade: "No valorable",
+                description: `No valorable por el algoritmo general (${motivoExclusion}).`,
                 severity: "neutral"
             };
         }
@@ -188,7 +207,9 @@ class HemodynamicsCalculator {
         }
 
         // 3. Increased TR velocity >= 2.8 m/s or PASP >= 35 mm Hg
-        let trAbnormal = (TRVel !== null && TRVel >= 2.8);
+        // (la PSAP llega calculada con la PAD estimada por VCI)
+        let trAbnormal = (TRVel !== null && TRVel >= 2.8) ||
+                         (!isNaN(PSAP) && PSAP > 0 && TRVel > 0 && PSAP >= 35);
 
         // Warnings — only clinically relevant modifiers (not "Guía 2025")
         const warnings = [];
@@ -253,8 +274,19 @@ class HemodynamicsCalculator {
             }
         }
 
-        // --- SINUS RHYTHM ALGORITHM 2025 ---
-        
+        // --- SINUS RHYTHM ALGORITHM 2025 (Figura 3, Nagueh et al. JASE 2025) ---
+
+        // La Figura 3 no se aplica con MAC moderado-severo ni con IM severa primaria:
+        // e', E/e' y LAVi quedan contaminados por la enfermedad valvular. Antes se
+        // anulaban esos criterios y se contaban como normales, y el resultado podía
+        // salir "Normal" sin haber evaluado nada.
+        if (mac) {
+            return { grade: "No valorable", description: "No valorable por el algoritmo general (calcificación del anillo mitral).", severity: "neutral" };
+        }
+        if (imSevera) {
+            return { grade: "No valorable", description: "No valorable por el algoritmo general (insuficiencia mitral severa).", severity: "neutral" };
+        }
+
         // Special case: Supernormal pattern (Athletic heart)
         if (EARatio > 2 && ePrime >= 9) {
             return { grade: "Normal", description: `Función Diastólica Normal (Patrón Atleta). Presiones de llenado VI normales.${warnings.length ? ' [' + warnings.join('; ') + '].' : ''}`, severity: "green" };
@@ -267,65 +299,69 @@ class HemodynamicsCalculator {
 
         const warnSuffix = warnings.length ? ` [${warnings.join('; ')}].` : '';
 
-        // If 3 of the above present
-        if (mainCriteriaCount === 3) {
+        // Grado según E/A una vez establecida la presión de AI elevada (<2 → II, ≥2 → III)
+        const elevatedLAP = (source) => {
+            const src = source ? ` ${source}` : '';
             if (EARatio >= 2) {
-                let gradeIIIDesc = `Disfunción Diastólica Grado III (↑↑↑LAP marcada). Presiones de llenado VI marcadamente elevadas.${warnSuffix}`;
-                if (tdShort) gradeIIIDesc = gradeIIIDesc.replace('marcadamente elevadas.', `marcadamente elevadas. TD acortado (${TD} ms) corrobora patrón restrictivo.`);
-                return { grade: "III", description: gradeIIIDesc, severity: "red" };
-            } else {
-                return { grade: "II", description: `Disfunción Diastólica Grado II (↑↑LAP leve-moderada). Presiones de llenado VI elevadas.${warnSuffix}`, severity: "red" };
+                let d = `Disfunción Diastólica Grado III (↑↑↑LAP marcada). Presiones de llenado VI marcadamente elevadas${src}.`;
+                if (tdShort) d += ` TD acortado (${TD} ms) corrobora patrón restrictivo.`;
+                return { grade: "III", description: d + warnSuffix, severity: "red" };
             }
-        }
+            return { grade: "II", description: `Disfunción Diastólica Grado II (↑↑LAP leve-moderada). Presiones de llenado VI elevadas${src}.${warnSuffix}`, severity: "red" };
+        };
 
-        // If all 3 normal
+        // Los 3 criterios alterados → presión de AI elevada
+        if (mainCriteriaCount === 3) return elevatedLAP('');
+
+        // Los 3 normales → función diastólica normal
         if (mainCriteriaCount === 0) {
             return { grade: "Normal", description: `Función Diastólica Normal. Presiones de llenado VI normales.${warnSuffix}`, severity: "green" };
         }
 
-        // If 1 or 2 present
-        if (EARatio <= 0.8) {
+        // Solo e' reducido con E/A ≤0.8 → Grado I directo. Si lo alterado es E/e',
+        // la IT/PSAP o dos criterios cualesquiera, se pasa a los parámetros
+        // adicionales aunque E/A sea ≤0.8.
+        const ePrimeOnly = mainCriteriaCount === 1 && ePrimeAbnormal;
+        if (ePrimeOnly && EARatio <= 0.8) {
             return { grade: "I", description: `Disfunción Diastólica Grado I (Relajación Prolongada). Presiones de llenado VI normales.${warnSuffix}`, severity: "green" };
-        } 
-        
-        if (EARatio > 0.8) {
-            // Check for Increased LAP using additional parameters
-            let additionalEvidenceLAP = null;
-            let sourceLAP = "";
-            
-            if (!isNaN(PVSD) && PVSD > 0) {
-                additionalEvidenceLAP = PVSD <= 0.67;
-                sourceLAP = "(por Venas Pulmonares)";
-            } else if (!isNaN(LARS) && LARS > 0) {
-                additionalEvidenceLAP = LARS <= 18;
-                sourceLAP = "(por LARS)";
-            } else if (!isNaN(LAVolIndex) && LAVolIndex > 0) {
-                additionalEvidenceLAP = LAVolIndex > 34;
-                sourceLAP = "(por LAVi)";
-            } else if (trivPositive || trivNegative) {
-                additionalEvidenceLAP = trivPositive;
-                sourceLAP = "(por TRIV)";
-            } else if (valsalva) {
-                // Valsalva + as additional evidence
-                additionalEvidenceLAP = true;
-                sourceLAP = "(por Valsalva)";
-            }
-
-            if (additionalEvidenceLAP === true) {
-                return { grade: "II", description: `Disfunción Diastólica Grado II (↑↑LAP leve-moderada). Presiones de llenado VI elevadas ${sourceLAP}.${warnSuffix}`, severity: "red" };
-            } else if (additionalEvidenceLAP === false) {
-                if (mainCriteriaCount === 1 && ePrimeAbnormal) {
-                    return { grade: "Normal", description: `Función Diastólica Normal (o Grado I si sintomático). Presiones de llenado VI normales. Considerar test de esfuerzo.${warnSuffix}`, severity: "green" };
-                } else {
-                    return { grade: "I", description: `Disfunción Diastólica Grado I. Presiones de llenado VI normales.${warnSuffix}`, severity: "green" };
-                }
-            } else {
-                // Cannot determine from additional parameters
-                return { grade: "Indeterminado", description: `Función Diastólica Indeterminada. Datos insuficientes de parámetros secundarios (LARS, V. Pulmonares, LAVi) para determinar presión de llenado.${warnSuffix}`, severity: "yellow" };
-            }
         }
 
-        return { grade: "Indeterminado", description: `Función Diastólica Indeterminada.${warnSuffix}`, severity: "yellow" };
+        // Parámetros adicionales: alcanza con UNO positivo (S/D venas pulmonares
+        // ≤0.67, LARS ≤18%, LAVi >34). Se miran todos los cargados, no el primero.
+        const extra = [];
+        if (!isNaN(PVSD) && PVSD > 0)             extra.push({ name: 'Venas Pulmonares', pos: PVSD <= 0.67 });
+        if (!isNaN(LARS) && LARS > 0)             extra.push({ name: 'LARS', pos: LARS <= 18 });
+        if (!isNaN(LAVolIndex) && LAVolIndex > 0) extra.push({ name: 'LAVi', pos: LAVolIndex > 34 });
+
+        let lapElevated = null;
+        let sourceLAP = '';
+        if (extra.length) {
+            const positives = extra.filter(x => x.pos).map(x => x.name);
+            lapElevated = positives.length > 0;
+            if (lapElevated) sourceLAP = `(por ${positives.join(' y ')})`;
+        } else if (trivPositive || trivNegative) {
+            // Alternativa cuando no hay ninguno de los tres
+            lapElevated = trivPositive;
+            sourceLAP = '(por TRIV)';
+        } else if (valsalva) {
+            // Método suplementario: caída de E/A ≥50% con Valsalva
+            lapElevated = true;
+            sourceLAP = '(por Valsalva)';
+        }
+
+        if (lapElevated === true) return elevatedLAP(sourceLAP);
+
+        if (lapElevated === false) {
+            // Presión de AI normal: grado I si la relajación está alterada (e' bajo),
+            // normal si no.
+            if (ePrimeAbnormal) {
+                const sint = ePrimeOnly ? ' Si hay síntomas, considerar eco de esfuerzo diastólico.' : '';
+                return { grade: "I", description: `Disfunción Diastólica Grado I. Presiones de llenado VI normales.${sint}${warnSuffix}`, severity: "green" };
+            }
+            return { grade: "Normal", description: `Función Diastólica Normal. Presiones de llenado VI normales.${warnSuffix}`, severity: "green" };
+        }
+
+        return { grade: "Indeterminado", description: `Función Diastólica Indeterminada. Datos insuficientes de parámetros secundarios (LARS, V. Pulmonares, LAVi) para determinar presión de llenado.${warnSuffix}`, severity: "yellow" };
     }
 
     /**

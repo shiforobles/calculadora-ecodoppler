@@ -350,7 +350,7 @@ class UIController {
             'peso', 'altura', 'sexo',
             'siv', 'pp', 'ddvi', 'fevi',
             'onda_e', 'onda_a', 'onda_e_prime_septal', 'onda_e_prime_lateral',
-            'ctx_bcri', 'ctx_mac', 'ctx_im', 'ctx_mcp', 'ctx_valsalva',
+            'ctx_bcri', 'ctx_mac', 'ctx_im', 'ctx_mcp', 'ctx_valsalva', 'diast_exclusion', 'em_grado',
             'vol_ai', 'vel_it', 'pad', 'paat', 'triv', 'td',
             'lvot_diam', 'lvot_vti', 'fc',
             'motilidad_global',
@@ -886,6 +886,9 @@ class UIController {
             // Prótesis mitral → el algoritmo diastólico general no aplica (ASE)
             protesisMitral: (document.getElementById('prot_check')?.checked || false) &&
                             (document.getElementById('prot_posicion')?.value === 'mitral'),
+            // Estenosis mitral de cualquier grado → la ASE excluye el algoritmo
+            estenosisMitral: (document.getElementById('em_grado')?.value || 'no') !== 'no',
+            exclusion: document.getElementById('diast_exclusion')?.value || '',
         };
 
         // Update E/A ratio
@@ -916,10 +919,14 @@ class UIController {
         const PVSD = parseFloat(document.getElementById('diast_pvsd')?.value);
         const age  = parseFloat(document.getElementById('edad')?.value) || 0;
         const fc   = parseFloat(document.getElementById('fc')?.value) || 0;
+        // PSAP con la PAD estimada por VCI (mismo cálculo que calculatePSAP):
+        // la ASE usa PSAP ≥35 como alternativa a IT ≥2.8 m/s
+        const rapDiast = parseFloat(document.getElementById('pad')?.value) || 5;
+        const PSAP = (TRVel > 0) ? this.calc.calculatePSAP(TRVel, rapDiast) : NaN;
 
         // Classify diastolic function
         this.state.diastolicResult = this.calc.classifyDiastolicFunction({
-            E, A, ePrime, eSeptal, eLateral, LAVolIndex, TRVel, LVEF, wallMotion, ritmo, context, TRIV, TD, LARS, PVSD, age, fc
+            E, A, ePrime, eSeptal, eLateral, LAVolIndex, TRVel, PSAP, LVEF, wallMotion, ritmo, context, TRIV, TD, LARS, PVSD, age, fc
         });
 
         // Update semaphore display
