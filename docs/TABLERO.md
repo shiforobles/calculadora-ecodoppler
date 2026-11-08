@@ -3,12 +3,16 @@
 Única fuente de verdad del estado del proyecto. Lo actualiza cada IA al tomar y
 al terminar una tarea (ver `AGENTS.md`).
 
-Última actualización: 03/11/2026 20:40 · Claude (chat MCH) ·
+Última actualización: 08/11/2026 02:35 · Claude (chat Diástole) ·
 `main` publicado en https://shiforobles.github.io/calculadora-ecodoppler/
 
 ## Implementando ahora
 
-Nadie. (Regla: un solo asistente implementando a la vez.)
+| Tarea | Responsable | Rama | Desde |
+|---|---|---|---|
+| Diástole: alinear `classifyDiastolicFunction` con la Figura 3 ASE 2025 (ruta a parámetros adicionales, ≥1 positivo, grado III por E/A, PSAP, datos faltantes, exclusiones) — aprobado por Lucas 08/11 | Claude (chat Diástole) | `fix/diastole-ase2025` | 08/11 02:35 |
+
+(Regla: un solo asistente implementando a la vez.)
 
 ## Trabajo existente fuera de `main` (sin terminar)
 
