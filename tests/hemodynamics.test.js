@@ -5,8 +5,12 @@
  * la app) y no tenía ninguna prueba. Esta batería caracteriza el comportamiento
  * ACTUAL de las dos ramas:
  *   - FA  : 3 criterios (E/e' septal ≥11, IT >2.8, Vol AI >34), umbral ≥2.
- *   - Sinusal 2025: 3 criterios mayores (e' bajo, E/e' alto, IT ≥2.8) + E/A +
- *     evidencia secundaria (VP, LARS, LAVi, TRIV, Valsalva).
+ *   - Sinusal 2025 (Figura 3): 3 criterios (e' bajo, E/e' alto, IT ≥2.8 o PSAP ≥35);
+ *     solo "e' bajo" + E/A ≤0.8 da Grado I directo; el resto pasa a parámetros
+ *     adicionales (≥1 positivo entre VP, LARS, LAVi; si no hay, TRIV; si no,
+ *     Valsalva) y el grado sale de E/A (<2 → II, ≥2 → III).
+ *   - Exclusiones ASE: prótesis/reparación mitral, estenosis mitral, MAC, IM severa,
+ *     constricción, HP no cardíaca, trasplante, LVAD → "No valorable".
  *
  * No se cubre R9 (fallback inalcanzable: en sinusal E/A siempre es ≤0.8 o >0.8).
  * Correr con: node tests/hemodynamics.test.js
@@ -86,30 +90,36 @@ const casos = [
     { bloque: 'SINUSAL · BORDES', nombre: "e' promedio 7.0 (no <7, solo prom) → Normal",
       params: sinus({ eSeptal: NaN, eLateral: NaN, ePrime: 7.0, E: 50, A: 70 }), grade: 'Normal' },
     // E/e' septal ≥15
-    { bloque: 'SINUSAL · BORDES', nombre: "E/e' septal 15.0 (≥15) → cuenta criterio (Grado I)",
-      params: sinus({ E: 150, A: 90, eSeptal: 10, eLateral: 14, TRVel: 2.0 }), grade: 'I' },
+    // Con LAVi 40: si el criterio cuenta, pasa a parámetros adicionales → Grado II
+    { bloque: 'SINUSAL · BORDES', nombre: "E/e' septal 15.0 (≥15) → cuenta criterio (LAVi 40 → Grado II)",
+      params: sinus({ E: 150, A: 90, eSeptal: 10, eLateral: 14, TRVel: 2.0, LAVolIndex: 40 }), grade: 'II' },
     { bloque: 'SINUSAL · BORDES', nombre: "E/e' septal 14.9 (no ≥15) → Normal",
-      params: sinus({ E: 149, A: 90, eSeptal: 10, eLateral: 14, TRVel: 2.0 }), grade: 'Normal' },
+      params: sinus({ E: 149, A: 90, eSeptal: 10, eLateral: 14, TRVel: 2.0, LAVolIndex: 40 }), grade: 'Normal' },
     // E/e' lateral ≥13
-    { bloque: 'SINUSAL · BORDES', nombre: "E/e' lateral 13.0 (≥13) → cuenta criterio (Grado I)",
-      params: sinus({ E: 130, A: 90, eSeptal: 14, eLateral: 10, TRVel: 2.0 }), grade: 'I' },
+    { bloque: 'SINUSAL · BORDES', nombre: "E/e' lateral 13.0 (≥13) → cuenta criterio (LAVi 40 → Grado II)",
+      params: sinus({ E: 130, A: 90, eSeptal: 14, eLateral: 10, TRVel: 2.0, LAVolIndex: 40 }), grade: 'II' },
     { bloque: 'SINUSAL · BORDES', nombre: "E/e' lateral 12.9 (no ≥13) → Normal",
-      params: sinus({ E: 129, A: 90, eSeptal: 14, eLateral: 10, TRVel: 2.0 }), grade: 'Normal' },
+      params: sinus({ E: 129, A: 90, eSeptal: 14, eLateral: 10, TRVel: 2.0, LAVolIndex: 40 }), grade: 'Normal' },
     // E/e' promedio ≥14 — solo alcanzable con UN e' cargado (redundante con sept/lat)
-    { bloque: 'SINUSAL · BORDES', nombre: "E/e' promedio 14.0 (solo septal) → cuenta criterio (Grado I)",
-      params: sinus({ eSeptal: 10, eLateral: NaN, ePrime: 10, E: 140, A: 90, TRVel: 2.0 }), grade: 'I' },
+    { bloque: 'SINUSAL · BORDES', nombre: "E/e' promedio 14.0 (solo septal) → cuenta criterio (LAVi 40 → Grado II)",
+      params: sinus({ eSeptal: 10, eLateral: NaN, ePrime: 10, E: 140, A: 90, TRVel: 2.0, LAVolIndex: 40 }), grade: 'II' },
     { bloque: 'SINUSAL · BORDES', nombre: "E/e' promedio 13.9 (solo septal) → Normal",
-      params: sinus({ eSeptal: 10, eLateral: NaN, ePrime: 10, E: 139, A: 90, TRVel: 2.0 }), grade: 'Normal' },
+      params: sinus({ eSeptal: 10, eLateral: NaN, ePrime: 10, E: 139, A: 90, TRVel: 2.0, LAVolIndex: 40 }), grade: 'Normal' },
     // IT ≥2.8
-    { bloque: 'SINUSAL · BORDES', nombre: 'IT 2.8 (≥2.8) → cuenta criterio (Grado I)',
-      params: sinus({ E: 80, A: 60, eSeptal: 9, eLateral: 11, TRVel: 2.8 }), grade: 'I' },
-    { bloque: 'SINUSAL · BORDES', nombre: 'IT 2.79 (no ≥2.8) → Normal',
-      params: sinus({ E: 80, A: 60, eSeptal: 9, eLateral: 11, TRVel: 2.79 }), grade: 'Normal' },
+    { bloque: 'SINUSAL · BORDES', nombre: 'IT 2.8 (≥2.8) → cuenta criterio (LAVi 40 → Grado II)',
+      params: sinus({ E: 80, A: 60, eSeptal: 9, eLateral: 11, TRVel: 2.8, LAVolIndex: 40 }), grade: 'II' },
+    { bloque: 'SINUSAL · BORDES', nombre: 'IT 2.79 (no ≥2.8, sin PSAP) → Normal',
+      params: sinus({ E: 80, A: 60, eSeptal: 9, eLateral: 11, TRVel: 2.79, LAVolIndex: 40 }), grade: 'Normal' },
+    // PSAP ≥35 (con PAD estimada) como alternativa a IT ≥2.8
+    { bloque: 'SINUSAL · BORDES', nombre: 'IT 2.6 + PSAP 37 (≥35) → cuenta criterio (LAVi 40 → Grado II)',
+      params: sinus({ E: 80, A: 60, eSeptal: 9, eLateral: 11, TRVel: 2.6, PSAP: 37, LAVolIndex: 40 }), grade: 'II' },
+    { bloque: 'SINUSAL · BORDES', nombre: 'IT 2.6 + PSAP 34 (no ≥35) → Normal',
+      params: sinus({ E: 80, A: 60, eSeptal: 9, eLateral: 11, TRVel: 2.6, PSAP: 34, LAVolIndex: 40 }), grade: 'Normal' },
     // E/A ≤0.8 (Grado I) vs >0.8
     { bloque: 'SINUSAL · BORDES', nombre: 'E/A 0.80 (≤0.8) → Grado I (relajación)',
       params: sinus({ E: 56, A: 70, eSeptal: 5, eLateral: 11 }), grade: 'I', incluye: ['Relajación'] },
-    { bloque: 'SINUSAL · BORDES', nombre: 'E/A 0.81 (>0.8) · 1 criterio e\' · 2º negativo → Normal/test esfuerzo',
-      params: sinus({ E: 57, A: 70, eSeptal: 5, eLateral: 11 }), grade: 'Normal', incluye: ['test de esfuerzo'] },
+    { bloque: 'SINUSAL · BORDES', nombre: 'E/A 0.81 (>0.8) · solo e\' bajo · adicionales negativos → Grado I + eco de esfuerzo',
+      params: sinus({ E: 57, A: 70, eSeptal: 5, eLateral: 11 }), grade: 'I', incluye: ['eco de esfuerzo diastólico'] },
     // E/A ≥2 (Grado III) vs <2 (Grado II), con 3 criterios
     { bloque: 'SINUSAL · BORDES', nombre: 'E/A 2.00 (≥2) + 3 criterios → Grado III',
       params: sinus({ E: 100, A: 50, eSeptal: 5, eLateral: 7, TRVel: 3.0 }), grade: 'III' },
@@ -118,36 +128,78 @@ const casos = [
     // LAVi >34 como evidencia 2ª
     { bloque: 'SINUSAL · BORDES', nombre: 'LAVi 35 (>34) → evidencia (+) → Grado II',
       params: sinus({ E: 70, A: 60, eSeptal: 5, eLateral: 11, LAVolIndex: 35 }), grade: 'II', incluye: ['por LAVi'] },
-    { bloque: 'SINUSAL · BORDES', nombre: 'LAVi 34 (no >34) → evidencia (−) → Normal',
-      params: sinus({ E: 70, A: 60, eSeptal: 5, eLateral: 11, LAVolIndex: 34 }), grade: 'Normal' },
+    { bloque: 'SINUSAL · BORDES', nombre: 'LAVi 34 (no >34) → evidencia (−) → Grado I (e\' bajo)',
+      params: sinus({ E: 70, A: 60, eSeptal: 5, eLateral: 11, LAVolIndex: 34 }), grade: 'I' },
     // PVSD ≤0.67
     { bloque: 'SINUSAL · BORDES', nombre: 'PVSD 0.67 (≤0.67) → evidencia (+) → Grado II',
       params: sinus({ E: 70, A: 60, eSeptal: 5, eLateral: 11, PVSD: 0.67 }), grade: 'II', incluye: ['Venas Pulmonares'] },
-    { bloque: 'SINUSAL · BORDES', nombre: 'PVSD 0.68 (no ≤0.67) → evidencia (−) → Normal',
-      params: sinus({ E: 70, A: 60, eSeptal: 5, eLateral: 11, PVSD: 0.68 }), grade: 'Normal' },
+    { bloque: 'SINUSAL · BORDES', nombre: 'PVSD 0.68 (no ≤0.67) → evidencia (−) → Grado I (e\' bajo)',
+      params: sinus({ E: 70, A: 60, eSeptal: 5, eLateral: 11, PVSD: 0.68 }), grade: 'I' },
     // LARS ≤18
     { bloque: 'SINUSAL · BORDES', nombre: 'LARS 18 (≤18) → evidencia (+) → Grado II',
       params: sinus({ E: 70, A: 60, eSeptal: 5, eLateral: 11, PVSD: NaN, LARS: 18 }), grade: 'II', incluye: ['LARS'] },
-    { bloque: 'SINUSAL · BORDES', nombre: 'LARS 18.1 (no ≤18) → evidencia (−) → Normal',
-      params: sinus({ E: 70, A: 60, eSeptal: 5, eLateral: 11, PVSD: NaN, LARS: 18.1 }), grade: 'Normal' },
+    { bloque: 'SINUSAL · BORDES', nombre: 'LARS 18.1 (no ≤18) → evidencia (−) → Grado I (e\' bajo)',
+      params: sinus({ E: 70, A: 60, eSeptal: 5, eLateral: 11, PVSD: NaN, LARS: 18.1 }), grade: 'I' },
     // TRIV ≤70 (positivo) / ≥100 (negativo)
     { bloque: 'SINUSAL · BORDES', nombre: 'TRIV 70 (≤70) → evidencia (+) → Grado II',
       params: sinus({ E: 70, A: 60, eSeptal: 5, eLateral: 11, PVSD: NaN, LARS: NaN, LAVolIndex: NaN, TRIV: 70 }), grade: 'II', incluye: ['TRIV'] },
-    { bloque: 'SINUSAL · BORDES', nombre: 'TRIV 100 (≥100) → evidencia (−) → Normal',
-      params: sinus({ E: 70, A: 60, eSeptal: 5, eLateral: 11, PVSD: NaN, LARS: NaN, LAVolIndex: NaN, TRIV: 100 }), grade: 'Normal' },
+    { bloque: 'SINUSAL · BORDES', nombre: 'TRIV 100 (≥100) → evidencia (−) → Grado I (e\' bajo)',
+      params: sinus({ E: 70, A: 60, eSeptal: 5, eLateral: 11, PVSD: NaN, LARS: NaN, LAVolIndex: NaN, TRIV: 100 }), grade: 'I' },
     // Atleta: e' ≥9
     { bloque: 'SINUSAL · BORDES', nombre: "Atleta e' 9.0 (≥9) → Normal (Atleta)",
       params: sinus({ E: 120, A: 50, eSeptal: 9, eLateral: 9 }), grade: 'Normal', incluye: ['Atleta'] },
-    { bloque: 'SINUSAL · BORDES', nombre: "e' 8.9 (no ≥9) con E/A >2 → NO atleta (Grado I)",
-      params: sinus({ E: 120, A: 50, eSeptal: 8.9, eLateral: 8.9 }), grade: 'I', excluye: ['Atleta'] },
+    { bloque: 'SINUSAL · BORDES', nombre: "e' 8.9 (no ≥9) con E/A >2 → NO atleta (solo E/e' lat, LAVi normal → Normal)",
+      params: sinus({ E: 120, A: 50, eSeptal: 8.9, eLateral: 8.9 }), grade: 'Normal', excluye: ['Atleta'] },
+
+    // ──────────────── SINUSAL · FIGURA 3 ASE 2025 (correcciones 08/11) ────────────────
+    { bloque: 'SINUSAL · FIGURA 3', nombre: "e' bajo + IT 3.0 con E/A 0.7 → NO va directo a Grado I; LAVi 45 → Grado II",
+      params: sinus({ E: 56, A: 80, eSeptal: 5, eLateral: 6, TRVel: 3.0, LAVolIndex: 45 }), grade: 'II', incluye: ['por LAVi'] },
+    { bloque: 'SINUSAL · FIGURA 3', nombre: "e' bajo + IT 3.0 con E/A 0.7 · adicionales negativos → Grado I",
+      params: sinus({ E: 56, A: 80, eSeptal: 5, eLateral: 6, TRVel: 3.0, LAVolIndex: 28 }), grade: 'I', excluye: ['eco de esfuerzo'] },
+    { bloque: 'SINUSAL · FIGURA 3', nombre: 'Solo E/e\' alto con E/A 0.7 → adicionales (LAVi 40) → Grado II',
+      params: sinus({ E: 100, A: 130, eSeptal: 6.5, eLateral: 8.5, TRVel: 2.0, LAVolIndex: 40 }), grade: 'II' },
+    { bloque: 'SINUSAL · FIGURA 3', nombre: '≥1 adicional positivo alcanza: S/D 0.9 (−) pero LAVi 45 (+) → Grado II',
+      params: sinus({ E: 80, A: 67, eSeptal: 5.5, eLateral: 6.5, TRVel: 2.5, PVSD: 0.9, LAVolIndex: 45 }), grade: 'II', incluye: ['por LAVi'], excluye: ['Venas Pulmonares'] },
+    { bloque: 'SINUSAL · FIGURA 3', nombre: 'Varios adicionales positivos → se nombran todos',
+      params: sinus({ E: 80, A: 67, eSeptal: 5.5, eLateral: 6.5, TRVel: 2.5, LARS: 15, LAVolIndex: 45 }), grade: 'II', incluye: ['por LARS y LAVi'] },
+    { bloque: 'SINUSAL · FIGURA 3', nombre: 'Presión elevada por adicionales con E/A ≥2 → Grado III',
+      params: sinus({ E: 110, A: 48, eSeptal: 7, eLateral: 8, TRVel: 2.5, LAVolIndex: 45 }), grade: 'III', incluye: ['Grado III', 'por LAVi'] },
+    { bloque: 'SINUSAL · FIGURA 3', nombre: 'Grado III por adicionales + TD <160 → nota restrictiva',
+      params: sinus({ E: 110, A: 48, eSeptal: 7, eLateral: 8, TRVel: 2.5, LAVolIndex: 45, TD: 140 }), grade: 'III', incluye: ['TD acortado'] },
+    { bloque: 'SINUSAL · FIGURA 3', nombre: 'TRIV solo se usa si no hay VP/LARS/LAVi',
+      params: sinus({ E: 70, A: 60, eSeptal: 5, eLateral: 11, LAVolIndex: 28, TRIV: 60 }), grade: 'I', excluye: ['TRIV'] },
+    { bloque: 'SINUSAL · FIGURA 3', nombre: 'Sin IT: e\' y E/e\' normales → Normal',
+      params: sinus({ TRVel: NaN }), grade: 'Normal' },
+    { bloque: 'SINUSAL · FIGURA 3', nombre: 'Sin IT: e\' y E/e\' alterados (2 de 2) → adicionales, no Grado III directo',
+      params: sinus({ E: 110, A: 50, eSeptal: 5, eLateral: 7, TRVel: NaN, LAVolIndex: 28 }), grade: 'I' },
 
     // ──────────────────── SINUSAL · POBLACIONES ESPECIALES ────────────────────────
-    { bloque: 'SINUSAL · POBLACIONES', nombre: 'MAC · anula e\' y E/e\'; solo cuenta IT → Normal',
+    // ASE 2025: con MAC moderado-severo o IM severa la Figura 3 no se aplica.
+    // Antes se anulaban criterios y se contaban como normales (salía "Normal").
+    { bloque: 'SINUSAL · POBLACIONES', nombre: 'MAC · algoritmo no aplicable → No valorable [ASE 2025]',
       params: sinus({ E: 140, A: 70, eSeptal: 5, eLateral: 7, TRVel: 2.0, context: { mac: true } }),
-      grade: 'Normal', severity: 'green', incluye: ['MAC'] },
-    { bloque: 'SINUSAL · POBLACIONES', nombre: 'IM severa · anula E/e\'; II por e\' + evidencia VP',
+      grade: 'No valorable', severity: 'neutral', incluye: ['calcificación del anillo mitral'] },
+    { bloque: 'SINUSAL · POBLACIONES', nombre: 'IM severa · algoritmo no aplicable → No valorable [ASE 2025]',
       params: sinus({ E: 140, A: 80, eSeptal: 5, eLateral: 7, TRVel: 3.0, PVSD: 0.6, context: { imSevera: true } }),
-      grade: 'II', severity: 'red', incluye: ['IM Severa', 'elevadas'] },
+      grade: 'No valorable', severity: 'neutral', incluye: ['insuficiencia mitral severa'] },
+    { bloque: 'SINUSAL · POBLACIONES', nombre: 'Estenosis mitral (cualquier grado) → No valorable [ASE 2025]',
+      params: sinus({ E: 140, A: 70, eSeptal: 5, eLateral: 7, TRVel: 3.0, context: { estenosisMitral: true } }),
+      grade: 'No valorable', severity: 'neutral', incluye: ['estenosis mitral'] },
+    { bloque: 'SINUSAL · POBLACIONES', nombre: 'Constricción pericárdica → No valorable [ASE 2025]',
+      params: sinus({ context: { exclusion: 'constriccion' } }),
+      grade: 'No valorable', severity: 'neutral', incluye: ['constricción pericárdica'] },
+    { bloque: 'SINUSAL · POBLACIONES', nombre: 'HP no cardíaca → No valorable [ASE 2025]',
+      params: sinus({ context: { exclusion: 'hp_no_cardiaca' } }),
+      grade: 'No valorable', severity: 'neutral', incluye: ['hipertensión pulmonar no cardíaca'] },
+    { bloque: 'SINUSAL · POBLACIONES', nombre: 'Trasplante cardíaco → No valorable también en FA [ASE 2025]',
+      params: { ritmo: 'fa', E: 120, ePrime: 10, eSeptal: 10, TRVel: 3.2, LAVolIndex: 40, context: { exclusion: 'trasplante' } },
+      grade: 'No valorable', severity: 'neutral', incluye: ['trasplante cardíaco'] },
+    { bloque: 'SINUSAL · POBLACIONES', nombre: 'Reparación mitral / TEER y LVAD → No valorable [ASE 2025]',
+      params: sinus({ context: { exclusion: 'reparacion_mitral' } }),
+      grade: 'No valorable', severity: 'neutral', incluye: ['reparación mitral o TEER'] },
+    { bloque: 'SINUSAL · POBLACIONES', nombre: 'Exclusión desconocida → se ignora (Normal)',
+      params: sinus({ context: { exclusion: 'otra_cosa' } }),
+      grade: 'Normal', severity: 'green' },
     { bloque: 'SINUSAL · POBLACIONES', nombre: 'BCRI · e\' y E/e\' por lateral; II por evidencia VP',
       params: sinus({ E: 100, A: 70, eSeptal: 5, eLateral: 7, TRVel: 2.0, PVSD: 0.6, context: { bcri: true } }),
       grade: 'II', severity: 'red', incluye: ['septal excluido', 'elevadas'] },
