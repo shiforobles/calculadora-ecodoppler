@@ -3,7 +3,7 @@
 Única fuente de verdad del estado del proyecto. Lo actualiza cada IA al tomar y
 al terminar una tarea (ver `AGENTS.md`).
 
-Última actualización: 08/11/2026 03:20 · Claude (chat Diástole) ·
+Última actualización: 10/11/2026 09:50 · Claude (chat 03 · Seguridad) ·
 `main` publicado en https://shiforobles.github.io/calculadora-ecodoppler/
 
 ## Implementando ahora
@@ -18,6 +18,7 @@ Nadie. (Regla: un solo asistente implementando a la vez.)
 | MCH simplificado | Claude (chat MCH) | `feat/mch` · **PR #7 (borrador)** · c66b5a1 | Terminado y ampliado 03/11 tras la prueba de Lucas: síntesis con gradientes y presiones, relación septo/PP con espesor máximo, patrón autocompletado, aviso de espesor (¿valoraste el TSVI?), lista de control, MCH conocida en Antecedentes, frase directa/compatible/sugestivo | 79/79 en verde; informes sin MCH idénticos | Lucas prueba la vista previa; revisión independiente con Claude Code (solo lectura); con su OK, merge. Sheets solo con estudio ficticio tras rotar Apps Script |
 | Módulo MCH (versión amplia) | Codex | `codex/modulo-mch` · sin PR | Reemplazada por `feat/mch` (base de trabajo) | — | Borrar la rama cuando se mergee #7 |
 | Refactor: extraer pericardio del informe | Claude (chat "Refactor") | sin rama: patch en ese chat | Hecho como patch sobre 69970cd, sin commit | 83 en verde según ese chat | Subir el patch a una rama (`refactor/pericardio`), rebasar sobre `main`, revisión de Lucas, merge |
+| Panel con clave (dashboard online sin publicar la planilla) | Claude (chat 03 · Seguridad) | `feat/panel-con-clave` · PR pendiente de merge | Terminado en la rama. El panel lee los estudios del Apps Script con una clave cargada en ⚙️ (`ecodoppler_panel_key`); el script solo responde con esa clave (`crearClavePanel`, `leerPanel_`). Si no hay clave, todo sigue como antes. No toca el guardado ni el informe. La pestaña Estrés sigue con su CSV | 63/63 en verde + navegador con script ficticio (clave buena, clave mala) | Lucas aprueba el merge; después pega el código nuevo en Apps Script, crea la clave y hace **nueva implementación** (sirve como rotación). Sin probar contra Apps Script real |
 | Seguridad: planilla e historial Git | Lucas | — | Pendiente | — | Despublicar la planilla y rotar Apps Script (`docs/CONFIGURACION-PRIVADA.md`); después limpiar historial. Sin force-push sin OK de Lucas |
 
 ## Decisiones pendientes de Lucas

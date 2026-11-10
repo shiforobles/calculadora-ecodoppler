@@ -30,6 +30,17 @@ Además, en la planilla expuesta: Archivo → Compartir → Publicar en la Web �
 
 Fuente oficial: https://developers.google.com/apps-script/concepts/deployments
 
+## Panel con clave (10/11/2026)
+
+El panel puede leer los estudios online **sin publicar la planilla**: se los pide al Apps Script, que solo responde si recibe la clave guardada en sus propiedades.
+
+1. Pegar en Apps Script el código actual de ⚙️ (incluye `leerPanel_` y `crearClavePanel`). Antes de borrar el código viejo, confirmar que `SHEET_NAME` coincide con el nombre de la pestaña donde se guardan los estudios.
+2. En el editor, elegir la función `crearClavePanel` → Ejecutar. Copiar la clave del registro de ejecución. No guardarla en el repo ni enviarla por chat.
+3. Implementar → **Nueva implementación** (aplicación web, ejecutar como «Yo», acceso «Cualquier usuario»). Copiar la URL `/exec`.
+4. En ⚙️ de la calculadora: pegar la URL nueva y la clave en «Clave del panel» → Guardar. El panel usa el mismo navegador y dirección.
+
+Con clave cargada el panel ignora la URL CSV. Ejecutar `crearClavePanel` otra vez genera una clave nueva y anula la anterior. La clave viaja en la dirección de la consulta por HTTPS: protege la lectura, pero quien tenga URL y clave puede leer todo; tratarla como una contraseña. El guardado de estudios sigue sin clave (ver propuesta más abajo).
+
 ## Qué cargar después
 
 - URL nueva `/exec`: imprescindible para enviar estudios.

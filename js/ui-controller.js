@@ -4121,6 +4121,9 @@ class UIController {
             <p>Configuración local de este navegador. No se comparte con otros equipos.</p>
             <label for="sheet-csv-url">URL CSV del dashboard (opcional)</label>
             <input id="sheet-csv-url" type="url" value="${escape(GoogleSync.getOptional('ecodoppler_sheet_csv_url'))}">
+            <label for="panel-key-input">Clave del panel (recomendado)</label>
+            <input id="panel-key-input" type="password" autocomplete="off" value="${escape(GoogleSync.getOptional('ecodoppler_panel_key'))}">
+            <p>Con esta clave el panel lee los estudios desde tu Apps Script, sin publicar la planilla. La clave se genera una sola vez ejecutando <code>crearClavePanel</code> en el editor de Apps Script (código de abajo). Si está cargada, el panel la usa en lugar de la URL CSV.</p>
             <p>No publiques una planilla con datos identificatorios para obtener esta URL. Podés importar un archivo local en el dashboard.</p>
             <label for="groq-config-key">API key de Groq (opcional)</label>
             <input id="groq-config-key" type="password" autocomplete="off" value="${escape(GoogleSync.getOptional('groq_api_key'))}">
@@ -4251,6 +4254,7 @@ class UIController {
             if (url) GoogleSync.setUrl(url);
             optionalUrls.forEach(([key, id]) => GoogleSync.setOptional(key, document.getElementById(id).value));
             GoogleSync.setOptional('groq_api_key', document.getElementById('groq-config-key').value);
+            GoogleSync.setOptional('ecodoppler_panel_key', document.getElementById('panel-key-input').value);
             const sheetUrl = document.getElementById('sync-sheet-url-input').value.trim();
             GoogleSync.setSheetUrl(sheetUrl);
             GoogleSync.setDoctor(document.getElementById('firma-nombre').value);

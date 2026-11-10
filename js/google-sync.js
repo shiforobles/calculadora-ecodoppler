@@ -121,8 +121,35 @@ function doPost(e) {
 }
 
 function doGet(e) {
+  const p = (e && e.parameter) || {};
+  if (p.action === 'panel') return leerPanel_(p.key);
+  return json_({ status: 'ok', message: 'Script activo ✓' });
+}
+
+// ─── Lectura para el panel (dashboard) ───────────────────────────
+// Solo responde si recibe la clave guardada en las propiedades del script.
+// Así el panel funciona online sin publicar la planilla en la web.
+function leerPanel_(key) {
+  const saved = PropertiesService.getScriptProperties().getProperty('PANEL_KEY');
+  if (!saved || !key || String(key) !== saved) return json_({ status: 'denied' });
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_NAME);
+  if (!sheet || sheet.getLastRow() === 0) return json_({ status: 'ok', headers: [], rows: [] });
+  const values = sheet.getDataRange().getDisplayValues();
+  return json_({ status: 'ok', headers: values[0], rows: values.slice(1) });
+}
+
+// Ejecutar UNA vez desde el editor (elegir crearClavePanel → Ejecutar).
+// La clave aparece en el "Registro de ejecución": copiala y pegala en la app
+// (⚙️ → Clave del panel). Volver a ejecutarla crea una clave nueva y anula la anterior.
+function crearClavePanel() {
+  const key = (Utilities.getUuid() + Utilities.getUuid()).replace(/-/g, '');
+  PropertiesService.getScriptProperties().setProperty('PANEL_KEY', key);
+  Logger.log('Clave del panel: ' + key);
+}
+
+function json_(obj) {
   return ContentService
-    .createTextOutput(JSON.stringify({ status: 'ok', message: 'Script activo ✓' }))
+    .createTextOutput(JSON.stringify(obj))
     .setMimeType(ContentService.MimeType.JSON);
 }`;
     }
