@@ -3,7 +3,7 @@
 Única fuente de verdad del estado del proyecto. Lo actualiza cada IA al tomar y
 al terminar una tarea (ver `AGENTS.md`).
 
-Última actualización: 10/11/2026 09:50 · Claude (chat 03 · Seguridad) ·
+Última actualización: 10/11/2026 10:40 · Claude (chat 03 · Seguridad) ·
 `main` publicado en https://shiforobles.github.io/calculadora-ecodoppler/
 
 ## Implementando ahora
@@ -18,8 +18,7 @@ Nadie. (Regla: un solo asistente implementando a la vez.)
 | MCH simplificado | Claude (chat MCH) | `feat/mch` · **PR #7 (borrador)** · c66b5a1 | Terminado y ampliado 03/11 tras la prueba de Lucas: síntesis con gradientes y presiones, relación septo/PP con espesor máximo, patrón autocompletado, aviso de espesor (¿valoraste el TSVI?), lista de control, MCH conocida en Antecedentes, frase directa/compatible/sugestivo | 79/79 en verde; informes sin MCH idénticos | Lucas prueba la vista previa; revisión independiente con Claude Code (solo lectura); con su OK, merge. Sheets solo con estudio ficticio tras rotar Apps Script |
 | Módulo MCH (versión amplia) | Codex | `codex/modulo-mch` · sin PR | Reemplazada por `feat/mch` (base de trabajo) | — | Borrar la rama cuando se mergee #7 |
 | Refactor: extraer pericardio del informe | Claude (chat "Refactor") | sin rama: patch en ese chat | Hecho como patch sobre 69970cd, sin commit | 83 en verde según ese chat | Subir el patch a una rama (`refactor/pericardio`), rebasar sobre `main`, revisión de Lucas, merge |
-| Panel con clave (dashboard online sin publicar la planilla) | Claude (chat 03 · Seguridad) | `feat/panel-con-clave` · **PR #15** | Terminado en la rama. El panel lee los estudios del Apps Script con una clave cargada en ⚙️ (`ecodoppler_panel_key`); el script solo responde con esa clave (`crearClavePanel`, `leerPanel_`). Si no hay clave, todo sigue como antes. No toca el guardado ni el informe. La pestaña Estrés sigue con su CSV | 63/63 en verde + navegador con script ficticio (clave buena, clave mala) | Lucas aprueba el merge; después pega el código nuevo en Apps Script, crea la clave y hace **nueva implementación** (sirve como rotación). Sin probar contra Apps Script real |
-| Seguridad: planilla e historial Git | Lucas | — | Pendiente | — | Despublicar la planilla y rotar Apps Script (`docs/CONFIGURACION-PRIVADA.md`); después limpiar historial. Sin force-push sin OK de Lucas |
+| Seguridad: planilla e historial Git | Lucas | — | Pendiente | — | Pegar el código nuevo del Apps Script (panel con clave + guardado confirmado), nueva implementación, archivar la vieja y despublicar la planilla (`docs/CONFIGURACION-PRIVADA.md`); después limpiar historial. Sin force-push sin OK de Lucas |
 
 ## Decisiones pendientes de Lucas
 
@@ -37,6 +36,7 @@ aórtica → mitral → VI/diástole (después de MCH).
 
 | Fecha | Qué | Commit / PR | Quién | Verificado |
 |---|---|---|---|---|
+| 10/11 | Panel con clave (el panel lee del Apps Script con clave, sin publicar la planilla) · Guardado confirmado con ID y sin duplicar reintentos · Decimales guardados como número · Columna «Institución» (lista en ⚙️) · `docs/CONTRATO-PLANILLA.md` | #15 | Claude (chat 03 · Seguridad) | 67/67 en verde + navegador con Apps Script ficticio. **Sin probar contra Apps Script real**: Lucas pega el código nuevo, crea la clave, hace nueva implementación y prueba con estudio ficticio. Informe sin cambios. Pendiente aparte: mejoras del panel (otro proyecto), distinguir medido vs preset |
 | 08/11 | Diástole según Figura 3 ASE 2025: ruta a parámetros adicionales, ≥1 positivo, grado III por E/A, PSAP ≥35, grado I con e′ bajo y presión normal, exclusiones → "No valorable" (MAC, IM severa, EM, selector nuevo) | #13 · 2cf2ca8 | Claude (chat Diástole) | Pages desplegó 2cf2ca8 (Actions: success). 67/67 diástole, 59/59 suite con navegador. Lucas lo prueba en uso. Pendiente: narrativo de grado II dice "relajación alterada" aunque e′ sea normal |
 | 03/11 | Estética v18.7: paleta verde azulada más profunda, campos más altos, barra de 11 chips pegada arriba, botonera anclada abajo con BORRAR TODO en rojo (`.btn-dock-clear`) | #9 · 412a765 | Claude (Estética) | Publicado en Pages (build 412a765). Sólo visual: informe idéntico verificado por hash, 42/42 en verde, contraste 0 bajo 4.5:1 en claro y oscuro. El PR anota 5 decisiones conservadoras, el choque previsible con `codex/imprimir-pdf` y un bug previo en `ui-aorta-display.js` (`--color-danger` no existe) |
 | 31/10 | Coherencia informe–datos: el informe no se copia ni se guarda con datos de otra revisión; diálogo de conflicto visible en claro y oscuro (rama `codex/coherencia-informe-ediciones`, ya borrada) | bd8d165 (d74f28c + b1e3200) | Codex + Claude | En `main` y publicado. 02/11: `report-browser`, `report-consistency`, `eco-rapido-editing` → 40/40 en verde |
