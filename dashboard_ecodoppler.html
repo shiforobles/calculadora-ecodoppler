@@ -382,6 +382,19 @@ window.SEED_STUDIES = [];
 /* ============ DATA LAYER ============ */
 const STORE_KEY = 'ecodash_studies';
 const getSheetCsvUrl = () => localStorage.getItem('ecodoppler_sheet_csv_url') || '';
+// Lectura con clave: el panel le pide los estudios al Apps Script propio, que solo
+// responde con la clave guardada en este navegador. La planilla no se publica.
+const getPanelKey = () => localStorage.getItem('ecodoppler_panel_key') || '';
+const getPanelScriptUrl = () => {
+  const raw = localStorage.getItem('ecodoppler_script_url') || '';
+  try {
+    const u = new URL(raw);
+    const ok = u.protocol==='https:' && u.hostname==='script.google.com' && /^\/macros\/s\/[^/]+\/exec$/.test(u.pathname);
+    return ok ? u.origin + u.pathname : '';
+  } catch(e) { return ''; }
+};
+const usaPanelConClave = () => !!(getPanelKey() && getPanelScriptUrl());
+const hayFuenteDoppler = () => usaPanelConClave() || !!getSheetCsvUrl();
 let STUDIES = [];
 let SHEET_ROWS = []; // lo que viene de Google Sheets en vivo
 
@@ -448,22 +461,44 @@ function csvToObjects(text){
   });
 }
 
+function panelToObjects(data){
+  const headers=(data.headers||[]).map(h=>String(h??'').trim());
+  return (data.rows||[]).filter(r=>r.some(c=>String(c??'').trim()!=='')).map(r=>{
+    const o={}; headers.forEach((h,i)=>{ if(h) o[h]=String(r[i]??'').trim(); }); return o;
+  });
+}
+
+async function fetchPanelConClave(){
+  const url=getPanelScriptUrl()+'?action=panel&key='+encodeURIComponent(getPanelKey())+'&_t='+Date.now();
+  const res=await fetch(url);
+  if(!res.ok) throw new Error('HTTP '+res.status);
+  let data;
+  try { data=await res.json(); } catch(e) { const err=new Error('respuesta'); err.estado='script'; throw err; }
+  if(data && data.status==='denied'){ const err=new Error('clave rechazada'); err.estado='clave'; throw err; }
+  if(!data || data.status!=='ok' || !Array.isArray(data.rows) || !Array.isArray(data.headers)){
+    const err=new Error('el script no ofrece la lectura del panel'); err.estado='script'; throw err;
+  }
+  return panelToObjects(data);
+}
+
 async function fetchSheet(){
-  const status=document.getElementById('sync-status');
   try{
-    const base = getSheetCsvUrl();
-    if (!base) { SHEET_ROWS = []; actualizarContador(); return false; }
+    if (!hayFuenteDoppler()) { SHEET_ROWS = []; actualizarContador(); return false; }
     actualizarContador('sync');
-    const url=base+(base.includes('?') ? '&' : '?')+'_t='+Date.now(); // evita caché
-    const res=await fetch(url);
-    if(!res.ok) throw new Error('HTTP '+res.status);
-    const text=await res.text();
-    SHEET_ROWS=csvToObjects(text);
+    if (usaPanelConClave()) {
+      SHEET_ROWS=await fetchPanelConClave();
+    } else {
+      const base = getSheetCsvUrl();
+      const url=base+(base.includes('?') ? '&' : '?')+'_t='+Date.now(); // evita caché
+      const res=await fetch(url);
+      if(!res.ok) throw new Error('HTTP '+res.status);
+      SHEET_ROWS=csvToObjects(await res.text());
+    }
     actualizarContador();
     return true;
   }catch(err){
-    console.warn('No se pudo leer Google Sheets:',err);
-    actualizarContador('err');
+    console.warn('No se pudo leer Google Sheets:',err.message);
+    actualizarContador(err.estado || 'err');
     return false;
   }
 }
@@ -979,9 +1014,11 @@ function actualizarContador(estado){
   if(!st) return;
   if(estado==='sync'){ st.textContent='⟳ Sincronizando...'; st.className='sync-status syncing'; return; }
   if(estado==='err'){ st.textContent='⚠ Sin conexión a Sheets (usando datos guardados)'; st.className='sync-status err'; return; }
+  if(estado==='clave'){ st.textContent='⚠ Clave del panel rechazada: revisala en ⚙ Configuración de la calculadora'; st.className='sync-status err'; return; }
+  if(estado==='script'){ st.textContent='⚠ El Apps Script no tiene la lectura del panel: pegá el código nuevo y volvé a implementar'; st.className='sync-status err'; return; }
   const enEstres = (typeof MODO!=='undefined' && MODO==='estres');
   if(enEstres && !getUrlEstres()){ st.textContent='⚠ Pestaña Estrés sin conectar'; st.className='sync-status err'; return; }
-  if(!enEstres && !getSheetCsvUrl()){ st.textContent='⚙ Sin conexión configurada: abrí Configuración en la calculadora o importá un archivo'; st.className='sync-status err'; return; }
+  if(!enEstres && !hayFuenteDoppler()){ st.textContent='⚙ Sin conexión configurada: abrí Configuración en la calculadora o importá un archivo'; st.className='sync-status err'; return; }
   const n = enEstres ? ESTRES_ROWS.length : SHEET_ROWS.length;
   const palabra = (n === 1) ? ' estudio' : ' estudios';
   st.textContent = '✓ ' + n + palabra + (enEstres ? ' de estrés' : ' en vivo');

@@ -43,6 +43,8 @@ class StudyStorage {
         // Antecedentes adicionales y observaciones (4)
         // Se agregan AL FINAL para no correr las columnas de las planillas ya cargadas.
         'ATC/Stent', 'Recambio Ao', 'Recambio Mitral', 'Observaciones',
+        // Institución donde se hizo el estudio (1) — se elige de la lista cargada en ⚙️
+        'Institución',
     ];
 
     static getAll() {

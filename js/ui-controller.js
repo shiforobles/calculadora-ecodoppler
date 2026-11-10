@@ -2064,7 +2064,7 @@ class UIController {
 
     /** Instantánea de entradas del estudio, independiente de los displays calculados. */
     _getStudySnapshot() {
-        const excluded = new Set(['resultado', 'preset_selector', 'diastole_text_hidden', 'ai_calc_mode', 'it_pisa_radio', 'it_pisa_va', 'it_vti']);
+        const excluded = new Set(['institucion', 'resultado', 'preset_selector', 'diastole_text_hidden', 'ai_calc_mode', 'it_pisa_radio', 'it_pisa_va', 'it_vti']);
         const fields = [...document.querySelectorAll('.container input[id], .container select[id], .container textarea[id]')]
             .filter(el => !excluded.has(el.id) && !el.readOnly && el.type !== 'file' && el.type !== 'hidden' &&
                 !el.id.endsWith('_display') && !el.id.endsWith('_disp') &&
@@ -2308,6 +2308,7 @@ class UIController {
 
         const campos = [...document.querySelectorAll('input, select, textarea')].filter(el =>
             el.id && !conservar.has(el.id) && el.type !== 'file' &&
+            el.id !== 'institucion' && // es del día de trabajo, no del estudio
             !el.closest('.modal, dialog, #undo-reset'));
 
         const restaurar = el => {
@@ -4011,6 +4012,9 @@ class UIController {
             document.getElementById('ant_rva')?.checked ? 'Si' : 'No',
             document.getElementById('ant_rvm')?.checked ? 'Si' : 'No',
             document.getElementById('ant_libre')?.value?.trim() || '-',
+
+            // 18. Institución (1) — no forma parte del informe
+            window.GoogleSync?.getInstitucion?.() || '-',
         ];
         return row;
     }
@@ -4041,8 +4045,19 @@ class UIController {
             const btn = document.getElementById('btn_save_study');
             if (btn) btn.disabled = true;
             try {
-                await GoogleSync.send(row);
-                this.showToast(`✅ Guardado en Google Sheets — ${hc}`);
+                // Mismo contenido = mismo ID: reintentar no duplica la fila.
+                const key = JSON.stringify(row);
+                if (!this._lastSave || this._lastSave.key !== key) {
+                    this._lastSave = { key, id: GoogleSync.newStudyId?.() || '' };
+                }
+                const result = await GoogleSync.send(row, this._lastSave.id) || {};
+                if (result.confirmed && result.duplicate) {
+                    this.showToast(`✅ Ya estaba guardado en Google Sheets — ${hc} (no se duplicó)`, 5000);
+                } else if (result.confirmed) {
+                    this.showToast(`✅ Guardado confirmado en Google Sheets — ${hc}`, 5000);
+                } else {
+                    this.showToast(`⚠️ Enviado, pero sin confirmación — ${hc}. Mirá la última fila de la planilla antes de volver a guardar.`, 10000);
+                }
             } catch (err) {
                 this.showToast(`⚠️ Error al guardar: ${err.message}`);
             } finally {
@@ -4054,7 +4069,23 @@ class UIController {
         }
     }
 
+    /** Desplegable de institución: se arma con la lista de ⚙️ y recuerda la última elegida. */
+    refreshInstitucion() {
+        const group = document.getElementById('grupo_institucion');
+        const select = document.getElementById('institucion');
+        if (!group || !select || !window.GoogleSync) return;
+        const lista = GoogleSync.getInstituciones();
+        group.hidden = !lista.length;
+        select.replaceChildren(new Option('Elegir…', ''), ...lista.map(n => new Option(n, n)));
+        select.value = GoogleSync.getInstitucion();
+        if (!select.dataset.listo) {
+            select.dataset.listo = '1';
+            select.addEventListener('change', () => GoogleSync.setInstitucion(select.value));
+        }
+    }
+
     refreshConfiguredAccess() {
+        this.refreshInstitucion();
         const sheet = document.getElementById('btn_view_sheet');
         if (sheet) sheet.hidden = !GoogleSync.safeWebUrl(GoogleSync.getSheetUrl());
         const gemini = document.getElementById('mode_ia');
@@ -4121,6 +4152,12 @@ class UIController {
             <p>Configuración local de este navegador. No se comparte con otros equipos.</p>
             <label for="sheet-csv-url">URL CSV del dashboard (opcional)</label>
             <input id="sheet-csv-url" type="url" value="${escape(GoogleSync.getOptional('ecodoppler_sheet_csv_url'))}">
+            <label for="instituciones-input">Instituciones donde hacés estudios (una por línea)</label>
+            <textarea id="instituciones-input" rows="4">${escape(GoogleSync.getInstituciones().join('\n'))}</textarea>
+            <p>Aparecen como desplegable en Datos del Paciente y se guardan en la columna «Institución». No cambian el informe.</p>
+            <label for="panel-key-input">Clave del panel (recomendado)</label>
+            <input id="panel-key-input" type="password" autocomplete="off" value="${escape(GoogleSync.getOptional('ecodoppler_panel_key'))}">
+            <p>Con esta clave el panel lee los estudios desde tu Apps Script, sin publicar la planilla. La clave se genera una sola vez ejecutando <code>crearClavePanel</code> en el editor de Apps Script (código de abajo). Si está cargada, el panel la usa en lugar de la URL CSV.</p>
             <p>No publiques una planilla con datos identificatorios para obtener esta URL. Podés importar un archivo local en el dashboard.</p>
             <label for="groq-config-key">API key de Groq (opcional)</label>
             <input id="groq-config-key" type="password" autocomplete="off" value="${escape(GoogleSync.getOptional('groq_api_key'))}">
@@ -4251,6 +4288,8 @@ class UIController {
             if (url) GoogleSync.setUrl(url);
             optionalUrls.forEach(([key, id]) => GoogleSync.setOptional(key, document.getElementById(id).value));
             GoogleSync.setOptional('groq_api_key', document.getElementById('groq-config-key').value);
+            GoogleSync.setOptional('ecodoppler_panel_key', document.getElementById('panel-key-input').value);
+            GoogleSync.setInstituciones(document.getElementById('instituciones-input').value);
             const sheetUrl = document.getElementById('sync-sheet-url-input').value.trim();
             GoogleSync.setSheetUrl(sheetUrl);
             GoogleSync.setDoctor(document.getElementById('firma-nombre').value);
@@ -4657,6 +4696,7 @@ class UIController {
         // se abren por un valor que viene de fábrica (IT "leve") y al abrir la app
         // están cerradas. Se vuelve a la vista exacta de la carga.
         this._restaurarVistaInicial();
+        this.refreshInstitucion(); // la institución del día no se borra con el estudio
 
         this.reportEdited = false;
         this._reportSnapshot = null;

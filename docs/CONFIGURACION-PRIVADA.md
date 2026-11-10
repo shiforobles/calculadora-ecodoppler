@@ -30,6 +30,17 @@ Además, en la planilla expuesta: Archivo → Compartir → Publicar en la Web �
 
 Fuente oficial: https://developers.google.com/apps-script/concepts/deployments
 
+## Panel con clave (10/11/2026)
+
+El panel puede leer los estudios online **sin publicar la planilla**: se los pide al Apps Script, que solo responde si recibe la clave guardada en sus propiedades.
+
+1. Pegar en Apps Script el código actual de ⚙️ (incluye `leerPanel_` y `crearClavePanel`). Antes de borrar el código viejo, confirmar que `SHEET_NAME` coincide con el nombre de la pestaña donde se guardan los estudios.
+2. En el editor, elegir la función `crearClavePanel` → Ejecutar. Copiar la clave del registro de ejecución. No guardarla en el repo ni enviarla por chat.
+3. Implementar → **Nueva implementación** (aplicación web, ejecutar como «Yo», acceso «Cualquier usuario»). Copiar la URL `/exec`.
+4. En ⚙️ de la calculadora: pegar la URL nueva y la clave en «Clave del panel» → Guardar. El panel usa el mismo navegador y dirección.
+
+Con clave cargada el panel ignora la URL CSV. Ejecutar `crearClavePanel` otra vez genera una clave nueva y anula la anterior. La clave viaja en la dirección de la consulta por HTTPS: protege la lectura, pero quien tenga URL y clave puede leer todo; tratarla como una contraseña. El guardado de estudios sigue sin clave (ver propuesta más abajo).
+
 ## Qué cargar después
 
 - URL nueva `/exec`: imprescindible para enviar estudios.
@@ -40,15 +51,18 @@ Fuente oficial: https://developers.google.com/apps-script/concepts/deployments
 
 La configuración es por navegador y origen (dominio/protocolo/puerto). Usar otra dirección, otro dispositivo o modo privado no comparte automáticamente esos valores. No guardar claves en el repositorio ni enviarlas al colega. Si faltan los datos de Apps Script, guardar muestra un aviso explícito y no hace una petición.
 
-## Guardado confirmado: propuesta pendiente, NO implementada
+## Guardado confirmado (10/11/2026, implementado)
 
-Se mantiene `POST` con `mode: 'no-cors'` y el aviso actual de guardado, por pedido expreso. Una respuesta opaca no permite saber si Apps Script grabó la fila o devolvió un error. Se corrigieron únicamente los comentarios que afirmaban una entrega garantizada.
+La calculadora envía cada estudio con un identificador (`ID Estudio`) por `POST` simple (`text/plain`, sin preflight) y lee la respuesta JSON del script.
 
-Propuesta: un identificador único por estudio/envío, validación del lado del servidor, bloqueo contra escrituras concurrentes y deduplicación por ese identificador. Responder `{status:'ok', studyId:...}` solo después de persistir; devolver un error controlado si falla. La interfaz mostraría «Guardado confirmado» únicamente al recibir y validar ese acuse. Ante timeout o pérdida de respuesta: «No se pudo confirmar», conservar el informe y reintentar con el mismo ID para evitar duplicados.
+- «✅ Guardado confirmado»: el script respondió `ok` después de escribir la fila.
+- «✅ Ya estaba guardado (no se duplicó)»: el mismo estudio, sin cambios, ya estaba en la planilla. Requiere el código nuevo del script.
+- «⚠️ Enviado, pero sin confirmación»: no se pudo leer la respuesta. La fila pudo haberse escrito o no: mirar la planilla antes de reintentar.
+- «⚠️ Error al guardar»: el script informó una falla y no escribió.
 
-Primero probar `fetch` en modo CORS desde el dominio real, con POST simple (`text/plain`) y lectura del JSON tras la redirección de ContentService. No basta con cambiar `no-cors` por `cors`: Apps Script no ofrece el control general de cabeceras CORS de un servidor propio. Si ese flujo no permite leer respuestas de forma fiable, usar un pequeño endpoint propio del mismo origen que hable con Apps Script y devuelva el acuse. Requiere alojamiento de servidor, autenticación/autorización para escritura, límites de uso y una nueva implementación del script. No usar JSONP para enviar o devolver datos de pacientes. Esto se aprueba e implementa aparte, con pruebas de error, desconexión y reintento.
+El script nuevo además convierte a número los valores numéricos antes de escribir (antes llegaban como texto y la planilla podía leer «22.6» como fecha y corromper el decimal), usa un bloqueo para escrituras simultáneas y agrega el título `ID Estudio` en la última columna si falta. HC, modelo de prótesis, informe, observaciones e institución se guardan siempre como texto. Los estudios anteriores no se corrigen.
 
-Fuente sobre ContentService y sus redirecciones: https://developers.google.com/apps-script/guides/content
+Límites conocidos: el guardado sigue sin clave (quien tenga la URL `/exec` puede enviar filas, no leerlas) y la confirmación contra un Apps Script real debe verificarse con un estudio ficticio. Las columnas y su significado están en `docs/CONTRATO-PLANILLA.md`.
 
 ## Recuperación si algo falla
 
