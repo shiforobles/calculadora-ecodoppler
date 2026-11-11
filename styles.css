@@ -2686,3 +2686,29 @@ body {
         display: none !important;
     }
 }
+
+/* Institución: alta en línea desde el mismo desplegable */
+.institucion-nueva {
+    display: flex;
+    gap: 0.4rem;
+    margin-top: 0.4rem;
+}
+.institucion-nueva[hidden] { display: none; }
+.institucion-nueva input { flex: 1; min-width: 0; }
+.institucion-nueva button {
+    min-height: 42px;
+    padding: 0 0.85rem;
+    border-radius: var(--radius-md, 8px);
+    border: 1px solid var(--color-primary);
+    background: var(--color-primary);
+    color: #fff;
+    font-weight: 600;
+    cursor: pointer;
+}
+.institucion-nueva button#institucion_cancelar {
+    background: transparent;
+    color: var(--color-primary);
+}
+
+/* Día nuevo o sin elegir: el desplegable lo marca sin bloquear el trabajo */
+#institucion.falta-elegir { border-color: #D97706; background: #FFFBEB; }

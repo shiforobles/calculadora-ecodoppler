@@ -182,6 +182,22 @@ test('instituciones: lista propia en el navegador, sin nombres en el código', (
     assert.equal(vm.runInContext('GoogleSync.getInstitucion()', ctx), 'Centro B');
     vm.runInContext("GoogleSync.setInstituciones('Centro A')", ctx);
     assert.equal(vm.runInContext('GoogleSync.getInstitucion()', ctx), '');   // la que se quitó de la lista ya no se guarda
+    vm.runInContext("GoogleSync.setInstitucion('Centro A')", ctx);
+    assert.equal(vm.runInContext('GoogleSync.getInstitucion()', ctx), 'Centro A');   // vale todo el día
+    const guardada = JSON.parse(ctx.localStorage.getItem('ecodoppler_institucion_actual'));
+    ctx.localStorage.setItem('ecodoppler_institucion_actual', JSON.stringify({...guardada, dia:'2000-01-01'}));
+    assert.equal(vm.runInContext('GoogleSync.getInstitucion()', ctx), '');           // al día siguiente se vuelve a elegir
+    ctx.localStorage.setItem('ecodoppler_institucion_actual', 'Centro A');           // formato viejo, sin día
+    assert.equal(vm.runInContext('GoogleSync.getInstitucion()', ctx), '');
     const code = fs.readFileSync(path.join(root, 'index.html'), 'utf8') + fs.readFileSync(path.join(root, 'js/ui-controller.js'), 'utf8');
     assert.doesNotMatch(code, /OSECAC|Hospital Español|Bioim[aá]genes|La Esperanza/i);
+});
+
+test('institución: el selector se ve siempre y permite agregar desde la misma pantalla', () => {
+    const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
+    const grupo = html.slice(html.indexOf('id="grupo_institucion"'), html.indexOf('id="grupo_institucion"') + 120);
+    assert.doesNotMatch(grupo, /\bhidden\b/);
+    assert.ok(html.indexOf('id="institucion"') < html.indexOf('for="ventana"'));   // al lado de Ventana Acústica
+    const ui = fs.readFileSync(path.join(root, 'js/ui-controller.js'), 'utf8');
+    assert.match(ui, /Agregar institución/);
 });

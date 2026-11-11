@@ -16,7 +16,7 @@
         rel="stylesheet">
 
     <!-- Styles -->
-    <link rel="stylesheet" href="styles.css?v=18.7">
+    <link rel="stylesheet" href="styles.css?v=18.8">
 </head>
 
 <body>
@@ -116,9 +116,14 @@
                     <label for="bmi_display">IMC (Riesgo)</label>
                     <input type="text" id="bmi_display" class="calculated-value" disabled placeholder="—">
                 </div>
-                <div class="form-group" id="grupo_institucion" hidden>
+                <div class="form-group" id="grupo_institucion">
                     <label for="institucion">Institución</label>
                     <select id="institucion"></select>
+                    <div id="institucion_nueva" class="institucion-nueva" hidden>
+                        <input id="institucion_nombre" type="text" placeholder="Nombre de la institución" autocomplete="off">
+                        <button type="button" id="institucion_agregar">Agregar</button>
+                        <button type="button" id="institucion_cancelar" aria-label="Cancelar">✕</button>
+                    </div>
                 </div>
                 <div class="form-group">
                     <label for="ventana">Calidad Ventana Acústica</label>
@@ -1646,7 +1651,7 @@
     <script src="js/motility-svg.js?v=16.2"></script>
     <script src="js/gemini-ai.js?v=18.2"></script>
     <script src="js/presets.js?v=1.0"></script>
-    <script src="js/ui-controller.js?v=19.25"></script>
+    <script src="js/ui-controller.js?v=19.26"></script>
     <script src="js/ui-extensions.js?v=16.1"></script>
     <script src="js/ui-lanus.js?v=16.1"></script>
     <script src="js/ui-aorta-display.js?v=16.0"></script>

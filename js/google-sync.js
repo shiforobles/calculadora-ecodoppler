@@ -41,11 +41,19 @@ class GoogleSync {
     static setInstituciones(text) {
         localStorage.setItem(this.INSTITUCIONES_KEY, String(text || '').split('\n').map(v => v.trim()).filter(Boolean).join('\n'));
     }
-    static getInstitucion() {
-        const actual = localStorage.getItem(this.INSTITUCION_KEY) || '';
-        return this.getInstituciones().includes(actual) ? actual : '';
+    /** Fecha local AAAA-MM-DD: la institución elegida vale solo por ese día. */
+    static hoy(d = new Date()) {
+        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
     }
-    static setInstitucion(v) { localStorage.setItem(this.INSTITUCION_KEY, v || ''); }
+    static getInstitucion() {
+        let guardada = {};
+        try { guardada = JSON.parse(localStorage.getItem(this.INSTITUCION_KEY) || '{}') || {}; } catch (e) {}
+        if (guardada.dia !== this.hoy()) return '';   // día nuevo: hay que elegir otra vez
+        return this.getInstituciones().includes(guardada.nombre) ? guardada.nombre : '';
+    }
+    static setInstitucion(v) {
+        localStorage.setItem(this.INSTITUCION_KEY, JSON.stringify({ nombre: v || '', dia: this.hoy() }));
+    }
 
     static getOptional(key) { return localStorage.getItem(key) || ''; }
     static setOptional(key, value) { localStorage.setItem(key, value.trim()); }
