@@ -2308,7 +2308,7 @@ class UIController {
 
         const campos = [...document.querySelectorAll('input, select, textarea')].filter(el =>
             el.id && !conservar.has(el.id) && el.type !== 'file' &&
-            el.id !== 'institucion' && // es del día de trabajo, no del estudio
+            !['institucion', 'institucion_nombre'].includes(el.id) && // es del día de trabajo, no del estudio
             !el.closest('.modal, dialog, #undo-reset'));
 
         const restaurar = el => {
@@ -4046,6 +4046,7 @@ class UIController {
             if (btn) btn.disabled = true;
             try {
                 // Mismo contenido = mismo ID: reintentar no duplica la fila.
+                try { this.refreshInstitucion(); } catch (e) {} // si la app quedó abierta de un día para otro
                 const key = JSON.stringify(row);
                 if (!this._lastSave || this._lastSave.key !== key) {
                     this._lastSave = { key, id: GoogleSync.newStudyId?.() || '' };
@@ -4069,19 +4070,48 @@ class UIController {
         }
     }
 
-    /** Desplegable de institución: se arma con la lista de ⚙️ y recuerda la última elegida. */
+    /**
+     * Desplegable de institución, siempre visible al lado de Ventana Acústica.
+     * La lista vive solo en este navegador; se amplía desde el mismo desplegable
+     * («＋ Agregar institución…») o desde ⚙️. La elegida queda fija todo el día
+     * (también tras «Borrar todo» o recargar) y al día siguiente se vuelve a elegir.
+     */
     refreshInstitucion() {
-        const group = document.getElementById('grupo_institucion');
         const select = document.getElementById('institucion');
-        if (!group || !select || !window.GoogleSync) return;
+        if (!select || !window.GoogleSync) return;
         const lista = GoogleSync.getInstituciones();
-        group.hidden = !lista.length;
-        select.replaceChildren(new Option('Elegir…', ''), ...lista.map(n => new Option(n, n)));
+        select.replaceChildren(
+            new Option(lista.length ? 'Elegir…' : 'Sin instituciones cargadas', ''),
+            ...lista.map(n => new Option(n, n)),
+            new Option('＋ Agregar institución…', '__nueva__'));
         select.value = GoogleSync.getInstitucion();
-        if (!select.dataset.listo) {
-            select.dataset.listo = '1';
-            select.addEventListener('change', () => GoogleSync.setInstitucion(select.value));
-        }
+        select.classList.toggle('falta-elegir', !select.value);
+        if (select.dataset.listo) return;
+        select.dataset.listo = '1';
+
+        const caja = document.getElementById('institucion_nueva');
+        const nombre = document.getElementById('institucion_nombre');
+        const cerrar = () => { caja.hidden = true; nombre.value = ''; select.value = GoogleSync.getInstitucion(); };
+        const agregar = () => {
+            const n = nombre.value.trim();
+            if (!n) { nombre.focus(); return; }
+            GoogleSync.setInstituciones([...GoogleSync.getInstituciones(), n].join('\n'));
+            GoogleSync.setInstitucion(n);
+            caja.hidden = true; nombre.value = '';
+            this.refreshInstitucion();
+            this.showToast?.(`Institución agregada: ${n}`);
+        };
+        select.addEventListener('change', () => {
+            if (select.value === '__nueva__') { caja.hidden = false; nombre.focus(); return; }
+            GoogleSync.setInstitucion(select.value);
+            select.classList.toggle('falta-elegir', !select.value);
+        });
+        document.getElementById('institucion_agregar').addEventListener('click', agregar);
+        document.getElementById('institucion_cancelar').addEventListener('click', cerrar);
+        nombre.addEventListener('keydown', e => {
+            if (e.key === 'Enter') { e.preventDefault(); agregar(); }
+            if (e.key === 'Escape') cerrar();
+        });
     }
 
     refreshConfiguredAccess() {
@@ -4154,7 +4184,7 @@ class UIController {
             <input id="sheet-csv-url" type="url" value="${escape(GoogleSync.getOptional('ecodoppler_sheet_csv_url'))}">
             <label for="instituciones-input">Instituciones donde hacés estudios (una por línea)</label>
             <textarea id="instituciones-input" rows="4">${escape(GoogleSync.getInstituciones().join('\n'))}</textarea>
-            <p>Aparecen como desplegable en Datos del Paciente y se guardan en la columna «Institución». No cambian el informe.</p>
+            <p>También podés agregarlas desde el desplegable «Institución» en Datos del Paciente. Para quitar una, borrala de esta lista. Se guardan en la columna «Institución» y no cambian el informe.</p>
             <label for="panel-key-input">Clave del panel (recomendado)</label>
             <input id="panel-key-input" type="password" autocomplete="off" value="${escape(GoogleSync.getOptional('ecodoppler_panel_key'))}">
             <p>Con esta clave el panel lee los estudios desde tu Apps Script, sin publicar la planilla. La clave se genera una sola vez ejecutando <code>crearClavePanel</code> en el editor de Apps Script (código de abajo). Si está cargada, el panel la usa en lugar de la URL CSV.</p>
