@@ -41,8 +41,8 @@ const casos = [
 
     { bloque: 'TERRITORIO', nombre: '1-16 (tres territorios parejos)',
       estados: estado({ [rango(1, 16)]: HK }), esperado: 'compromiso multiterritorial',
-      // Con todo alterado además matchea el patrón de miocardiopatía dilatada
-      esperadoPatron: 'compromiso global, compatible con miocardiopatía dilatada' },
+      // Con todo alterado además matchea el patrón de compromiso difuso
+      esperadoPatron: 'sin predominio territorial' },
 
     // ── PATRONES ──
     { bloque: 'PATRONES', nombre: '7-12 anillo medio aislado → NO Takotsubo',
@@ -57,9 +57,9 @@ const casos = [
       estados: estado({ [rango(7, 16)]: HK }),
       esperadoPatron: 'patrón apical con bases respetadas, compatible con miocardiopatía por estrés (Takotsubo)' },
 
-    { bloque: 'PATRONES', nombre: '1-16 → dilatada, NO Takotsubo',
+    { bloque: 'PATRONES', nombre: '1-16 → compromiso difuso, NO Takotsubo',
       estados: estado({ [rango(1, 16)]: HK }),
-      esperadoPatron: 'compromiso global, compatible con miocardiopatía dilatada' },
+      esperadoPatron: 'sin predominio territorial' },
 
     { bloque: 'PATRONES', nombre: '2,3,8,9,14 septum → disincronía',
       estados: estado({ '2,3,8,9,14': HK }),
