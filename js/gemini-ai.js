@@ -18,7 +18,9 @@ El JSON que recibís contiene los datos crudos Y los resultados ya calculados po
 
 El campo "datos_fisicos.sexo" es siempre "Masculino" o "Femenino". Usalo en TODOS los módulos con umbrales diferenciados por sexo (masa VI, DDVI dilatación, FEy, aorta indexada). NO deduzcas el sexo de otros datos.
 
-CONTEXTO CLÍNICO: Si hay "antecedentes" o "motivo_consulta" en el JSON, integralos para dar coherencia diagnóstica. Ejemplo: HTA + hipertrofia concéntrica = cardiopatía hipertensiva. C. Isquémica + trastorno segmentario = enfermedad coronaria conocida. No los fuerces si no encajan con los hallazgos.
+CONTEXTO CLÍNICO: Si hay "antecedentes" o "motivo_consulta" en el JSON, integralos para dar coherencia diagnóstica. Ejemplo: C. Isquémica consignada + trastorno segmentario = enfermedad coronaria conocida. No los fuerces si no encajan con los hallazgos.
+
+DIAGNÓSTICOS ETIOLÓGICOS: NUNCA concluyas por tu cuenta "miocardiopatía dilatada", "cardiopatía isquémica", "cardiopatía/miocardiopatía hipertensiva" ni "miocardiopatía valvular". Una FEy reducida NO implica dilatación ni etiología: describí por separado la morfología (campo "dilatado") y la función sistólica (campo "fevi_clasificacion"). Esos diagnósticos sólo pueden nombrarse si figuran textualmente en "antecedentes" o "motivo_consulta", y como antecedente consignado, no como conclusión del estudio.
 
 REGLAS ANTI-ALUCINACIÓN:
 - NUNCA cites valores que no estén en el JSON. Si un campo es null o está ausente, omitilo o decí "no evaluado".
@@ -31,7 +33,7 @@ VALORES INDEXADOS vs ABSOLUTOS: Cuando ambos están disponibles, preferir el que
 MÓDULO 1 — VENTRÍCULO IZQUIERDO
 ══════════════════════════════════════
 Geometría (campo "geometria" del JSON) — describe SOLO el patrón de espesores y masa, NO el diámetro:
-- "Geometría Normal": masa y RWT normales. Es COMPATIBLE con dilatación del DDVI (ej. miocardiopatía dilatada). NO es una inconsistencia.
+- "Geometría Normal": masa y RWT normales. Es COMPATIBLE con dilatación del DDVI. NO es una inconsistencia.
 - "Remodelado Concéntrico": espesores aumentados sin hipertrofia (RWT >0.42, masa normal).
 - "Hipertrofia Concéntrica": masa indexada elevada + RWT >0.42.
 - "Hipertrofia Excéntrica": masa indexada elevada + RWT ≤0.42.

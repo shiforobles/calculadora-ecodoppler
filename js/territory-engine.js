@@ -52,9 +52,13 @@ const TerritoryEngine = {
      */
     PATTERNS: [
         {
+            // Compromiso de todos los segmentos. Se describe, no se le pone nombre:
+            // la hipoquinesia global no prueba dilatación ni etiología, y
+            // "miocardiopatía dilatada" es un diagnóstico clínico (ESC 2023) que
+            // exige VI dilatado y descartar causa coronaria o de carga.
             id: 'dilated',
             segments: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16],
-            text: 'compromiso global, compatible con miocardiopatía dilatada',
+            text: 'sin predominio territorial',
         },
         {
             // Takotsubo clásico: ápex y segmentos medios con las bases respetadas.
