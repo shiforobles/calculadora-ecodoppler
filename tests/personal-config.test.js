@@ -51,9 +51,9 @@ test('panel con clave: lee los estudios del Apps Script y no usa el CSV publicad
 });
 test('panel con clave: clave rechazada o script viejo avisan sin cargar datos', async () => {
     for (const [body, estado] of [[{status:'denied'}, 'clave'], [{status:'ok', message:'Script activo'}, 'script']]) {
-        const {context, estados} = panelContext({ecodoppler_script_url:SCRIPT, ecodoppler_panel_key:'k'}, async () => ({ok:true, json:async()=>body}));
+        const {context} = panelContext({ecodoppler_script_url:SCRIPT, ecodoppler_panel_key:'k'}, async () => ({ok:true, json:async()=>body}));
         assert.equal(await vm.runInContext('fetchSheet()', context), false);
-        assert.equal(estados.at(-1), estado);
+        assert.equal(vm.runInContext('ESTADO_DOPPLER', context), estado);
         assert.equal(vm.runInContext('SHEET_ROWS.length', context), 0);
     }
 });
@@ -200,4 +200,64 @@ test('institución: el selector se ve siempre y permite agregar desde la misma p
     assert.ok(html.indexOf('id="institucion"') < html.indexOf('for="ventana"'));   // al lado de Ventana Acústica
     const ui = fs.readFileSync(path.join(root, 'js/ui-controller.js'), 'utf8');
     assert.match(ui, /Agregar institución/);
+});
+
+// Eco estrés en planilla propia (26/11/2026): el panel lee la planilla nueva con la URL
+// de la app de estrés + su clave, y suma sin duplicar el historial CSV de la pestaña vieja.
+function estresContext(store, respond) {
+    const html = fs.readFileSync(path.join(root, 'dashboard_ecodoppler.html'), 'utf8');
+    const calls = [];
+    const context = vm.createContext({
+        window:{}, URL, console:{warn(){}}, Date, encodeURIComponent,
+        localStorage:{getItem:key=>store[key] ?? null},
+        document:{getElementById:()=>({})}, toast(){},
+        fetch:async url=>{ calls.push(url); return respond(url); },
+    });
+    const datos = html.slice(html.indexOf('const STORE_KEY'), html.indexOf('function saveImported'));
+    const util = html.slice(html.indexOf('const num = v =>'), html.indexOf('/* ============ REPORT GENERATOR'));
+    const fechas = html.slice(html.indexOf('function parseDate(v)'), html.indexOf('const dateVal'));
+    const estres = html.slice(html.indexOf("let MODO = 'doppler';"), html.indexOf('function setModo('));
+    vm.runInContext(datos + util + fechas + estres + '; actualizarContador = () => {};', context);
+    return {context, calls};
+}
+const SCRIPT_ESTRES = 'https://script.google.com/macros/s/ESTRES-FICTICIO/exec';
+const CSV_VIEJO = 'https://docs.google.com/spreadsheets/d/e/FICTICIO/pub?gid=1&single=true&output=csv';
+
+test('estrés: lee la planilla nueva con la URL de la app de estrés y la clave del panel', async () => {
+    const {context, calls} = estresContext(
+        {ecoestres_script_url:SCRIPT_ESTRES, dashboard_estres_key:'clave ficticia'},
+        async () => ({ok:true, json:async()=>({status:'ok', headers:['Fecha','HC','Resultado','ID'], rows:[['2026-11-25','T1','negativo','a1']]})}));
+    assert.equal(await vm.runInContext('fetchEstres()', context), true);
+    assert.equal(calls.length, 1);
+    assert.ok(calls[0].startsWith(SCRIPT_ESTRES + '?action=panel&key=clave%20ficticia&hoja=Estr%C3%A9s&_t='));
+    assert.equal(vm.runInContext('ESTRES_ROWS.length + "|" + ESTADO_ESTRES', context), '1|ok');
+});
+test('estrés: suma el historial CSV viejo sin duplicar un estudio guardado en las dos', async () => {
+    const {context} = estresContext(
+        {ecoestres_script_url:SCRIPT_ESTRES, dashboard_estres_key:'k', dashboard_url_estres:CSV_VIEJO},
+        async url => url.startsWith(SCRIPT_ESTRES)
+            ? {ok:true, json:async()=>({status:'ok', headers:['Fecha','HC','Resultado','ID'], rows:[['2026-11-18','T1','negativo','a1'],['2026-11-25','T2','positivo DA','a2']]})}
+            : {ok:true, text:async()=>'Fecha,HC,Resultado\n2/9/2026,T0,negativo\n18/11/2026,T1,negativo\n'});
+    await vm.runInContext('fetchEstres()', context);
+    assert.equal(vm.runInContext('ESTRES_ROWS.map(r=>r.HC).sort().join()', context), 'T0,T1,T2');
+});
+test('estrés: sin clave no consulta el script; clave rechazada se informa', async () => {
+    let r = estresContext({ecoestres_script_url:SCRIPT_ESTRES}, async () => ({ok:true}));
+    assert.equal(await vm.runInContext('fetchEstres()', r.context), false);
+    assert.deepEqual(r.calls, []);
+    assert.equal(vm.runInContext('ESTADO_ESTRES', r.context), 'sin-fuente');
+    r = estresContext({ecoestres_script_url:SCRIPT_ESTRES, dashboard_estres_key:'k'}, async () => ({ok:true, json:async()=>({status:'denied'})}));
+    assert.equal(await vm.runInContext('fetchEstres()', r.context), false);
+    assert.equal(vm.runInContext('ESTADO_ESTRES', r.context), 'err');
+    assert.match(vm.runInContext('ESTRES_ERROR', r.context), /clave de estrés rechazada/);
+});
+test('estrés: la clave nunca se envía a una URL que no sea de Apps Script', async () => {
+    const {context, calls} = estresContext({ecoestres_script_url:'https://example.com/macros/s/X/exec', dashboard_estres_key:'k'}, async () => ({ok:true}));
+    await vm.runInContext('fetchEstres()', context);
+    assert.deepEqual(calls, []);
+});
+test('estrés: un enlace CSV despublicado (página HTML) no se toma como estudios', async () => {
+    const {context} = estresContext({dashboard_url_estres:CSV_VIEJO}, async () => ({ok:true, text:async()=>'<!DOCTYPE html><html>login</html>'}));
+    await vm.runInContext('fetchEstres()', context);
+    assert.equal(vm.runInContext('ESTRES_ROWS.length + "|" + ESTADO_ESTRES', context), '0|err');
 });

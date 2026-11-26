@@ -117,8 +117,22 @@ columna lo actualiza acá en el mismo PR.
 | 89 | `Institución` | elegida de la lista de ⚙️; `-` si no se eligió (desde 10/11/2026) |
 | 90 | `ID Estudio` | lo agrega el script; identifica el envío y evita duplicados al reintentar |
 
-## Pestaña de Eco Estrés
+## Eco Estrés (planilla propia desde el 18/11/2026)
 
-La escribe la app de Eco Estrés (otro repositorio). El panel usa: `Fecha`, `HC`,
-`Edad`, `Sexo`, `Protocolo`, `Resultado`, `Territorio`, `% FCMT`, `METs`,
-`DP máximo`. Todavía se lee por CSV publicado; pendiente pasarla a lectura con clave.
+Los estudios de estrés se guardan en otra planilla, **Base de Datos Eco Estrés**
+(pestaña `Estrés`), que escribe la app de Eco Estrés (repo `eco-estres-cardiaco`)
+con su propio Apps Script (`apps-script-eco-estres.gs`).
+
+El panel la lee **con clave**, igual que Doppler: usa la URL `/exec` que la app de
+estrés ya guarda en este navegador (`ecoestres_script_url`, mismo sitio) y una clave
+propia (`dashboard_estres_key`, se carga en el panel → modo Eco estrés → Conexión).
+Pide `?action=panel&key=…&hoja=Estrés`; la fecha viaja como `AAAA-MM-DD`.
+
+Historial opcional: la pestaña `Estrés` vieja (dentro de la planilla de
+Ecocardiografía, estudios hasta el 18/11/2026, esquema anterior) se puede sumar por
+CSV publicado (`dashboard_url_estres`). El panel une ambas sin duplicar (por `ID`, o
+HC + fecha; manda la planilla nueva).
+
+Columnas que usa el panel (por nombre): `Fecha`, `HC`, `Edad`, `Sexo`, `Protocolo`,
+`Resultado`, `Categorización`, `Territorio`, `% FCMT`, `METs`, `DP máximo`,
+`WMSI post`, `Informe`, `ID`.

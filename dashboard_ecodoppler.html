@@ -38,7 +38,10 @@ h1{font-family:'Fraunces',serif;font-weight:900;font-size:2.8rem;line-height:1;l
 h1 em{font-style:italic;color:var(--teal)}
 .sub{color:var(--ink-dim);margin-top:.6rem;font-size:1rem;font-weight:300}
 .header-row{display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:1.5rem}
-.actions{display:flex;gap:.75rem;align-items:center}
+.actions{display:flex;flex-direction:column;align-items:flex-end;gap:.65rem;flex:1 1 520px;min-width:0}
+.actions-row{display:flex;gap:.6rem;align-items:center;flex-wrap:wrap;justify-content:flex-end}
+a.btn{text-decoration:none}
+.btn-sm{padding:.5rem .9rem;font-size:.8rem}
 .btn{
   font-family:'Outfit',sans-serif;font-weight:600;font-size:.85rem;cursor:pointer;
   padding:.7rem 1.2rem;border-radius:12px;border:1px solid var(--line);
@@ -51,11 +54,11 @@ h1 em{font-style:italic;color:var(--teal)}
 /* SYNC STATUS */
 .sync-status{
   font-family:'Space Mono',monospace;font-size:.74rem;padding:.5rem .9rem;border-radius:10px;
-  border:1px solid var(--line);white-space:nowrap;transition:all .3s
+  border:1px solid var(--line);transition:all .3s;max-width:460px;line-height:1.4
 }
 .sync-status.syncing{color:var(--amber);border-color:var(--amber)}
 .sync-status.ok{color:var(--teal);border-color:var(--teal-dim)}
-.sync-status.err{color:var(--ink-dim)}
+.sync-status.err{color:var(--amber);border-color:var(--line)}
 
 /* KPI CARDS */
 .kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:1rem;margin-bottom:2rem}
@@ -65,7 +68,7 @@ h1 em{font-style:italic;color:var(--teal)}
 }
 .kpi:hover{transform:translateY(-4px)}
 .kpi::before{content:'';position:absolute;top:0;left:0;width:100%;height:3px;background:var(--accent,var(--teal))}
-.kpi-label{font-size:.74rem;color:var(--ink-dim);text-transform:uppercase;letter-spacing:.12em;font-weight:500}
+.kpi-label{padding-right:2rem;font-size:.74rem;color:var(--ink-dim);text-transform:uppercase;letter-spacing:.12em;font-weight:500}
 .kpi-value{font-family:'Fraunces',serif;font-weight:900;font-size:2.6rem;line-height:1;margin:.5rem 0 .2rem;color:var(--accent,var(--ink))}
 .kpi-sub{font-size:.8rem;color:var(--ink-dim);font-family:'Space Mono',monospace}
 .kpi-icon{position:absolute;top:1.2rem;right:1.2rem;font-size:1.4rem;opacity:.5}
@@ -194,10 +197,28 @@ tbody tr:hover{background:var(--panel2)}
   h1{font-size:2rem}
 }
 
-.modo-sel{display:inline-flex;gap:0;border:1px solid rgba(255,255,255,.14);border-radius:10px;overflow:hidden;margin-right:.5rem}
-.modo-btn{background:transparent;border:none;color:#8a96b3;padding:.5rem .9rem;font-size:.85rem;font-weight:600;cursor:pointer;transition:all .15s}
-.modo-btn:hover{color:#e8edf7;background:rgba(255,255,255,.05)}
-.modo-btn.active{background:var(--teal,#2dd4bf);color:#0b1020}
+.modo-sel{display:inline-flex;flex-shrink:0;border:1px solid var(--line);border-radius:12px;overflow:hidden;background:var(--panel)}
+.modo-btn{background:transparent;border:none;color:var(--ink-dim);padding:.6rem 1.1rem;font-family:'Outfit',sans-serif;font-size:.88rem;font-weight:600;cursor:pointer;transition:all .15s;white-space:nowrap}
+.modo-btn:hover{color:var(--ink);background:var(--panel2)}
+.modo-btn.active{background:var(--teal);color:var(--bg)}
+
+/* CONEXIÓN (Doppler y Estrés) */
+.conexion{margin-bottom:1.25rem}
+.conexion summary{cursor:pointer;font-family:'Fraunces',serif;font-weight:600;font-size:1.05rem;list-style:none}
+.conexion summary::-webkit-details-marker{display:none}
+.conexion summary::before{content:'▸ ';color:var(--teal)}
+.conexion[open] summary::before{content:'▾ '}
+.conexion .estado{font-family:'Space Mono',monospace;font-size:.74rem;color:var(--ink-dim);margin-left:.5rem;font-weight:400}
+.conexion ol{margin:.9rem 0 1rem 1.2rem;color:var(--ink-dim);font-size:.85rem;line-height:1.6}
+.conexion ol strong,.conexion p strong{color:var(--ink)}
+.conexion code{font-family:'Space Mono',monospace;font-size:.78rem;background:var(--bg2);padding:.1rem .35rem;border-radius:5px;color:var(--teal)}
+.conexion .fila{display:flex;gap:.6rem;flex-wrap:wrap;align-items:center;margin:.6rem 0}
+.conexion .fila input{flex:1;min-width:220px;padding:.65rem .9rem;border-radius:10px;border:1px solid var(--line);background:var(--bg2);color:var(--ink);font-family:'Outfit';font-size:.85rem}
+.conexion .fila input:focus{outline:none;border-color:var(--teal)}
+.conexion .nota{font-size:.78rem;color:var(--ink-dim);margin-top:.3rem}
+.conexion .ok{color:var(--green)}
+.conexion .falta{color:var(--amber)}
+.hidden{display:none!important}
 </style>
 </head>
 <body>
@@ -210,16 +231,20 @@ tbody tr:hover{background:var(--panel2)}
         <p class="sub">Cardiología · Análisis interactivo de estudios</p>
       </div>
       <div class="actions">
-        <div class="modo-sel">
-          <button class="modo-btn active" data-modo="doppler" onclick="setModo('doppler')">🫀 Ecocardiograma</button>
-          <button class="modo-btn" data-modo="estres" onclick="setModo('estres')">🏃 Eco estrés</button>
+        <div class="actions-row">
+          <span class="sync-status" id="sync-status">⟳ Cargando...</span>
+          <div class="modo-sel">
+            <button class="modo-btn active" data-modo="doppler" onclick="setModo('doppler')">🫀 Eco Doppler</button>
+            <button class="modo-btn" data-modo="estres" onclick="setModo('estres')">🏃 Eco estrés</button>
+          </div>
         </div>
-        <a href="index.html">⚙ Configuración en calculadora</a>
-        <span class="sync-status" id="sync-status">⟳ Cargando...</span>
-        <button class="btn" id="btn-refresh" onclick="init()">🔄 Actualizar</button>
-        <button class="btn" onclick="document.getElementById('file-input').click()">📁 Importar Excel/CSV</button>
-        <input type="file" id="file-input" accept=".xlsx,.xls,.csv" style="display:none">
-        <button class="btn" id="btn-export">⬇ Exportar datos</button>
+        <div class="actions-row">
+          <button class="btn btn-sm" id="btn-refresh" onclick="refrescar()">🔄 Actualizar</button>
+          <button class="btn btn-sm" id="btn-import" onclick="document.getElementById('file-input').click()">📁 Importar Excel/CSV</button>
+          <input type="file" id="file-input" accept=".xlsx,.xls,.csv" style="display:none">
+          <button class="btn btn-sm" id="btn-export">⬇ Exportar</button>
+          <a class="btn btn-sm" href="index.html">⚙ Calculadora</a>
+        </div>
       </div>
     </div>
   </header>
@@ -227,6 +252,18 @@ tbody tr:hover{background:var(--panel2)}
   <div class="kpi-grid" id="kpi-grid"></div>
 
   <div id="vista-doppler">
+  <details class="panel conexion" id="doppler-conexion">
+    <summary>Conexión con la planilla de Eco Doppler <span class="estado" id="doppler-conexion-estado"></span></summary>
+    <p class="hint" style="margin-top:.8rem">El panel lee la pestaña <strong>Estudios</strong> de <strong>Base de Datos Ecocardiografía</strong> a través de tu Apps Script, con una clave. La planilla no se publica.</p>
+    <ol>
+      <li>En esa planilla: <strong>Extensiones → Apps Script</strong>. Borrá el código y pegá el de la calculadora (<strong>⚙ → Ver código del script</strong>). Guardá.</li>
+      <li>Arriba elegí la función <code>crearClavePanel</code> → <strong>Ejecutar</strong>. Copiá la clave que aparece en el registro.</li>
+      <li><strong>Implementar → Gestionar implementaciones → ✏️ Editar → Versión: Nueva versión → Implementar</strong>. Así la URL <code>/exec</code> sigue siendo la misma.</li>
+      <li>En la calculadora, <strong>⚙ Configuración</strong>: confirmá la URL del Web App y pegá la clave en <strong>Clave del panel</strong>. Guardar.</li>
+    </ol>
+    <div class="fila"><a class="btn btn-sm" href="index.html">⚙ Abrir la calculadora</a><button class="btn btn-sm" onclick="refrescar()">🔄 Probar de nuevo</button></div>
+    <p class="nota" id="doppler-conexion-detalle"></p>
+  </details>
   <div class="panel-grid">
     <div class="panel col-4">
       <h2>Geometría del VI</h2>
@@ -274,14 +311,27 @@ tbody tr:hover{background:var(--panel2)}
   </div><!-- /vista-doppler -->
 
   <div id="vista-estres" style="display:none">
-    <div id="estres-sin-url" class="panel col-12" style="margin-bottom:1.25rem;display:none">
-      <h2>Conectar la pestaña de eco estrés</h2>
-      <p class="hint">Publicá la pestaña <strong>Estrés</strong> del Sheet como CSV y pegá la URL acá. Queda guardada en este navegador.</p>
-      <div class="table-controls">
-        <div class="search-box" style="flex:1"><input type="text" id="estres-url" placeholder="https://docs.google.com/spreadsheets/d/e/.../pub?gid=...&single=true&output=csv"></div>
-        <button class="btn" onclick="guardarUrlEstres()">Conectar</button>
+    <details class="panel conexion" id="estres-conexion">
+      <summary>Conexión con la planilla de Eco Estrés <span class="estado" id="estres-conexion-estado"></span></summary>
+      <p class="hint" style="margin-top:.8rem">El panel lee <strong>Base de Datos Eco Estrés</strong> a través del Apps Script de la app de eco estrés, con una clave. La planilla no se publica.</p>
+      <p class="nota">URL del script de estrés en este navegador: <span id="estres-url-estado"></span></p>
+      <ol>
+        <li>En <strong>Base de Datos Eco Estrés</strong>: <strong>Extensiones → Apps Script</strong>. Borrá el código y pegá el de la app de eco estrés (<strong>⚙ Configurar planilla → Ver código del script</strong>). Guardá.</li>
+        <li>Elegí la función <code>crearClavePanel</code> → <strong>Ejecutar</strong>. Copiá la clave del registro.</li>
+        <li><strong>Implementar → Gestionar implementaciones → ✏️ Editar → Versión: Nueva versión → Implementar</strong> (la URL no cambia).</li>
+        <li>Pegá la clave acá abajo y tocá <strong>Guardar clave</strong>.</li>
+      </ol>
+      <div class="fila">
+        <input type="password" id="estres-key" placeholder="Clave del panel de eco estrés" autocomplete="off">
+        <button class="btn btn-sm" onclick="guardarClaveEstres()">Guardar clave</button>
       </div>
-    </div>
+      <p class="nota" style="margin-top:1rem"><strong>Historial anterior (opcional):</strong> los estudios de estrés guardados antes de separar las planillas siguen en la pestaña <em>Estrés</em> de la planilla de Ecocardiografía. Si esa pestaña está publicada como CSV, pegá su enlace para sumarlos. <span id="estres-csv-estado"></span></p>
+      <div class="fila">
+        <input type="text" id="estres-url" placeholder="https://docs.google.com/spreadsheets/d/e/.../pub?gid=...&single=true&output=csv">
+        <button class="btn btn-sm" onclick="guardarUrlEstres()">Guardar enlace</button>
+        <button class="btn btn-sm" onclick="quitarUrlEstres()">Quitar</button>
+      </div>
+    </details>
 
     <div class="panel-grid">
       <div class="panel col-6">
@@ -323,12 +373,14 @@ tbody tr:hover{background:var(--panel2)}
     <p class="hint">Clic en cualquier fila para ver el informe completo · <span id="count-label"></span></p>
     <div class="table-controls">
       <div class="search-box"><input type="text" id="search" placeholder="Buscar por HC, edad, hallazgo..."></div>
+      <span id="filter-chips" style="display:contents">
       <div class="filter-chip active" data-filter="all">Todos</div>
       <div class="filter-chip" data-filter="fevi-low">FEVI &lt;50%</div>
       <div class="filter-chip" data-filter="dias">Disf. diastólica</div>
       <div class="filter-chip" data-filter="valv">Valvulopatía</div>
       <div class="filter-chip" data-filter="htp">HTP</div>
       <div class="filter-chip" data-filter="fa">FA</div>
+      </span>
     </div>
     <div class="date-controls">
       <div class="date-search-box"><input type="text" id="date-search" placeholder="Filtrar por fecha (ej: 2026-05, 08/05)..."></div>
@@ -338,16 +390,7 @@ tbody tr:hover{background:var(--panel2)}
     </div>
     <div class="tbl-scroll">
       <table>
-        <thead><tr>
-          <th data-sort="Fecha">Fecha</th>
-          <th data-sort="HC- Nombre y Apellido">HC</th>
-          <th data-sort="Edad">Edad</th>
-          <th data-sort="Sexo">Sexo</th>
-          <th data-sort="FEy">FEVI</th>
-          <th data-sort="Geometría">Geometría</th>
-          <th data-sort="PSAP">PSAP</th>
-          <th>Hallazgos</th>
-        </tr></thead>
+        <thead id="thead"></thead>
         <tbody id="tbody"></tbody>
       </table>
     </div>
@@ -397,6 +440,7 @@ const usaPanelConClave = () => !!(getPanelKey() && getPanelScriptUrl());
 const hayFuenteDoppler = () => usaPanelConClave() || !!getSheetCsvUrl();
 let STUDIES = [];
 let SHEET_ROWS = []; // lo que viene de Google Sheets en vivo
+let ESTADO_DOPPLER = 'pendiente'; // pendiente | sin-fuente | sync | ok | err | clave | script
 
 // Fecha a formato canónico ISO YYYY-MM-DD para que 2026-04-21 (seed) y 21/4/2026 (Sheets)
 // colapsen a la misma clave. parseDate está declarada más abajo (function hoisting).
@@ -410,8 +454,14 @@ function canonDate(v){
 // del mismo día). WeakMap → misma fila = misma clave (idempotente).
 const _noHcIds = new WeakMap();
 let _noHcSeq = 0;
+// La planilla de Lucas titula la columna 2 «HC- Nombre y Apellido»; una planilla nueva
+// creada por el script la titula «HC». El panel acepta las dos.
+const hcOf = s => {
+  const v = s['HC- Nombre y Apellido'] ?? s['HC'];
+  return String(v==null?'':v).trim();
+};
 const studyKey = s => {
-  const hc = String(s['HC- Nombre y Apellido']==null?'':s['HC- Nombre y Apellido']).trim();
+  const hc = hcOf(s);
   if(hc==='' || hc==='-'){
     if(!_noHcIds.has(s)) _noHcIds.set(s, ++_noHcSeq);
     return 'sinHC#'+_noHcIds.get(s);
@@ -483,8 +533,8 @@ async function fetchPanelConClave(){
 
 async function fetchSheet(){
   try{
-    if (!hayFuenteDoppler()) { SHEET_ROWS = []; actualizarContador(); return false; }
-    actualizarContador('sync');
+    if (!hayFuenteDoppler()) { SHEET_ROWS = []; ESTADO_DOPPLER='sin-fuente'; actualizarContador(); return false; }
+    ESTADO_DOPPLER='sync'; actualizarContador();
     if (usaPanelConClave()) {
       SHEET_ROWS=await fetchPanelConClave();
     } else {
@@ -492,13 +542,18 @@ async function fetchSheet(){
       const url=base+(base.includes('?') ? '&' : '?')+'_t='+Date.now(); // evita caché
       const res=await fetch(url);
       if(!res.ok) throw new Error('HTTP '+res.status);
-      SHEET_ROWS=csvToObjects(await res.text());
+      const texto=await res.text();
+      // Una planilla despublicada devuelve la página de Google, no un CSV.
+      if(/^\s*</.test(texto)){ const err=new Error('el enlace CSV ya no está publicado'); err.estado='err'; throw err; }
+      SHEET_ROWS=csvToObjects(texto);
     }
+    ESTADO_DOPPLER='ok';
     actualizarContador();
     return true;
   }catch(err){
     console.warn('No se pudo leer Google Sheets:',err.message);
-    actualizarContador(err.estado || 'err');
+    ESTADO_DOPPLER = err.estado || 'err';
+    actualizarContador();
     return false;
   }
 }
@@ -882,14 +937,17 @@ function passDate(s){
   }
   return true;
 }
-function renderTable(){
-  if(MODO==='estres') return renderTableEstres();
-  const q=document.getElementById('search').value.toLowerCase();
-  let rows=STUDIES.filter(passFilter).filter(passDate).filter(s=>{
-    if(!q)return true;
-    return JSON.stringify(s).toLowerCase().includes(q);
-  });
-  rows.sort((a,b)=>{
+const THEAD = {
+  doppler: [['Fecha','Fecha'],['HC','HC'],['Edad','Edad'],['Sexo','Sexo'],['FEy','FEVI'],['Geometría','Geometría'],['PSAP','PSAP'],[null,'Hallazgos']],
+  estres:  [['Fecha','Fecha'],['HC','HC'],['Edad','Edad'],['Sexo','Sexo'],['Resultado','Resultado'],['Territorio','Territorio'],['% FCMT','% FCMT'],['METs','METs']]
+};
+function renderThead(){
+  document.getElementById('thead').innerHTML = '<tr>' + THEAD[MODO].map(([k,l])=>
+    k ? `<th data-sort="${k}">${l}${sortKey===k?(sortDir>0?' ▲':' ▼'):''}</th>` : `<th>${l}</th>`).join('') + '</tr>';
+}
+const sortVal = (s,k) => k==='HC' ? hcOf(s) : s[k];
+function sortRows(rows){
+  return rows.sort((a,b)=>{
     // Fecha: comparar como timestamp real, no como número parcial ni string
     if(sortKey==='Fecha'){
       const ta=dateVal(a['Fecha']),tb=dateVal(b['Fecha']);
@@ -898,17 +956,27 @@ function renderTable(){
       if(tb===null)return -1;
       return(ta-tb)*sortDir;
     }
-    let va=a[sortKey],vb=b[sortKey];
+    const va=sortVal(a,sortKey),vb=sortVal(b,sortKey);
     const na=num(va),nb=num(vb);
     if(na!==null&&nb!==null){return(na-nb)*sortDir}
     return String(va||'').localeCompare(String(vb||''))*sortDir;
   });
+}
+function renderTable(){
+  renderThead();
+  if(MODO==='estres') return renderTableEstres();
+  const q=document.getElementById('search').value.toLowerCase();
+  let rows=STUDIES.filter(passFilter).filter(passDate).filter(s=>{
+    if(!q)return true;
+    return JSON.stringify(s).toLowerCase().includes(q);
+  });
+  sortRows(rows);
   document.getElementById('count-label').textContent=`${rows.length} estudios`;
   document.getElementById('tbody').innerHTML=rows.map((s,i)=>{
     const idx=STUDIES.indexOf(s);
     return`<tr onclick="openModal(${idx})">
       <td>${txt(s['Fecha'])}</td>
-      <td class="name-cell">${txt(s['HC- Nombre y Apellido'])||'—'}</td>
+      <td class="name-cell">${escHtml(hcOf(s))||'—'}</td>
       <td>${txt(s['Edad'])}</td>
       <td>${txt(s['Sexo'])}</td>
       <td>${feviBadge(num(s['FEy']))}</td>
@@ -916,14 +984,15 @@ function renderTable(){
       <td>${txt(s['PSAP'])?txt(s['PSAP'])+' mmHg':'—'}</td>
       <td>${hallazgos(s)}</td>
     </tr>`;
-  }).join('');
+  }).join('') || `<tr><td colspan="8" style="text-align:center;padding:2rem;color:var(--ink-dim)">${hayFuenteDoppler()||STUDIES.length?'Sin estudios para mostrar':'Sin conexión con la planilla: mirá «Conexión con la planilla de Eco Doppler» arriba'}</td></tr>`;
 }
+function escHtml(v){return String(v==null?'':v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 
 /* ============ MODAL ============ */
 let modalReport='';
 function openModal(idx){
   const s=STUDIES[idx];
-  document.getElementById('m-title').textContent='HC '+(txt(s['HC- Nombre y Apellido'])||'Estudio');
+  document.getElementById('m-title').textContent='HC '+(hcOf(s)||'Estudio');
   document.getElementById('m-meta').textContent=`${txt(s['Fecha'])} · ${txt(s['Edad'])} años · ${txt(s['Sexo'])==='M'?'Masculino':'Femenino'} · ${txt(s['Ritmo'])==='fa'?'FA':'RS'}`;
   const grid=[
     ['FEVI',txt(s['FEy'])+'%'],['DDVI',txt(s['DDVI'])+' mm'],['Geometría',txt(s['Geometría'])],
@@ -968,10 +1037,13 @@ document.getElementById('file-input').addEventListener('change',e=>{
   reader.readAsBinaryString(file);
 });
 document.getElementById('btn-export').addEventListener('click',()=>{
-  const ws=XLSX.utils.json_to_sheet(STUDIES);
+  const estres = MODO==='estres';
+  const datos = estres ? ESTRES_ROWS : STUDIES;
+  if(!datos.length){ toast('No hay estudios para exportar'); return; }
+  const ws=XLSX.utils.json_to_sheet(datos);
   const wb=XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb,ws,'Estudios');
-  XLSX.writeFile(wb,`ecodoppler_export_${new Date().toISOString().slice(0,10)}.xlsx`);
+  XLSX.utils.book_append_sheet(wb,ws,estres?'Estrés':'Estudios');
+  XLSX.writeFile(wb,`${estres?'ecoestres':'ecodoppler'}_export_${new Date().toISOString().slice(0,10)}.xlsx`);
   toast('Datos exportados ✓');
 });
 
@@ -992,12 +1064,12 @@ document.querySelectorAll('.filter-chip').forEach(c=>{
     c.classList.add('active');currentFilter=c.dataset.filter;renderTable();
   });
 });
-document.querySelectorAll('th[data-sort]').forEach(th=>{
-  th.addEventListener('click',()=>{
-    const k=th.dataset.sort;
-    if(sortKey===k)sortDir*=-1;else{sortKey=k;sortDir=1}
-    renderTable();
-  });
+// El encabezado se redibuja al cambiar de modo: un solo escuchador en <thead>.
+document.getElementById('thead').addEventListener('click',e=>{
+  const th=e.target.closest('th[data-sort]'); if(!th)return;
+  const k=th.dataset.sort;
+  if(sortKey===k)sortDir*=-1;else{sortKey=k;sortDir=1}
+  renderTable();
 });
 document.addEventListener('keydown',e=>{if(e.key==='Escape')closeModal()});
 
@@ -1009,65 +1081,167 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape')closeModal()});
    siempre quedan intactos y acá se agregan los propios.
    ══════════════════════════════════════════════════════════════ */
 // El contador de arriba refleja el modo activo, no siempre el de Doppler.
-function actualizarContador(estado){
+function actualizarContador(){
   const st = document.getElementById('sync-status');
   if(!st) return;
-  if(estado==='sync'){ st.textContent='⟳ Sincronizando...'; st.className='sync-status syncing'; return; }
-  if(estado==='err'){ st.textContent='⚠ Sin conexión a Sheets (usando datos guardados)'; st.className='sync-status err'; return; }
-  if(estado==='clave'){ st.textContent='⚠ Clave del panel rechazada: revisala en ⚙ Configuración de la calculadora'; st.className='sync-status err'; return; }
-  if(estado==='script'){ st.textContent='⚠ El Apps Script no tiene la lectura del panel: pegá el código nuevo y volvé a implementar'; st.className='sync-status err'; return; }
   const enEstres = (typeof MODO!=='undefined' && MODO==='estres');
-  if(enEstres && !getUrlEstres()){ st.textContent='⚠ Pestaña Estrés sin conectar'; st.className='sync-status err'; return; }
-  if(!enEstres && !hayFuenteDoppler()){ st.textContent='⚙ Sin conexión configurada: abrí Configuración en la calculadora o importá un archivo'; st.className='sync-status err'; return; }
-  const n = enEstres ? ESTRES_ROWS.length : SHEET_ROWS.length;
-  const palabra = (n === 1) ? ' estudio' : ' estudios';
-  st.textContent = '✓ ' + n + palabra + (enEstres ? ' de estrés' : ' en vivo');
-  st.className = 'sync-status ok';
+  const estado = enEstres ? ESTADO_ESTRES : ESTADO_DOPPLER;
+  const pon = (t,c)=>{ st.textContent=t; st.className='sync-status '+c; };
+  if(estado==='sync' || estado==='pendiente') pon('⟳ Sincronizando...','syncing');
+  else if(!enEstres){
+    if(estado==='sin-fuente') pon('⚙ Sin conexión con la planilla de Eco Doppler'+(STUDIES.length?' (mostrando importados)':''),'err');
+    else if(estado==='clave') pon('⚠ Clave del panel rechazada: revisala en ⚙ de la calculadora','err');
+    else if(estado==='script') pon('⚠ El Apps Script de Doppler todavía no tiene la lectura del panel','err');
+    else if(estado==='err') pon('⚠ No se pudo leer la planilla de Doppler'+(STUDIES.length?' (mostrando guardados)':''),'err');
+    else { const n=SHEET_ROWS.length; pon('✓ '+n+(n===1?' estudio':' estudios')+' de Doppler en vivo','ok'); }
+  } else {
+    if(estado==='sin-fuente') pon('⚙ Sin conexión con la planilla de Eco Estrés','err');
+    else if(estado==='err') pon('⚠ '+(ESTRES_ERROR||'No se pudo leer la planilla de estrés'),'err');
+    else { const n=ESTRES_ROWS.length; pon('✓ '+n+(n===1?' estudio':' estudios')+' de estrés'+(ESTRES_ERROR?' · ⚠ '+ESTRES_ERROR:''),ESTRES_ERROR?'err':'ok'); }
+  }
+  actualizarConexiones();
+}
+
+// Cajas «Conexión con la planilla»: abiertas sólo cuando falta algo.
+function actualizarConexiones(){
+  const dd=document.getElementById('doppler-conexion');
+  if(dd){
+    const ok = ESTADO_DOPPLER==='ok';
+    const msg = {'sin-fuente':'sin configurar','clave':'clave rechazada','script':'falta el código nuevo del script','err':'sin respuesta','ok':(usaPanelConClave()?'conectada con clave':'conectada por CSV publicado'),'sync':'…','pendiente':'…'}[ESTADO_DOPPLER]||'';
+    document.getElementById('doppler-conexion-estado').textContent='· '+msg;
+    document.getElementById('doppler-conexion-estado').className='estado '+(ok?'ok':'falta');
+    const det=[];
+    det.push(getPanelScriptUrl()?'✓ URL del Web App cargada en la calculadora.':'✗ La calculadora no tiene URL del Web App en este navegador.');
+    det.push(getPanelKey()?'✓ Clave del panel cargada.':'✗ Falta la clave del panel.');
+    if(ESTADO_DOPPLER==='script') det.push('El script responde pero es una versión vieja: hacé los pasos 1 y 3.');
+    if(ESTADO_DOPPLER==='clave') det.push('La clave no coincide con la del script: repetí el paso 2 y pegá la clave nueva.');
+    document.getElementById('doppler-conexion-detalle').textContent=det.join('  ');
+    if(ESTADO_DOPPLER!=='sync' && ESTADO_DOPPLER!=='pendiente') dd.open = !ok;
+  }
+  const de=document.getElementById('estres-conexion');
+  if(de){
+    const ok = ESTADO_ESTRES==='ok' && !ESTRES_ERROR;
+    const fuentes=[];
+    if(usaEstresConClave()) fuentes.push('con clave');
+    if(getUrlEstres()) fuentes.push('+ historial CSV');
+    document.getElementById('estres-conexion-estado').textContent='· '+(ESTADO_ESTRES==='sin-fuente'?'sin configurar':ESTADO_ESTRES==='err'?'con error':ok?('conectada '+fuentes.join(' ')):(ESTRES_ERROR||'…'));
+    document.getElementById('estres-conexion-estado').className='estado '+(ok?'ok':'falta');
+    const u=document.getElementById('estres-url-estado');
+    u.textContent = getEstresScriptUrl() ? '✓ la tomé de la app de eco estrés' : '✗ no está: abrí la app de eco estrés en este navegador y configurá la planilla (⚙)';
+    u.className = getEstresScriptUrl() ? 'ok' : 'falta';
+    const c=document.getElementById('estres-csv-estado');
+    c.textContent = getUrlEstres() ? '(enlace cargado)' : '';
+    if(ESTADO_ESTRES!=='sync' && ESTADO_ESTRES!=='pendiente') de.open = !ok;
+  }
 }
 
 let MODO = 'doppler';
 let ESTRES_ROWS = [];
-const URL_ESTRES_KEY = 'dashboard_url_estres';
+let ESTADO_ESTRES = 'pendiente';
+let ESTRES_ERROR = '';
+let ESTRES_CARGADO = false;
+const URL_ESTRES_KEY = 'dashboard_url_estres';     // historial: pestaña Estrés vieja publicada como CSV
+const ESTRES_KEY_KEY = 'dashboard_estres_key';     // clave del panel del script de estrés
 
 function getUrlEstres(){ return localStorage.getItem(URL_ESTRES_KEY) || ''; }
+// La app de eco estrés vive en el mismo sitio y guarda su URL /exec acá:
+// el panel la reutiliza, así no hay que cargarla dos veces.
+const getEstresScriptUrl = () => validarExec(localStorage.getItem('ecoestres_script_url') || '');
+const getEstresKey = () => localStorage.getItem(ESTRES_KEY_KEY) || '';
+const getEstresHoja = () => localStorage.getItem('ecoestres_hoja') || 'Estrés';
+const usaEstresConClave = () => !!(getEstresKey() && getEstresScriptUrl());
+function validarExec(raw){
+  try {
+    const u = new URL(raw);
+    const ok = u.protocol==='https:' && u.hostname==='script.google.com' && /^\/macros\/s\/[^/]+\/exec$/.test(u.pathname);
+    return ok ? u.origin + u.pathname : '';
+  } catch(e) { return ''; }
+}
 
+function guardarClaveEstres(){
+  const k = document.getElementById('estres-key').value.trim();
+  if(!k){ toast('Pegá la clave del panel de estrés'); return; }
+  localStorage.setItem(ESTRES_KEY_KEY, k);
+  document.getElementById('estres-key').value='';
+  toast('Clave guardada en este navegador');
+  fetchEstres().then(()=>renderAll());
+}
 function guardarUrlEstres(){
   const u = document.getElementById('estres-url').value.trim();
-  if(!u.includes('output=csv')){ toast('La URL tiene que terminar en output=csv'); return; }
+  if(!/^https:\/\/docs\.google\.com\/spreadsheets\/.+output=csv/.test(u)){ toast('El enlace tiene que ser de Google Sheets y terminar en output=csv'); return; }
   localStorage.setItem(URL_ESTRES_KEY, u);
-  document.getElementById('estres-sin-url').style.display='none';
+  document.getElementById('estres-url').value='';
+  fetchEstres().then(()=>renderAll());
+}
+function quitarUrlEstres(){
+  localStorage.removeItem(URL_ESTRES_KEY);
+  toast('Enlace del historial quitado');
   fetchEstres().then(()=>renderAll());
 }
 
+async function leerEstresConClave(){
+  const url=getEstresScriptUrl()+'?action=panel&key='+encodeURIComponent(getEstresKey())
+    +'&hoja='+encodeURIComponent(getEstresHoja())+'&_t='+Date.now();
+  const res=await fetch(url);
+  if(!res.ok) throw new Error('el script de estrés respondió HTTP '+res.status);
+  let data; try { data=await res.json(); } catch(e){ throw new Error('el script de estrés no respondió bien'); }
+  if(data && data.status==='denied') throw new Error('clave de estrés rechazada');
+  if(!data || data.status!=='ok' || !Array.isArray(data.rows) || !Array.isArray(data.headers))
+    throw new Error('el script de estrés todavía no tiene la lectura del panel (pegá el código nuevo)');
+  return panelToObjects(data);
+}
+async function leerEstresCsv(){
+  const base=getUrlEstres();
+  const res=await fetch(base+(base.includes('?')?'&':'?')+'_t='+Date.now());
+  if(!res.ok) throw new Error('el historial CSV respondió HTTP '+res.status);
+  const texto=await res.text();
+  if(/^\s*</.test(texto)) throw new Error('el historial CSV ya no está publicado');
+  return csvToObjects(texto);
+}
+
 async function fetchEstres(){
-  const base = getUrlEstres();
-  if(!base){ ESTRES_ROWS=[]; actualizarContador(); return false; }
-  try{
-    actualizarContador('sync');
-    const res = await fetch(base + '&_t=' + Date.now());
-    if(!res.ok) throw new Error('HTTP ' + res.status);
-    ESTRES_ROWS = csvToObjects(await res.text());
-    actualizarContador();
-    return true;
-  }catch(e){
-    ESTRES_ROWS = [];
-    actualizarContador('err');
-    toast('No se pudo leer la pestaña Estrés: ' + e.message);
-    return false;
-  }
+  ESTRES_CARGADO = true;
+  if(!usaEstresConClave() && !getUrlEstres()){ ESTRES_ROWS=[]; ESTRES_ERROR=''; ESTADO_ESTRES='sin-fuente'; actualizarContador(); return false; }
+  ESTADO_ESTRES='sync'; actualizarContador();
+  const errores=[];
+  let nuevos=[], viejos=[];
+  if(usaEstresConClave()){ try{ nuevos=await leerEstresConClave(); }catch(e){ errores.push(e.message); } }
+  else errores.push('falta la clave de la planilla de estrés');
+  if(getUrlEstres()){ try{ viejos=await leerEstresCsv(); }catch(e){ errores.push(e.message); } }
+  // Unión sin duplicados: un estudio guardado en las dos planillas cuenta una vez,
+  // y manda la versión de la planilla nueva.
+  const clave = r => { const id=txt(r['ID']); if(id) return 'id:'+id; return hcOf(r)+'|'+canonDate(r['Fecha']); };
+  const mapa=new Map();
+  viejos.forEach(r=>mapa.set(clave(r),r));
+  nuevos.forEach(r=>mapa.set(clave(r),r));
+  // Un estudio sin ID en la vieja y con ID en la nueva: misma HC y fecha → se queda el nuevo.
+  const hcFecha=new Set(nuevos.map(r=>hcOf(r)+'|'+canonDate(r['Fecha'])));
+  viejos.forEach(r=>{ if(!txt(r['ID']) && hcOf(r) && hcFecha.has(hcOf(r)+'|'+canonDate(r['Fecha']))) mapa.delete(clave(r)); });
+  ESTRES_ROWS=[...mapa.values()];
+  ESTRES_ERROR=errores.join(' · ');
+  ESTADO_ESTRES = (ESTRES_ROWS.length || !errores.length) ? 'ok' : 'err';
+  actualizarContador();
+  return !errores.length;
 }
 
 function setModo(m){
   MODO = m;
+  sortKey='Fecha'; sortDir=-1;
   document.querySelectorAll('.modo-btn').forEach(b=>b.classList.toggle('active', b.dataset.modo===m));
   document.getElementById('vista-doppler').style.display = (m==='doppler') ? '' : 'none';
   document.getElementById('vista-estres').style.display  = (m==='estres')  ? '' : 'none';
   document.getElementById('titulo-modo').textContent = (m==='estres') ? 'Eco Estrés' : 'Eco Doppler';
-  const falta = (m==='estres' && !getUrlEstres());
-  document.getElementById('estres-sin-url').style.display = falta ? '' : 'none';
-  if(m==='estres' && getUrlEstres() && !ESTRES_ROWS.length){ fetchEstres().then(()=>renderAll()); return; }
+  document.getElementById('filter-chips').classList.toggle('hidden', m==='estres');
+  document.getElementById('btn-import').classList.toggle('hidden', m==='estres');
+  document.getElementById('search').placeholder = m==='estres' ? 'Buscar por HC, resultado, territorio...' : 'Buscar por HC, edad, hallazgo...';
   actualizarContador();
   renderAll();
+  if(m==='estres' && !ESTRES_CARGADO){ fetchEstres().then(()=>{ if(MODO==='estres') renderAll(); }); }
+}
+
+function refrescar(){
+  if(MODO==='estres') return fetchEstres().then(()=>renderAll());
+  return init();
 }
 
 /* ── KPIs de estrés ── */
@@ -1082,7 +1256,7 @@ function renderKPIsEstres(){
   const suf = R.filter(r=>{const p=num(r['% FCMT']); return p!==null && p>=85;}).length;
 
   const kpis=[
-    {label:'Estudios de estrés',value:n,sub:'en la pestaña Estrés',icon:'🏃',accent:'var(--teal)'},
+    {label:'Estudios de estrés',value:n,sub:'en la planilla de estrés',icon:'🏃',accent:'var(--teal)'},
     {label:'Positivos',value:positivos,sub:pct(positivos)+'% del total',icon:'⚠️',accent:'var(--rose)'},
     {label:'No concluyentes',value:noConcl,sub:pct(noConcl)+'% del total',icon:'❓',accent:'var(--amber)'},
     {label:'Tests suficientes',value:suf,sub:pct(suf)+'% llegó al 85%',icon:'🎯',accent:'var(--blue)'},
@@ -1183,8 +1357,7 @@ function renderChartsEstres(){
 
 function renderTableEstres(){
   const q=document.getElementById('search').value.toLowerCase();
-  const rows=ESTRES_ROWS.filter(r=>!q||JSON.stringify(r).toLowerCase().includes(q))
-    .filter(r=>{const d=document.getElementById('date-search'); return !d||!d.value||dateMatchesText(txt(r['Fecha']),d.value.toLowerCase());});
+  const rows=sortRows(ESTRES_ROWS.filter(r=>!q||JSON.stringify(r).toLowerCase().includes(q)).filter(passDate));
   document.getElementById('count-label').textContent=`${rows.length} estudios de estrés`;
   const badge = r => {
     const v=txt(r['Resultado']);
@@ -1195,7 +1368,7 @@ function renderTableEstres(){
     const i=ESTRES_ROWS.indexOf(r);
     return `<tr onclick="openModalEstres(${i})">
       <td>${txt(r['Fecha'])}</td>
-      <td class="name-cell">${txt(r['HC'])||'—'}</td>
+      <td class="name-cell">${escHtml(hcOf(r))||'—'}</td>
       <td>${txt(r['Edad'])}</td>
       <td>${txt(r['Sexo'])}</td>
       <td>${badge(r)}</td>
@@ -1203,13 +1376,13 @@ function renderTableEstres(){
       <td>${txt(r['% FCMT'])?txt(r['% FCMT'])+'%':'—'}</td>
       <td>${txt(r['METs'])||'—'}</td>
     </tr>`;
-  }).join('') || '<tr><td colspan="8" style="text-align:center;padding:2rem;color:#8a96b3">Sin estudios para mostrar</td></tr>';
+  }).join('') || `<tr><td colspan="8" style="text-align:center;padding:2rem;color:var(--ink-dim)">${ESTADO_ESTRES==='sin-fuente'?'Sin conexión con la planilla de estrés: mirá «Conexión con la planilla de Eco Estrés» arriba':'Sin estudios para mostrar'}</td></tr>`;
 }
 
 function openModalEstres(i){
   const r = ESTRES_ROWS[i];
   if(!r) return;
-  document.getElementById('m-title').textContent = 'HC ' + (txt(r['HC'])||'Estudio');
+  document.getElementById('m-title').textContent = 'HC ' + (hcOf(r)||'Estudio');
   document.getElementById('m-meta').textContent =
     `${txt(r['Fecha'])} · ${txt(r['Edad'])} años · ${txt(r['Sexo'])==='M'?'Masculino':'Femenino'} · ${txt(r['Protocolo'])}`;
   const grid=[
@@ -1233,8 +1406,8 @@ async function init(){
   // 1. Mostrar primero lo que ya tenemos (instantáneo)
   mergeStudies();renderAll();
   // 2. Intentar traer lo más reciente de Google Sheets
-  const ok = await fetchSheet();
-  if(ok){ renderAll(); }
+  await fetchSheet();
+  if(MODO==='doppler') renderAll();
 }
 init();
 </script>
