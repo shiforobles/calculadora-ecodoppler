@@ -8,7 +8,9 @@ al terminar una tarea (ver `AGENTS.md`).
 
 ## Implementando ahora
 
-Nadie. (Regla: un solo asistente implementando a la vez.)
+| Tarea | Responsable | Rama | Desde |
+|---|---|---|---|
+| Panel: planillas separadas (Doppler / Estrés), barra de botones, tabla por modo | Claude (chat Panel ecocardiográfico) | `fix/panel-planillas-separadas` | 26/11 |
 
 ## Trabajo existente fuera de `main` (sin terminar)
 
