@@ -3,14 +3,12 @@
 Única fuente de verdad del estado del proyecto. Lo actualiza cada IA al tomar y
 al terminar una tarea (ver `AGENTS.md`).
 
-Última actualización: 10/11/2026 10:40 · Claude (chat 03 · Seguridad) ·
+Última actualización: 26/11/2026 · Claude (chat Panel ecocardiográfico) ·
 `main` publicado en https://shiforobles.github.io/calculadora-ecodoppler/
 
 ## Implementando ahora
 
-| Tarea | Responsable | Rama | Desde |
-|---|---|---|---|
-| Panel: planillas separadas (Doppler / Estrés), barra de botones, tabla por modo | Claude (chat Panel ecocardiográfico) | `fix/panel-planillas-separadas` | 26/11 |
+Nadie. (Regla: un solo asistente implementando a la vez.)
 
 ## Trabajo existente fuera de `main` (sin terminar)
 
@@ -21,6 +19,7 @@ al terminar una tarea (ver `AGENTS.md`).
 | Módulo MCH (versión amplia) | Codex | `codex/modulo-mch` · sin PR | Reemplazada por `feat/mch` (base de trabajo) | — | Borrar la rama cuando se mergee #7 |
 | Refactor: extraer pericardio del informe | Claude (chat "Refactor") | sin rama: patch en ese chat | Hecho como patch sobre 69970cd, sin commit | 83 en verde según ese chat | Subir el patch a una rama (`refactor/pericardio`), rebasar sobre `main`, revisión de Lucas, merge |
 | Seguridad: planilla e historial Git | Lucas | — | Pendiente | — | Pegar el código nuevo del Apps Script (panel con clave + guardado confirmado), nueva implementación, archivar la vieja y despublicar la planilla (`docs/CONFIGURACION-PRIVADA.md`); después limpiar historial. Sin force-push sin OK de Lucas |
+| Panel: conectar las dos planillas | Lucas | — | Pendiente (26/11). Sin esto el panel Doppler muestra 0 y el de estrés sólo el historial | — | **Doppler**: en Base de Datos Ecocardiografía pegar el código de ⚙ de la calculadora, ejecutar `crearClavePanel`, Gestionar implementaciones → Editar → Nueva versión; pegar la clave en ⚙. **Estrés**: en Base de Datos Eco Estrés pegar el código de la app de estrés (⚙ → Ver código), `crearClavePanel`, nueva versión; pegar la clave en el panel → Eco estrés → Conexión. Los pasos están dentro del panel |
 
 ## Decisiones pendientes de Lucas
 
@@ -38,6 +37,7 @@ aórtica → mitral → VI/diástole (después de MCH).
 
 | Fecha | Qué | Commit / PR | Quién | Verificado |
 |---|---|---|---|---|
+| 26/11 | Panel con planillas separadas: Doppler y Estrés leen cada una su planilla con clave (estrés usa la URL de la app de estrés + clave propia, y suma sin duplicar el historial CSV de la pestaña vieja); cajas «Conexión» con los pasos y el estado; barra de arriba en dos filas (ya no se corta el selector); tabla, orden, exportar y búsqueda según el modo; HC acepta «HC» o «HC- Nombre y Apellido». Script de estrés con lectura del panel: `eco-estres-cardiaco` 6c0cc0e | ver PR (fix/panel-planillas-separadas) | Claude (chat Panel ecocardiográfico) | 73/73 + batería de estrés (1200 casos, 0 fallas) + navegador con datos ficticios (sin configurar, conectado, 820 px). **Falta probar contra los Apps Script reales**: depende de los pasos de Lucas |
 | 10/11 | Selector «Institución» siempre visible al lado de Ventana Acústica, con alta en línea («＋ Agregar institución…»); la elegida vale todo el día y al día siguiente se marca en ámbar para volver a elegir | #16 | Claude (chat 03 · Seguridad) | 68/68 + navegador escritorio y celular. Informe sin cambios |
 | 10/11 | Panel con clave (el panel lee del Apps Script con clave, sin publicar la planilla) · Guardado confirmado con ID y sin duplicar reintentos · Decimales guardados como número · Columna «Institución» (lista en ⚙️) · `docs/CONTRATO-PLANILLA.md` | #15 | Claude (chat 03 · Seguridad) | 67/67 en verde + navegador con Apps Script ficticio. **Sin probar contra Apps Script real**: Lucas pega el código nuevo, crea la clave, hace nueva implementación y prueba con estudio ficticio. Informe sin cambios. Pendiente aparte: mejoras del panel (otro proyecto), distinguir medido vs preset |
 | 08/11 | Diástole según Figura 3 ASE 2025: ruta a parámetros adicionales, ≥1 positivo, grado III por E/A, PSAP ≥35, grado I con e′ bajo y presión normal, exclusiones → "No valorable" (MAC, IM severa, EM, selector nuevo) | #13 · 2cf2ca8 | Claude (chat Diástole) | Pages desplegó 2cf2ca8 (Actions: success). 67/67 diástole, 59/59 suite con navegador. Lucas lo prueba en uso. Pendiente: narrativo de grado II dice "relajación alterada" aunque e′ sea normal |
